@@ -2,6 +2,9 @@
 @attribute [Authorize]
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
+@inject DataTouch.Web.Services.AuthService AuthService
+@inject DataTouch.Infrastructure.Data.DataTouchDbContext DbContext
+@using Microsoft.EntityFrameworkCore
 
 <PageTitle>Elegir Plantilla - DataTouch</PageTitle>
 
@@ -30,32 +33,128 @@
                                 <div class="dynamic-island"></div>
                                 <div class="iphone-screen" @onwheel:stopPropagation="true" @onwheel="e => HandlePhoneScroll(e)">
                                     <div class="screen-content">
-                                        <div class="preview-hero" style="background: @template.HeroGradient;">
-                                            <div class="preview-avatar"><span>S</span></div>
-                                            <h3 class="preview-name">Sarah Johnson</h3>
-                                            <p class="preview-title">Marketing Director</p>
-                                            <p class="preview-company">Nurtured • Devoted</p>
-                                        </div>
-                                        <div class="preview-actions">
-                                            <button class="action-btn">📞</button>
-                                            <button class="action-btn">📹</button>
-                                            <button class="action-btn">💬</button>
-                                            <button class="action-btn">✉️</button>
-                                        </div>
-                                        <div class="preview-section">
-                                            <h4 class="section-title">Acerca de</h4>
-                                            <p class="section-text">Profesional de marketing con más de 10 años en estrategia digital y desarrollo de marca.</p>
-                                        </div>
-                                        <div class="preview-section">
-                                            <h4 class="section-title">Contacto</h4>
-                                            <div class="contact-item">📧 sarah.johnson@example.com</div>
-                                            <div class="contact-item">📱 +1 (555) 123-4567</div>
-                                        </div>
-                                        <div class="preview-section">
-                                            <h4 class="section-title">Enlaces</h4>
-                                            <div class="link-btn">🔗 Perfil de LinkedIn</div>
-                                            <div class="link-btn">🌐 Sitio Web Personal</div>
-                                        </div>
+                                        @if (template.IsPortfolio)
+                                        {
+                                            @* Portfolio Creative Full Preview - Matches Public Card 1:1 *@
+                                            <div class="portfolio-preview-full">
+                                                @* Hero Section *@
+                                                <div class="pp-hero">
+                                                    <div class="pp-avatar">
+                                                        <span>@GetUserInitials()</span>
+                                                    </div>
+                                                    <h3 class="pp-name">@GetUserDisplayName()</h3>
+                                                    <p class="pp-title">@(_userCard?.Title ?? "Tu Cargo")</p>
+                                                    <p class="pp-company"><span class="pp-company-icon">🏢</span> @(_userCard?.CompanyName ?? _userCard?.Organization?.Name ?? "Tu Empresa")</p>
+                                                    <p class="pp-bio">@(_userCard?.Bio ?? "Tu biografía aparecerá aquí. Describe tu experiencia y especialidades.")</p>
+                                                    
+                                                    @* Social Icons *@
+                                                    <div class="pp-social-row">
+                                                        <span class="pp-social-icon">in</span>
+                                                        <span class="pp-social-icon">📷</span>
+                                                        <span class="pp-social-icon">𝕏</span>
+                                                        <span class="pp-social-icon">▶</span>
+                                                    </div>
+                                                </div>
+
+                                                @* Status Chips *@
+                                                <div class="pp-chips">
+                                                    <span class="pp-chip"><span class="pp-chip-dot"></span> Disponible</span>
+                                                    <span class="pp-chip">⏱ Responde &lt; 1h</span>
+                                                    <span class="pp-chip">📍 El Salvador</span>
+                                                </div>
+
+                                                @* Mi Trabajo Section with REAL images *@
+                                                <div class="pp-work-section">
+                                                    <h4 class="pp-section-title">MI TRABAJO</h4>
+                                                    <div class="pp-gallery-grid">
+                                                        <div class="pp-gallery-item">
+                                                            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop" alt="Portfolio 1" />
+                                                        </div>
+                                                        <div class="pp-gallery-item">
+                                                            <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&h=400&fit=crop" alt="Portfolio 2" />
+                                                        </div>
+                                                        <div class="pp-gallery-item">
+                                                            <img src="https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=400&h=400&fit=crop" alt="Portfolio 3" />
+                                                        </div>
+                                                        <div class="pp-gallery-item">
+                                                            <img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&h=400&fit=crop" alt="Portfolio 4" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                @* CTAs *@
+                                                <div class="pp-cta-section">
+                                                    <button class="pp-cta-primary">👤 Guardar Contacto</button>
+                                                    <div class="pp-cta-row">
+                                                        <button class="pp-cta-secondary pp-whatsapp">💬 WhatsApp</button>
+                                                        <button class="pp-cta-secondary pp-call">📞 Llamar</button>
+                                                        <button class="pp-cta-secondary pp-email">📧 Email</button>
+                                                    </div>
+                                                </div>
+
+                                                @* Contact Form *@
+                                                <div class="pp-form-section">
+                                                    <h4 class="pp-form-title">¿Quieres que te contacte?</h4>
+                                                    <p class="pp-form-subtitle">Déjame tus datos y te respondo pronto</p>
+                                                    
+                                                    <div class="pp-form-field">
+                                                        <label>👤 Nombre completo *</label>
+                                                        <div class="pp-input">Juan Pérez</div>
+                                                    </div>
+                                                    <div class="pp-form-field">
+                                                        <label>📧 Correo electrónico *</label>
+                                                        <div class="pp-input">tu@email.com</div>
+                                                    </div>
+                                                    <div class="pp-form-field">
+                                                        <label>📱 Teléfono *</label>
+                                                        <div class="pp-phone-row">
+                                                            <div class="pp-country-code">SV +503</div>
+                                                            <div class="pp-input pp-phone-input">7000 0000</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="pp-form-field">
+                                                        <label>💬 Mensaje (opcional)</label>
+                                                        <div class="pp-textarea">¿En qué puedo ayudarte?</div>
+                                                    </div>
+                                                    <button class="pp-submit-btn">➤ Enviar mensaje</button>
+                                                </div>
+
+                                                @* Footer *@
+                                                <div class="pp-footer">
+                                                    <span>Powered by <strong>DataTouch</strong></span>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @* Standard Template Preview *@
+                                            <div class="preview-hero" style="background: @template.HeroGradient;">
+                                                <div class="preview-avatar"><span>S</span></div>
+                                                <h3 class="preview-name">Sarah Johnson</h3>
+                                                <p class="preview-title">Marketing Director</p>
+                                                <p class="preview-company">Nurtured • Devoted</p>
+                                            </div>
+                                            <div class="preview-actions">
+                                                <button class="action-btn">📞</button>
+                                                <button class="action-btn">📹</button>
+                                                <button class="action-btn">💬</button>
+                                                <button class="action-btn">✉️</button>
+                                            </div>
+                                            <div class="preview-section">
+                                                <h4 class="section-title">Acerca de</h4>
+                                                <p class="section-text">Profesional de marketing con más de 10 años en estrategia digital y desarrollo de marca.</p>
+                                            </div>
+                                            <div class="preview-section">
+                                                <h4 class="section-title">Contacto</h4>
+                                                <div class="contact-item">📧 sarah.johnson@example.com</div>
+                                                <div class="contact-item">📱 +1 (555) 123-4567</div>
+                                            </div>
+                                            <div class="preview-section">
+                                                <h4 class="section-title">Enlaces</h4>
+                                                <div class="link-btn">🔗 Perfil de LinkedIn</div>
+                                                <div class="link-btn">🌐 Sitio Web Personal</div>
+                                            </div>
+                                        }
                                     </div>
                                     @if (isActive && !_hasScrolled)
                                     {
@@ -188,9 +287,8 @@
         transform-style: preserve-3d;
         transition: 
             transform var(--page-turn-duration) var(--page-turn-easing),
-            opacity var(--page-turn-duration) var(--page-turn-easing),
-            filter var(--page-turn-duration) var(--page-turn-easing);
-        will-change: transform, opacity, filter;
+            opacity var(--page-turn-duration) var(--page-turn-easing);
+        will-change: transform, opacity;
         cursor: pointer;
     }
 
@@ -214,27 +312,62 @@
     }
 
     /* ══════════════════════════════════════════════════════════════════════
-       ACTIVE STATE - CENTER HERO (ALWAYS SHARP)
+       ACTIVE STATE - CENTER HERO (100% SHARP - NO BLUR)
+       Key fix: Override transform-style to FLAT to break 3D context
        ══════════════════════════════════════════════════════════════════════ */
     .carousel-item--active {
         z-index: 50;
-        transform: translateX(0) translateZ(var(--z-active)) rotateY(0deg) scale(1.02);
+        /* CRITICAL: Override preserve-3d to flat - this breaks 3D blur */
+        transform-style: flat !important;
+        /* Simple 2D transform - NO scale to prevent interpolation blur */
+        transform: translateX(0) translateY(0);
         opacity: 1;
-        /* NO blur, NO filter distortion - crystal clear text */
-        filter: none;
-        backface-visibility: hidden;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
+        /* Ensure no filters */
+        filter: none !important;
+        -webkit-filter: none !important;
     }
-
-    /* GPU rasterization for sharpness */
+    
+    .carousel-item--active .page-wrapper {
+        transform-style: flat !important;
+    }
+    
     .carousel-item--active .iphone-frame {
-        transform: translateZ(0);
+        transform-style: flat !important;
+        filter: none !important;
+        -webkit-filter: none !important;
         box-shadow: 
             0 4px 12px rgba(0,0,0,0.08),
             0 12px 40px rgba(0,0,0,0.12),
             0 32px 80px rgba(0,0,0,0.18),
-            0 0 100px rgba(99, 102, 241, 0.1);
+            0 0 100px rgba(99, 102, 241, 0.15);
+    }
+    
+    .carousel-item--active .iphone-screen {
+        filter: none !important;
+        -webkit-filter: none !important;
+        backdrop-filter: none !important;
+        overflow: hidden;
+    }
+    
+    /* SCROLL FIX: Ensure screen-content can scroll */
+    .carousel-item--active .screen-content {
+        filter: none !important;
+        -webkit-filter: none !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .carousel-item--active .screen-content::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .carousel-item--active .portfolio-preview-full,
+    .carousel-item--active .portfolio-preview-full * {
+        filter: none !important;
+        -webkit-filter: none !important;
+        backdrop-filter: none !important;
     }
 
     /* ══════════════════════════════════════════════════════════════════════
@@ -307,11 +440,11 @@
        DIRECTION-BASED PAGE TURN ANIMATION
        ══════════════════════════════════════════════════════════════════════ */
     .nav-next .carousel-item--active {
-        animation: pageEnterFromRight var(--page-turn-duration) var(--page-turn-easing);
+        animation: pageEnterFromRight var(--page-turn-duration) var(--page-turn-easing) forwards;
     }
 
     .nav-prev .carousel-item--active {
-        animation: pageEnterFromLeft var(--page-turn-duration) var(--page-turn-easing);
+        animation: pageEnterFromLeft var(--page-turn-duration) var(--page-turn-easing) forwards;
     }
 
     @@keyframes pageEnterFromRight {
@@ -322,19 +455,18 @@
                 rotateY(-42deg) 
                 scale(0.82);
             opacity: 0.50;
-            filter: blur(0.8px) brightness(0.78);
         }
-        40% {
+        60% {
             transform: 
-                translateX(calc(0.25 * var(--phone-width))) 
+                translateX(calc(0.15 * var(--phone-width))) 
                 translateZ(40px) 
-                rotateY(-12deg) 
-                scale(0.96);
-            opacity: 0.85;
-            filter: blur(0.2px) brightness(0.95);
+                rotateY(-8deg) 
+                scale(0.98);
+            opacity: 0.92;
         }
         100% {
-            transform: translateX(0) translateZ(var(--z-active)) rotateY(0deg) scale(1.02);
+            /* CRITICAL: Pure 2D transform at end - no translateZ to avoid blur */
+            transform: translateX(0) translateY(0);
             opacity: 1;
             filter: none;
         }
@@ -348,19 +480,18 @@
                 rotateY(42deg) 
                 scale(0.82);
             opacity: 0.50;
-            filter: blur(0.8px) brightness(0.78);
         }
-        40% {
+        60% {
             transform: 
-                translateX(calc(-0.25 * var(--phone-width))) 
+                translateX(calc(-0.15 * var(--phone-width))) 
                 translateZ(40px) 
-                rotateY(12deg) 
-                scale(0.96);
-            opacity: 0.85;
-            filter: blur(0.2px) brightness(0.95);
+                rotateY(8deg) 
+                scale(0.98);
+            opacity: 0.92;
         }
         100% {
-            transform: translateX(0) translateZ(var(--z-active)) rotateY(0deg) scale(1.02);
+            /* CRITICAL: Pure 2D transform at end - no translateZ to avoid blur */
+            transform: translateX(0) translateY(0);
             opacity: 1;
             filter: none;
         }
@@ -434,6 +565,306 @@
     .link-btn { font-size: 0.75rem; color: #a5b4fc; padding: 12px 16px; background: rgba(99,102,241,0.1); border-radius: 12px; margin-bottom: 8px; }
     .scroll-hint { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; color: rgba(255,255,255,0.5); background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 10px; }
 
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PORTFOLIO PREVIEW FULL - Matches Public Card 1:1
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .portfolio-preview-full {
+        min-height: 100%;
+        background: linear-gradient(180deg, #0d0a1a 0%, #1a1035 30%, #2d1b4e 60%, #1a1035 100%);
+        padding: 20px 16px;
+    }
+    
+    /* Hero Section */
+    .pp-hero {
+        text-align: center;
+        padding-bottom: 16px;
+    }
+    
+    .pp-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #7C3AED 100%);
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3), 0 0 30px rgba(139, 92, 246, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 1.75rem;
+        margin: 0 auto 12px;
+    }
+    
+    .pp-name {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fff;
+        margin: 0 0 4px;
+    }
+    
+    .pp-title {
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.7);
+        margin: 0 0 6px;
+    }
+    
+    .pp-company {
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.5);
+        margin: 0 0 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+    }
+    
+    .pp-company-icon {
+        font-size: 0.65rem;
+    }
+    
+    .pp-bio {
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.85);
+        line-height: 1.5;
+        margin: 0 0 12px;
+        max-width: 280px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    /* Social Row */
+    .pp-social-row {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .pp-social-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.7);
+    }
+    
+    /* Status Chips */
+    .pp-chips {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+    
+    .pp-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 14px;
+        font-size: 0.6rem;
+        color: rgba(255,255,255,0.7);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    
+    .pp-chip-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #22C55E;
+        box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+    }
+    
+    /* Mi Trabajo Section */
+    .pp-work-section {
+        border-top: 1px solid rgba(139, 92, 246, 0.15);
+        padding-top: 14px;
+        margin-bottom: 14px;
+    }
+    
+    .pp-section-title {
+        font-size: 0.6rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0 0 10px;
+        text-align: center;
+    }
+    
+    .pp-gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .pp-gallery-item {
+        aspect-ratio: 1;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        overflow: hidden;
+        background: rgba(30, 41, 59, 0.5);
+    }
+    
+    .pp-gallery-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        image-rendering: -webkit-optimize-contrast;
+    }
+    
+    /* CTAs */
+    .pp-cta-section {
+        margin-bottom: 16px;
+    }
+    
+    .pp-cta-primary {
+        width: 100%;
+        padding: 10px 16px;
+        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #7C3AED 100%);
+        border: none;
+        border-radius: 20px;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35);
+    }
+    
+    .pp-cta-row {
+        display: flex;
+        gap: 6px;
+    }
+    
+    .pp-cta-secondary {
+        flex: 1;
+        padding: 8px 10px;
+        border-radius: 16px;
+        border: 2px solid;
+        background: transparent;
+        font-size: 0.65rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    
+    .pp-whatsapp {
+        border-color: #25D366;
+        color: #25D366;
+    }
+    
+    .pp-call {
+        border-color: #8B5CF6;
+        color: #A78BFA;
+    }
+    
+    .pp-email {
+        border-color: #F59E0B;
+        color: #FBBF24;
+    }
+    
+    /* Contact Form */
+    .pp-form-section {
+        border-top: 1px solid rgba(139, 92, 246, 0.15);
+        padding-top: 14px;
+    }
+    
+    .pp-form-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.9);
+        margin: 0 0 4px;
+    }
+    
+    .pp-form-subtitle {
+        font-size: 0.6rem;
+        color: rgba(255,255,255,0.5);
+        margin: 0 0 12px;
+    }
+    
+    .pp-form-field {
+        margin-bottom: 10px;
+    }
+    
+    .pp-form-field label {
+        display: block;
+        font-size: 0.6rem;
+        color: rgba(255,255,255,0.7);
+        margin-bottom: 4px;
+    }
+    
+    .pp-input {
+        padding: 8px 10px;
+        background: rgba(25, 18, 45, 0.8);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        border-radius: 8px;
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.6);
+    }
+    
+    .pp-phone-row {
+        display: flex;
+        gap: 6px;
+    }
+    
+    .pp-country-code {
+        padding: 8px 10px;
+        background: rgba(25, 18, 45, 0.8);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        border-radius: 8px;
+        font-size: 0.6rem;
+        color: rgba(255,255,255,0.7);
+        white-space: nowrap;
+    }
+    
+    .pp-phone-input {
+        flex: 1;
+    }
+    
+    .pp-textarea {
+        padding: 8px 10px;
+        background: rgba(25, 18, 45, 0.8);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        border-radius: 8px;
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.5);
+        min-height: 40px;
+    }
+    
+    .pp-submit-btn {
+        width: 100%;
+        padding: 10px 16px;
+        background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
+        border: none;
+        border-radius: 10px;
+        color: rgba(255,255,255,0.6);
+        font-size: 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 8px;
+    }
+    
+    /* Footer */
+    .pp-footer {
+        text-align: center;
+        padding: 16px 0 8px;
+        font-size: 0.55rem;
+        color: rgba(255,255,255,0.4);
+    }
+    
+    .pp-footer strong {
+        color: rgba(255,255,255,0.6);
+    }
+
+
     /* Labels */
     .item-label { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 16px; }
     .item-name { font-size: 1rem; font-weight: 600; color: #f3f4f6; }
@@ -479,21 +910,69 @@
         public required string Name { get; init; }
         public required string Description { get; init; }
         public required string HeroGradient { get; init; }
+        public bool IsPortfolio { get; init; } = false;
+        public string TemplateType { get; init; } = "default";
     }
 
-    private int _activeIndex = 2;
+    // User data for portfolio preview
+    private DataTouch.Domain.Entities.Card? _userCard;
+
+    private int _activeIndex = 3; // Start at Portafolio Creativo (index 3)
     private bool _hasScrolled = false;
     private string _navDirection = "";
     private DateTime _lastNavTime = DateTime.MinValue;
     private readonly int[] _visiblePositions = { -2, -1, 0, 1, 2 };
 
+    protected override async Task OnInitializedAsync()
+    {
+        // Load authenticated user's card data
+        var email = AuthService.GetCurrentEmail();
+        if (!string.IsNullOrEmpty(email))
+        {
+            _userCard = await DbContext.Cards
+                .Include(c => c.Organization)
+                .FirstOrDefaultAsync(c => c.Email == email);
+        }
+    }
+
+    private string GetUserDisplayName()
+    {
+        // Priority: FullName > Email username > "Tu Nombre"
+        if (!string.IsNullOrEmpty(_userCard?.FullName))
+            return _userCard.FullName;
+        
+        var email = AuthService.GetCurrentEmail();
+        if (!string.IsNullOrEmpty(email))
+        {
+            var atIndex = email.IndexOf('@');
+            if (atIndex > 0)
+                return email.Substring(0, atIndex);
+        }
+        
+        return "Tu Nombre";
+    }
+
+    private string GetUserInitials()
+    {
+        var name = GetUserDisplayName();
+        if (string.IsNullOrEmpty(name) || name == "Tu Nombre")
+            return "TN";
+        
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        
+        return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+    }
+
     private readonly List<TemplateData> _templates = new()
     {
-        new() { Name = "Creative", Description = "Stand out with modern designs.", HeroGradient = "linear-gradient(135deg, #ec4899, #f97316)" },
-        new() { Name = "Minimal", Description = "Clean and distraction-free.", HeroGradient = "linear-gradient(135deg, #6b7280, #4b5563)" },
-        new() { Name = "Professional", Description = "Best for sales and enterprise.", HeroGradient = "linear-gradient(135deg, #6366f1, #8b5cf6)" },
-        new() { Name = "Corporate", Description = "Strong branding presence.", HeroGradient = "linear-gradient(135deg, #0ea5e9, #3b82f6)" },
-        new() { Name = "Bold", Description = "Make a powerful statement.", HeroGradient = "linear-gradient(135deg, #f43f5e, #e11d48)" }
+        new() { Name = "Creative", Description = "Stand out with modern designs.", HeroGradient = "linear-gradient(135deg, #ec4899, #f97316)", TemplateType = "creative" },
+        new() { Name = "Minimal", Description = "Clean and distraction-free.", HeroGradient = "linear-gradient(135deg, #6b7280, #4b5563)", TemplateType = "minimal" },
+        new() { Name = "Professional", Description = "Best for sales and enterprise.", HeroGradient = "linear-gradient(135deg, #6366f1, #8b5cf6)", TemplateType = "professional" },
+        new() { Name = "Portafolio Creativo", Description = "Galería visual para creativos y artistas.", HeroGradient = "linear-gradient(135deg, #8B5CF6, #EC4899)", IsPortfolio = true, TemplateType = "portfolio-creative" },
+        new() { Name = "Corporate", Description = "Strong branding presence.", HeroGradient = "linear-gradient(135deg, #0ea5e9, #3b82f6)", TemplateType = "corporate" },
+        new() { Name = "Bold", Description = "Make a powerful statement.", HeroGradient = "linear-gradient(135deg, #f43f5e, #e11d48)", TemplateType = "bold" }
     };
 
     private TemplateData? SelectedTemplate => _templates.Count > 0 ? _templates[_activeIndex] : null;
@@ -529,5 +1008,5 @@
     private async Task HandleKeyDown(KeyboardEventArgs e) { if (e.Key == "ArrowRight") await NavigateNext(); else if (e.Key == "ArrowLeft") await NavigatePrev(); else if (e.Key == "Enter" || e.Key == " ") UseThisDesign(); }
     private void HandlePhoneScroll(WheelEventArgs e) { if (!_hasScrolled) { _hasScrolled = true; StateHasChanged(); } }
     private void HandleWheel(WheelEventArgs e) { }
-    private void UseThisDesign() { if (SelectedTemplate != null) { Snackbar.Add($"✓ Design applied: {SelectedTemplate.Name}", Severity.Success); Navigation.NavigateTo("/cards/mine"); } }
+    private void UseThisDesign() { if (SelectedTemplate != null) { Snackbar.Add($"✓ Diseño seleccionado: {SelectedTemplate.Name}", Severity.Success); Navigation.NavigateTo($"/cards/mine?template={SelectedTemplate.TemplateType}"); } }
 }

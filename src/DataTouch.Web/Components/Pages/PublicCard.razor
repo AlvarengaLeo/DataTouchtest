@@ -5,7 +5,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
-<MudThemeProvider Theme="_theme" />
+<MudThemeProvider Theme="_theme" IsDarkMode="true" />
 <MudSnackbarProvider />
 
 <PageTitle>@(_card?.FullName ?? "Tarjeta") - DataTouch</PageTitle>
@@ -112,6 +112,30 @@ else
                 </div>
 
                 @* ─────────────────────────────────────────────────────────────────────
+                   PORTFOLIO GALLERY (Conditional - Only if has gallery images)
+                   ───────────────────────────────────────────────────────────────────── *@
+                @if (_galleryImages.Any())
+                {
+                    <div class="public-gallery-section">
+                        <h3 class="gallery-section-title">Mi Trabajo</h3>
+                        <div class="public-gallery-grid">
+                            @foreach (var image in _galleryImages.OrderBy(i => i.Order))
+                            {
+                                <div class="public-gallery-item" @onclick="() => OpenLightbox(image)">
+                                    <img src="@image.Url" alt="@(image.Title ?? "Portfolio")" loading="lazy" />
+                                    @if (!string.IsNullOrEmpty(image.Title))
+                                    {
+                                        <div class="gallery-image-overlay">
+                                            <span>@image.Title</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* ─────────────────────────────────────────────────────────────────────
                    BLOQUE 2: CTAs / ACCIONES RÁPIDAS
                    Integrados DENTRO de la card, no como sección aparte
                    ───────────────────────────────────────────────────────────────────── *@
@@ -199,17 +223,24 @@ else
                             <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="label-icon" />
                             Nombre completo <span class="required">*</span>
                         </label>
-                        <MudTextField @bind-Value="_contactForm.FullName" 
-                                      Variant="Variant.Outlined"
-                                      Placeholder="Juan Pérez"
-                                      Class="compact-input"
-                                      Margin="Margin.Dense"
-                                      Immediate="true"
-                                      Error="@(!string.IsNullOrEmpty(_nameError))"
-                                      ErrorText="@_nameError"
-                                      Adornment="Adornment.End"
-                                      AdornmentIcon="@(IsNameValid ? Icons.Material.Filled.CheckCircle : "")"
-                                      AdornmentColor="Color.Success" />
+                        <div class="native-input-wrapper">
+                            <input type="text"
+                                   class="native-text-input @(IsNameValid ? "is-valid" : "") @(!string.IsNullOrEmpty(_nameError) ? "has-error" : "")"
+                                   value="@_contactForm.FullName"
+                                   placeholder="Juan Pérez"
+                                   @oninput="@(e => _contactForm.FullName = e.Value?.ToString() ?? "")"
+                                   autocomplete="name" />
+                            @if (IsNameValid)
+                            {
+                                <div class="input-adornment valid">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                                </div>
+                            }
+                        </div>
+                        @if (!string.IsNullOrEmpty(_nameError))
+                        {
+                            <span class="field-error">@_nameError</span>
+                        }
                     </div>
                     
                     @* Email *@
@@ -218,18 +249,24 @@ else
                             <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Class="label-icon" />
                             Correo electrónico <span class="required">*</span>
                         </label>
-                        <MudTextField @bind-Value="_contactForm.Email" 
-                                      Variant="Variant.Outlined"
-                                      Placeholder="tu@email.com"
-                                      InputType="InputType.Email"
-                                      Class="compact-input"
-                                      Margin="Margin.Dense"
-                                      Immediate="true"
-                                      Error="@(!string.IsNullOrEmpty(_emailError))"
-                                      ErrorText="@_emailError"
-                                      Adornment="Adornment.End"
-                                      AdornmentIcon="@(IsEmailValid ? Icons.Material.Filled.CheckCircle : "")"
-                                      AdornmentColor="Color.Success" />
+                        <div class="native-input-wrapper">
+                            <input type="email"
+                                   class="native-text-input @(IsEmailValid ? "is-valid" : "") @(!string.IsNullOrEmpty(_emailError) ? "has-error" : "")"
+                                   value="@_contactForm.Email"
+                                   placeholder="tu@email.com"
+                                   @oninput="@(e => _contactForm.Email = e.Value?.ToString() ?? "")"
+                                   autocomplete="email" />
+                            @if (IsEmailValid)
+                            {
+                                <div class="input-adornment valid">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                                </div>
+                            }
+                        </div>
+                        @if (!string.IsNullOrEmpty(_emailError))
+                        {
+                            <span class="field-error">@_emailError</span>
+                        }
                     </div>
                     
                     @* Teléfono con selector de país *@
@@ -245,12 +282,12 @@ else
                             <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Small" Class="label-icon" />
                             Mensaje <span class="optional">(opcional)</span>
                         </label>
-                        <MudTextField @bind-Value="_contactForm.Message" 
-                                      Variant="Variant.Outlined"
-                                      Placeholder="¿En qué puedo ayudarte?"
-                                      Lines="2"
-                                      Class="compact-input compact-textarea"
-                                      Margin="Margin.Dense" />
+                        <div class="native-input-wrapper">
+                            <textarea class="native-textarea-input"
+                                      placeholder="¿En qué puedo ayudarte?"
+                                      rows="2"
+                                      @oninput="@(e => _contactForm.Message = e.Value?.ToString() ?? "")">@_contactForm.Message</textarea>
+                        </div>
                     </div>
                     
                     @* Submit Button with States *@
@@ -285,6 +322,36 @@ else
                 </EditForm>
             }
         </div>
+        @* ─────────────────────────────────────────────────────────
+           LIGHTBOX MODAL (Gallery Image)
+           ───────────────────────────────────────────────────────── *@
+        @if (_lightboxOpen && _selectedImage != null)
+        {
+            <div class="lightbox-overlay" @onclick="CloseLightbox">
+                <button class="lightbox-close" @onclick="CloseLightbox">×</button>
+                <div class="lightbox-content" @onclick:stopPropagation="true">
+                    <img src="@_selectedImage.Url" alt="@(_selectedImage.Title ?? "Image")" />
+                    @if (!string.IsNullOrEmpty(_selectedImage.Title) || !string.IsNullOrEmpty(_selectedImage.Description))
+                    {
+                        <div class="lightbox-caption">
+                            @if (!string.IsNullOrEmpty(_selectedImage.Title))
+                            {
+                                <h3>@_selectedImage.Title</h3>
+                            }
+                            @if (!string.IsNullOrEmpty(_selectedImage.Description))
+                            {
+                                <p>@_selectedImage.Description</p>
+                            }
+                        </div>
+                    }
+                    @if (_galleryImages.Count > 1)
+                    {
+                        <button class="lightbox-nav lightbox-prev" @onclick="PrevImage" @onclick:stopPropagation="true">‹</button>
+                        <button class="lightbox-nav lightbox-next" @onclick="NextImage" @onclick:stopPropagation="true">›</button>
+                    }
+                </div>
+            </div>
+        }
 
         @* Footer mínimo *@
         <div class="footer-minimal">
@@ -311,11 +378,157 @@ else
     .lead-form-card .mud-input > input,
     .lead-form-card .mud-input textarea,
     .lead-form-card input,
-    .lead-form-card textarea {
+    .lead-form-card textarea,
+    .landing-wrapper .mud-input-root input,
+    .landing-wrapper .mud-input-root textarea,
+    .landing-wrapper .mud-input-root .mud-input-slot,
+    .landing-wrapper .mud-input-root-outlined input,
+    .landing-wrapper .mud-input-root-outlined textarea,
+    .premium-form .mud-input-root input,
+    .premium-form .mud-input-root textarea,
+    .premium-form .mud-input-slot,
+    .compact-input .mud-input-root input,
+    .compact-input .mud-input-root textarea {
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
         caret-color: #A78BFA !important;
         opacity: 1 !important;
+    }
+    
+    /* OVERRIDE MUDBLAZOR CSS VARIABLES FOR DARK THEME INPUTS */
+    .landing-wrapper,
+    .lead-form-card,
+    .premium-form {
+        --mud-palette-text-primary: #FFFFFF !important;
+        --mud-palette-text-secondary: #FFFFFF !important;
+        --mud-palette-action-default: #FFFFFF !important;
+    }
+    
+    /* ULTRA-SPECIFIC MUDBLAZOR INPUT TEXT COLOR OVERRIDE */
+    .landing-wrapper .mud-input,
+    .landing-wrapper .mud-input-text,
+    .landing-wrapper .mud-input-root,
+    .landing-wrapper .mud-input-root-text,
+    .landing-wrapper .mud-input-root-outlined,
+    .landing-wrapper .mud-input-underline,
+    .lead-form-card .mud-input,
+    .lead-form-card .mud-input-text,
+    .lead-form-card .mud-input-root,
+    .lead-form-card .mud-input-root-text,
+    .lead-form-card .mud-input-root-outlined,
+    .premium-form .mud-input,
+    .premium-form .mud-input-text,
+    .premium-form .mud-input-root {
+        color: #FFFFFF !important;
+        --mud-palette-text-primary: #FFFFFF !important;
+    }
+    
+    /* Target the actual input and textarea elements INSIDE MudBlazor components */
+    .landing-wrapper .mud-input-control input.mud-input-slot,
+    .landing-wrapper .mud-input-control textarea.mud-input-slot,
+    .landing-wrapper .mud-input-root input.mud-input-slot,
+    .landing-wrapper .mud-input-root textarea.mud-input-slot,
+    .landing-wrapper .mud-input-control .mud-input > input,
+    .landing-wrapper .mud-input-control .mud-input > textarea,
+    .lead-form-card .mud-input-control input.mud-input-slot,
+    .lead-form-card .mud-input-control textarea.mud-input-slot,
+    .lead-form-card .mud-input-root input.mud-input-slot,
+    .lead-form-card .mud-input-root textarea.mud-input-slot,
+    .premium-form .mud-input-control input.mud-input-slot,
+    .premium-form .mud-input-control textarea.mud-input-slot,
+    .compact-input input.mud-input-slot,
+    .compact-input textarea.mud-input-slot {
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        caret-color: #A78BFA !important;
+        opacity: 1 !important;
+    }
+    
+    /* Specific override for MudTextField and MudSelect */
+    .landing-wrapper .mud-input-slot.mud-input-root-text,
+    .landing-wrapper input.mud-input-slot.mud-input-root-text,
+    .landing-wrapper textarea.mud-input-slot.mud-input-root-text,
+    .lead-form-card input.mud-input-slot,
+    .lead-form-card textarea.mud-input-slot,
+    .premium-form input.mud-input-slot,
+    .premium-form textarea.mud-input-slot {
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+    }
+    
+    /* Fix for autofill styles that override text color */
+    .landing-wrapper input:-webkit-autofill,
+    .landing-wrapper input:-webkit-autofill:hover,
+    .landing-wrapper input:-webkit-autofill:focus,
+    .landing-wrapper input:-webkit-autofill:active,
+    .lead-form-card input:-webkit-autofill,
+    .lead-form-card input:-webkit-autofill:hover,
+    .lead-form-card input:-webkit-autofill:focus,
+    .lead-form-card input:-webkit-autofill:active,
+    .premium-form input:-webkit-autofill,
+    .premium-form input:-webkit-autofill:hover,
+    .premium-form input:-webkit-autofill:focus,
+    .premium-form input:-webkit-autofill:active {
+        -webkit-text-fill-color: #FFFFFF !important;
+        -webkit-box-shadow: 0 0 0 1000px rgba(25, 18, 45, 0.95) inset !important;
+        box-shadow: 0 0 0 1000px rgba(25, 18, 45, 0.95) inset !important;
+        transition: background-color 5000s ease-in-out 0s !important;
+        caret-color: #A78BFA !important;
+    }
+    
+    /* Force country selector text to white */
+    .landing-wrapper .mud-select .mud-input-slot,
+    .landing-wrapper .mud-select-input,
+    .lead-form-card .mud-select .mud-input-slot,
+    .lead-form-card .mud-select-input,
+    .country-selector-wrapper .mud-select-input,
+    .country-selector-wrapper .mud-input-slot {
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       CRITICAL FIX: MudBlazor fieldset overlay covering input text
+       The .mud-input-outlined-border fieldset has a dark background that dims the text.
+       We need to either make it transparent OR raise the input z-index above it.
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Solution 1: Make fieldset background transparent so it doesn't dim the text */
+    .landing-wrapper .mud-input-outlined-border,
+    .lead-form-card .mud-input-outlined-border,
+    .premium-form .mud-input-outlined-border,
+    .compact-input .mud-input-outlined-border {
+        background: transparent !important;
+        background-color: transparent !important;
+    }
+    
+    /* Solution 2: Raise input z-index above fieldset */
+    .landing-wrapper .mud-input-slot,
+    .landing-wrapper .mud-input-root,
+    .landing-wrapper input.mud-input-slot,
+    .landing-wrapper textarea.mud-input-slot,
+    .lead-form-card .mud-input-slot,
+    .lead-form-card .mud-input-root,
+    .lead-form-card input.mud-input-slot,
+    .lead-form-card textarea.mud-input-slot,
+    .premium-form .mud-input-slot,
+    .premium-form input.mud-input-slot,
+    .premium-form textarea.mud-input-slot,
+    .compact-input .mud-input-slot,
+    .compact-input input.mud-input-slot,
+    .compact-input textarea.mud-input-slot {
+        position: relative !important;
+        z-index: 10 !important;
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+    }
+    
+    /* Ensure the fieldset stays behind the input */
+    .landing-wrapper .mud-input-outlined fieldset,
+    .lead-form-card .mud-input-outlined fieldset,
+    .premium-form .mud-input-outlined fieldset,
+    .compact-input .mud-input-outlined fieldset {
+        z-index: 1 !important;
     }
     
     html, body {
@@ -391,27 +604,34 @@ else
         text-align: center;
     }
 
-    /* Avatar with Glow Ring */
+    /* Avatar with Glow Ring - HERO SIZE */
     .avatar-container {
         margin-top: 0;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
         position: relative;
     }
 
     .profile-avatar {
-        width: 110px !important;
-        height: 110px !important;
-        font-size: 2.5rem !important;
+        width: 160px !important;
+        height: 160px !important;
+        font-size: 3.75rem !important;
         background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #7C3AED 100%) !important;
-        border: 4px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.3),
-                    0 0 40px rgba(139, 92, 246, 0.4),
-                    0 8px 24px rgba(0, 0, 0, 0.3) !important;
+        border: 5px solid rgba(255, 255, 255, 0.25) !important;
+        box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.35),
+                    0 0 60px rgba(139, 92, 246, 0.45),
+                    0 12px 32px rgba(0, 0, 0, 0.35) !important;
         color: white !important;
+        overflow: hidden !important;
     }
 
-    .profile-avatar .mud-avatar-img {
-        border-radius: 50%;
+    .profile-avatar .mud-avatar-img,
+    .profile-avatar img,
+    .profile-avatar .mud-image {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        object-position: center center !important;
+        border-radius: 50% !important;
     }
 
     /* Info - White text for dark theme */
@@ -522,12 +742,16 @@ else
         color: #fff !important;
         font-weight: 600 !important;
         text-transform: none !important;
-        border-radius: 14px !important;
-        padding: 16px 24px !important;
+        border-radius: 28px !important;
+        padding: 10px 17px !important;
         font-size: 1rem !important;
-        margin-bottom: 12px !important;
+        margin-bottom: 15px !important;
         box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4) !important;
         letter-spacing: 0.01em;
+    }
+    
+    .btn-primary-cta.mud-width-full {
+        width: 73%;
     }
 
     .btn-primary-cta:hover {
@@ -546,10 +770,10 @@ else
         flex: 1;
         min-width: 95px;
         max-width: 120px;
-        border-radius: 12px !important;
+        border-radius: 25px !important;
         text-transform: none !important;
         font-weight: 500 !important;
-        padding: 12px 16px !important;
+        padding: 6px 19px !important;
         font-size: 0.875rem !important;
     }
 
@@ -605,6 +829,163 @@ else
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
+       PORTFOLIO GALLERY SECTION
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .public-gallery-section {
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    
+    .gallery-section-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0 0 16px;
+        text-align: center;
+    }
+    
+    .public-gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .public-gallery-item {
+        position: relative;
+        aspect-ratio: 1;
+        border-radius: 16px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        background: rgba(30, 41, 59, 0.5);
+    }
+    
+    .public-gallery-item:hover {
+        transform: scale(1.03);
+        box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+    }
+    
+    .public-gallery-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .gallery-image-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 12px;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    }
+    
+    .gallery-image-overlay span {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: white;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       LIGHTBOX MODAL
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .lightbox-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 20px;
+    }
+    
+    .lightbox-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 48px;
+        height: 48px;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        color: white;
+        font-size: 1.75rem;
+        cursor: pointer;
+        transition: background 0.2s;
+        z-index: 10000;
+    }
+    
+    .lightbox-close:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .lightbox-content {
+        position: relative;
+        max-width: 90vw;
+        max-height: 80vh;
+    }
+    
+    .lightbox-content img {
+        max-width: 100%;
+        max-height: 70vh;
+        border-radius: 16px;
+        object-fit: contain;
+    }
+    
+    .lightbox-caption {
+        text-align: center;
+        padding: 16px;
+        color: white;
+    }
+    
+    .lightbox-caption h3 {
+        margin: 0 0 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .lightbox-caption p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.7);
+    }
+    
+    .lightbox-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 52px;
+        height: 52px;
+        border: none;
+        background: rgba(139, 92, 246, 0.3);
+        border-radius: 50%;
+        color: white;
+        font-size: 2rem;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .lightbox-nav:hover {
+        background: rgba(139, 92, 246, 0.5);
+    }
+    
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+    
+    @@media (max-width: 600px) {
+        .lightbox-prev { left: 10px; }
+        .lightbox-next { right: 10px; }
+        .lightbox-nav { width: 44px; height: 44px; font-size: 1.5rem; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
        BLOQUE 3: FORMULARIO DE LEAD - DARK THEME INTEGRATED
        ═══════════════════════════════════════════════════════════════════════════ */
     .lead-form-card {
@@ -613,11 +994,11 @@ else
         background: transparent;
         padding: 24px 0 0;
         position: relative;
-        margin-top: -8px; /* Connect to profile card */
+        margin-top: 19px;
     }
     
     .lead-form-card.success-state {
-        background: rgba(16, 185, 129, 0.2);
+        background: #15873f;
         border-radius: 20px;
         padding: 24px;
         border: 1px solid rgba(16, 185, 129, 0.3);
@@ -798,6 +1179,116 @@ else
         font-size: 0.7rem !important;
         margin-top: 2px !important;
         min-height: 16px;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       NATIVE TEXT INPUTS - Same style as phone-number-input
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .native-input-wrapper {
+        position: relative;
+        width: 100%;
+    }
+    
+    .native-text-input,
+    .native-textarea-input {
+        width: 100%;
+        height: 46px;
+        padding: 0 38px 0 14px;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+        font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #FFFFFF;
+        -webkit-text-fill-color: #FFFFFF;
+        background: rgba(25, 18, 45, 0.85);
+        border: 1.5px solid rgba(139, 92, 246, 0.35);
+        border-radius: 12px;
+        outline: none;
+        transition: all 0.2s ease;
+        caret-color: #A78BFA;
+        box-sizing: border-box;
+    }
+    
+    .native-textarea-input {
+        height: auto;
+        min-height: 70px;
+        padding: 12px 14px;
+        resize: vertical;
+        line-height: 1.4;
+    }
+    
+    .native-text-input::placeholder,
+    .native-textarea-input::placeholder {
+        color: rgba(255, 255, 255, 0.4);
+        -webkit-text-fill-color: rgba(255, 255, 255, 0.4);
+        font-weight: 400;
+        letter-spacing: 0;
+    }
+    
+    .native-text-input:hover,
+    .native-textarea-input:hover {
+        border-color: rgba(139, 92, 246, 0.55);
+        background: rgba(35, 25, 60, 0.9);
+    }
+    
+    .native-text-input:focus,
+    .native-textarea-input:focus {
+        border-color: #A78BFA;
+        background: rgba(35, 25, 60, 0.95);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+    }
+    
+    /* Valid State */
+    .native-text-input.is-valid {
+        border-color: rgba(34, 197, 94, 0.5);
+    }
+    
+    .native-text-input.is-valid:focus {
+        border-color: #22C55E;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+    }
+    
+    /* Error State */
+    .native-text-input.has-error {
+        border-color: rgba(248, 113, 113, 0.6);
+    }
+    
+    .native-text-input.has-error:focus {
+        border-color: #F87171;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    }
+    
+    /* Input Adornment (checkmark icon) */
+    .input-adornment {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        pointer-events: none;
+    }
+    
+    .input-adornment .mud-icon-root {
+        font-size: 1.1rem !important;
+    }
+    
+    .input-adornment.valid {
+        color: #22C55E;
+    }
+    
+    .input-adornment.error {
+        color: #F87171;
+    }
+    
+    /* Field Error Message */
+    .field-error {
+        display: block;
+        font-size: 0.75rem;
+        color: #F87171;
+        font-weight: 500;
+        margin-top: 4px;
+        padding-left: 2px;
     }
     
     /* Submit Button - Teal/Cyan gradient */
@@ -1026,6 +1517,12 @@ else
     // Deserialized JSON fields
     private SocialLinksModel? _socialLinks;
     private List<WebsiteLinkModel> _websiteLinks = new();
+    
+    // Gallery (Portfolio Template)
+    private List<GalleryImageModel> _galleryImages = new();
+    private bool _lightboxOpen = false;
+    private GalleryImageModel? _selectedImage;
+    private int _selectedIndex = 0;
 
     private MudTheme _theme = new()
     {
@@ -1111,6 +1608,16 @@ else
                 _websiteLinks = System.Text.Json.JsonSerializer.Deserialize<List<WebsiteLinkModel>>(_card.WebsiteLinksJson) ?? new();
             }
             catch { _websiteLinks = new(); }
+        }
+        
+        // Gallery Images
+        if (!string.IsNullOrEmpty(_card?.GalleryImagesJson))
+        {
+            try
+            {
+                _galleryImages = System.Text.Json.JsonSerializer.Deserialize<List<GalleryImageModel>>(_card.GalleryImagesJson) ?? new();
+            }
+            catch { _galleryImages = new(); }
         }
     }
     
@@ -1246,6 +1753,44 @@ END:VCARD";
     {
         public string Title { get; set; } = "";
         public string Url { get; set; } = "";
+    }
+    
+    private class GalleryImageModel
+    {
+        public string Url { get; set; } = "";
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public int Order { get; set; }
+    }
+    
+    // Gallery Lightbox Methods
+    private void OpenLightbox(GalleryImageModel image)
+    {
+        _selectedImage = image;
+        _selectedIndex = _galleryImages.OrderBy(i => i.Order).ToList().IndexOf(image);
+        _lightboxOpen = true;
+    }
+    
+    private void CloseLightbox()
+    {
+        _lightboxOpen = false;
+        _selectedImage = null;
+    }
+    
+    private void PrevImage()
+    {
+        if (_galleryImages.Count == 0) return;
+        var ordered = _galleryImages.OrderBy(i => i.Order).ToList();
+        _selectedIndex = (_selectedIndex - 1 + ordered.Count) % ordered.Count;
+        _selectedImage = ordered[_selectedIndex];
+    }
+    
+    private void NextImage()
+    {
+        if (_galleryImages.Count == 0) return;
+        var ordered = _galleryImages.OrderBy(i => i.Order).ToList();
+        _selectedIndex = (_selectedIndex + 1) % ordered.Count;
+        _selectedImage = ordered[_selectedIndex];
     }
     private string GetFullPhoneForLink()
     {

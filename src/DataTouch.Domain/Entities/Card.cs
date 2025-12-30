@@ -27,6 +27,13 @@ public class Card
     public string? SocialLinksJson { get; set; }  // {"linkedin": "url", "instagram": "url", ...}
     public string? WebsiteLinksJson { get; set; }  // [{"title": "text", "url": "url"}, ...]
     
+    // JSON Storage for Portfolio Gallery
+    /// <summary>
+    /// Gallery images for portfolio template: [{url, title, description, order}, ...]
+    /// </summary>
+    public string? GalleryImagesJson { get; set; }
+
+    
     // ═══════════════════════════════════════════════════════════════
     // TEMPLATE & STYLE (NEW - QRCodeChimp-style)
     // ═══════════════════════════════════════════════════════════════

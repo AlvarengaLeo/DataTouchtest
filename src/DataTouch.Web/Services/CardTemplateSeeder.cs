@@ -71,7 +71,46 @@ public static class CardTemplateSeeder
                     new { Type = "schedule-meeting", Order = 5, Enabled = true },
                     new { Type = "floating-dock", Order = 99, Enabled = true }
                 })
+            },
+            
+            // ═══════════════════════════════════════════════════════════════
+            // TEMPLATE 2: PORTFOLIO CREATIVE - Gallery-focused Card
+            // ═══════════════════════════════════════════════════════════════
+            new CardTemplate
+            {
+                Id = Guid.Parse("b2c3d4e5-f6a7-8901-bcde-f23456789012"),
+                Name = "Portafolio Creativo",
+                Industry = "Creative",
+                Description = "Template con galería de imágenes para creativos, diseñadores y artistas. Muestra tu trabajo visualmente.",
+                ThumbnailUrl = "/images/templates/portfolio-creative-thumb.png",
+                IsSystemTemplate = true,
+                IsActive = true,
+                CreatedAt = now,
+                DefaultStyleJson = JsonSerializer.Serialize(new
+                {
+                    LayoutType = "portfolio-creative",
+                    PrimaryColor = "#8B5CF6",
+                    AccentColor = "#EC4899",
+                    BackgroundColor = "#0F172A",
+                    SurfaceColor = "#1E293B",
+                    TextPrimaryColor = "#F8FAFC",
+                    TextSecondaryColor = "#94A3B8",
+                    FontFamily = "Inter, sans-serif",
+                    CardRadius = "16px",
+                    CardShadow = "0 8px 32px rgba(0, 0, 0, 0.3)",
+                    GalleryColumns = 2,
+                    GalleryGap = "12px"
+                }),
+                DefaultComponentsJson = JsonSerializer.Serialize(new[]
+                {
+                    new { Type = "hero", Order = 0, Enabled = true },
+                    new { Type = "about-me", Order = 1, Enabled = true },
+                    new { Type = "gallery", Order = 2, Enabled = true },
+                    new { Type = "contact-cta", Order = 3, Enabled = true },
+                    new { Type = "social-links", Order = 4, Enabled = true }
+                })
             }
         };
     }
 }
+

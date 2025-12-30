@@ -388,6 +388,89 @@ else
                 </section>
 
                 @* ─────────────────────────────────────────────────────────
+                   PORTFOLIO GALLERY (CONDITIONAL - Only for Portfolio Template)
+                   ───────────────────────────────────────────────────────── *@
+                @if (_isPortfolioTemplate)
+                {
+                    <section class="section-card section-level-1 section-portfolio">
+                        <div class="section-header">
+                            <div class="section-icon icon-gallery">
+                                <MudIcon Icon="@Icons.Material.Filled.PhotoLibrary" Size="Size.Medium" />
+                            </div>
+                            <div class="section-header-text">
+                                <h2 class="section-title">Galería de Proyectos</h2>
+                                <p class="section-description">Muestra tu trabajo creativo (máximo 10 imágenes)</p>
+                            </div>
+                        </div>
+                        <div class="section-content">
+                            @* Upload Area *@
+                            <div class="gallery-upload-area">
+                                <MudFileUpload T="IBrowserFile" 
+                                               FilesChanged="UploadGalleryImage" 
+                                               Accept="image/png,image/jpeg,image/webp"
+                                               Disabled="@(_galleryImages.Count >= 10 || _isUploadingGallery)">
+                                    <ActivatorContent>
+                                        <div class="gallery-dropzone @(_galleryImages.Count >= 10 ? "disabled" : "")">
+                                            @if (_isUploadingGallery)
+                                            {
+                                                <MudProgressCircular Size="Size.Medium" Indeterminate="true" Color="Color.Primary" />
+                                                <span>Subiendo...</span>
+                                            }
+                                            else
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.AddPhotoAlternate" Size="Size.Large" />
+                                                <span>@(_galleryImages.Count >= 10 ? "Límite alcanzado" : "Agregar imagen")</span>
+                                            }
+                                        </div>
+                                    </ActivatorContent>
+                                </MudFileUpload>
+                            </div>
+
+                            @* Gallery Grid *@
+                            @if (_galleryImages.Any())
+                            {
+                                <div class="gallery-editor-grid">
+                                    @foreach (var (image, index) in _galleryImages.OrderBy(i => i.Order).Select((img, idx) => (img, idx)))
+                                    {
+                                        <div class="gallery-editor-item">
+                                            <img src="@image.Url" alt="@(image.Title ?? $"Imagen {index + 1}")" />
+                                            <div class="gallery-item-overlay">
+                                                <button class="gallery-item-btn" @onclick="() => MoveGalleryImage(image, -1)" 
+                                                        disabled="@(index == 0)" title="Mover arriba">
+                                                    <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" />
+                                                </button>
+                                                <button class="gallery-item-btn gallery-item-delete" @onclick="() => RemoveGalleryImage(image)" title="Eliminar">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" />
+                                                </button>
+                                                <button class="gallery-item-btn" @onclick="() => MoveGalleryImage(image, 1)" 
+                                                        disabled="@(index == _galleryImages.Count - 1)" title="Mover abajo">
+                                                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" />
+                                                </button>
+                                            </div>
+                                            <div class="gallery-item-title">
+                                                <MudTextField @bind-Value="image.Title" 
+                                                              Placeholder="Título (opcional)" 
+                                                              Variant="Variant.Text"
+                                                              Margin="Margin.Dense"
+                                                              @oninput="MarkUnsaved" />
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="gallery-empty-state">
+                                    <MudIcon Icon="@Icons.Material.Filled.Collections" Size="Size.Large" />
+                                    <p>Aún no tienes imágenes en tu galería</p>
+                                    <span>Sube hasta 10 imágenes para mostrar tu trabajo</span>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+
+                @* ─────────────────────────────────────────────────────────
                    SAVE BUTTON - PREMIUM CTA
                    ───────────────────────────────────────────────────────── *@
                 <div class="save-section">
@@ -482,6 +565,26 @@ else
                                         <p class="phone-bio phone-bio-placeholder">Tu biografía aparecerá aquí...</p>
                                     }
 
+                                    @* Portfolio Gallery Preview (conditional) *@
+                                    @if (_isPortfolioTemplate && _galleryImages.Any())
+                                    {
+                                        <div class="phone-gallery-section">
+                                            <h4 class="phone-gallery-title">Mi Trabajo</h4>
+                                            <div class="phone-gallery-grid">
+                                                @foreach (var image in _galleryImages.OrderBy(i => i.Order).Take(4))
+                                                {
+                                                    <div class="phone-gallery-item">
+                                                        <img src="@image.Url" alt="@(image.Title ?? "Portfolio")" />
+                                                    </div>
+                                                }
+                                            </div>
+                                            @if (_galleryImages.Count > 4)
+                                            {
+                                                <p class="phone-gallery-more">+@(_galleryImages.Count - 4) más</p>
+                                            }
+                                        </div>
+                                    }
+
                                     @* CTA Buttons - Redesigned Layout *@
                                     <div class="phone-cta-container">
                                         @* Primary CTA: Guardar Contacto (Full Width) *@
@@ -550,6 +653,61 @@ else
                                         <a href="@_publicUrl" target="_blank" class="phone-url-cta">
                                             <span>→</span> VER TARJETA PÚBLICA
                                         </a>
+                                    </div>
+                                    
+                                    @* Lead Form Preview Section *@
+                                    <div class="phone-lead-form-section">
+                                        <div class="phone-lead-header">
+                                            <h4 class="phone-lead-title">¿Quieres que te contacte?</h4>
+                                            <p class="phone-lead-subtitle">Déjame tus datos y te respondo pronto</p>
+                                        </div>
+                                        
+                                        <div class="phone-lead-form">
+                                            @* Nombre *@
+                                            <div class="phone-form-field">
+                                                <label class="phone-field-label">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                                                    Nombre completo <span class="required-mark">*</span>
+                                                </label>
+                                                <div class="phone-input-mock">Juan Pérez</div>
+                                            </div>
+                                            
+                                            @* Email *@
+                                            <div class="phone-form-field">
+                                                <label class="phone-field-label">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
+                                                    Correo electrónico <span class="required-mark">*</span>
+                                                </label>
+                                                <div class="phone-input-mock">tu@email.com</div>
+                                            </div>
+                                            
+                                            @* Teléfono *@
+                                            <div class="phone-form-field">
+                                                <label class="phone-field-label">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
+                                                    Teléfono <span class="required-mark">*</span>
+                                                </label>
+                                                <div class="phone-input-row">
+                                                    <div class="phone-country-mock">🇸🇻 +503</div>
+                                                    <div class="phone-input-mock phone-input-number">7000 0000</div>
+                                                </div>
+                                            </div>
+                                            
+                                            @* Mensaje *@
+                                            <div class="phone-form-field">
+                                                <label class="phone-field-label">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Small" />
+                                                    Mensaje <span class="optional-mark">(opcional)</span>
+                                                </label>
+                                                <div class="phone-textarea-mock">¿En qué puedo ayudarte?</div>
+                                            </div>
+                                            
+                                            @* Submit Button *@
+                                            <button class="phone-submit-btn">
+                                                <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Small" />
+                                                <span>Enviar mensaje</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1583,11 +1741,323 @@ else
     }
 
     /* ─────────────────────────────────────────────────────────
+       Phone Gallery Preview (Portfolio Template)
+       ───────────────────────────────────────────────────────── */
+    .phone-gallery-section {
+        margin-top: 16px;
+        padding: 16px 0;
+        border-top: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    
+    .phone-gallery-title {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #94A3B8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0 0 12px;
+    }
+    
+    .phone-gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .phone-gallery-item {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #1E293B;
+    }
+    
+    .phone-gallery-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .phone-gallery-more {
+        font-size: 0.7rem;
+        color: #8B5CF6;
+        text-align: center;
+        margin: 8px 0 0;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       Phone Lead Form Section - Preview
+       ───────────────────────────────────────────────────────── */
+    .phone-lead-form-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    
+    .phone-lead-header {
+        text-align: center;
+        margin-bottom: 16px;
+    }
+    
+    .phone-lead-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.95);
+        margin: 0 0 4px 0;
+    }
+    
+    .phone-lead-subtitle {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.5);
+        margin: 0;
+    }
+    
+    .phone-lead-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .phone-form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .phone-field-label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.65rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .phone-field-label .mud-icon-root {
+        font-size: 12px !important;
+        color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .required-mark {
+        color: #F87171;
+    }
+    
+    .optional-mark {
+        color: rgba(255, 255, 255, 0.35);
+        font-weight: 400;
+    }
+    
+    .phone-input-mock {
+        background: rgba(25, 18, 45, 0.85);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 0.75rem;
+        color: #FFFFFF;
+        font-weight: 500;
+    }
+    
+    .phone-input-row {
+        display: flex;
+        gap: 6px;
+    }
+    
+    .phone-country-mock {
+        background: rgba(25, 18, 45, 0.85);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 0.7rem;
+        color: #FFFFFF;
+        font-weight: 500;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+    
+    .phone-input-number {
+        flex: 1;
+    }
+    
+    .phone-textarea-mock {
+        background: rgba(25, 18, 45, 0.85);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.4);
+        font-weight: 400;
+        min-height: 40px;
+    }
+    
+    .phone-submit-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 10px;
+        margin-top: 4px;
+        background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        box-shadow: 0 3px 12px rgba(20, 184, 166, 0.35);
+    }
+    
+    .phone-submit-btn .mud-icon-root {
+        font-size: 14px !important;
+    }
+    
+    .phone-submit-btn:hover {
+        background: linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%);
+    }
+
+    /* ─────────────────────────────────────────────────────────
        UTILITY CLASSES
        ───────────────────────────────────────────────────────── */
     .text-muted {
         color: var(--dt-text-muted, #6B7280);
         font-style: italic;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       PORTFOLIO GALLERY EDITOR
+       ───────────────────────────────────────────────────────── */
+    .section-portfolio {
+        border-color: var(--dt-primary-500, #8B5CF6);
+        border-width: 2px;
+    }
+    
+    .icon-gallery {
+        background: linear-gradient(135deg, #8B5CF6, #EC4899) !important;
+    }
+    
+    .gallery-upload-area {
+        margin-bottom: 20px;
+    }
+    
+    .gallery-dropzone {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 32px;
+        background: rgba(139, 92, 246, 0.08);
+        border: 2px dashed rgba(139, 92, 246, 0.3);
+        border-radius: 16px;
+        cursor: pointer;
+        transition: all 200ms ease;
+        color: var(--dt-text-secondary, #9CA3AF);
+    }
+    
+    .gallery-dropzone:hover:not(.disabled) {
+        background: rgba(139, 92, 246, 0.15);
+        border-color: var(--dt-primary-500, #8B5CF6);
+        color: var(--dt-primary-400, #A78BFA);
+    }
+    
+    .gallery-dropzone.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .gallery-editor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
+    }
+    
+    .gallery-editor-item {
+        position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--dt-surface-2, #1F2937);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .gallery-editor-item img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        display: block;
+    }
+    
+    .gallery-item-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+        opacity: 0;
+        transition: opacity 200ms ease;
+    }
+    
+    .gallery-editor-item:hover .gallery-item-overlay {
+        opacity: 1;
+    }
+    
+    .gallery-item-btn {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 150ms ease;
+    }
+    
+    .gallery-item-btn:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.1);
+    }
+    
+    .gallery-item-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+    
+    .gallery-item-delete:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.8);
+    }
+    
+    .gallery-item-title {
+        padding: 8px;
+        background: var(--dt-surface-2, #1F2937);
+    }
+    
+    .gallery-item-title .mud-input-root {
+        font-size: 0.75rem !important;
+    }
+    
+    .gallery-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        color: var(--dt-text-muted, #6B7280);
+        text-align: center;
+    }
+    
+    .gallery-empty-state p {
+        margin: 12px 0 4px;
+        font-size: 0.95rem;
+        color: var(--dt-text-secondary, #9CA3AF);
+    }
+    
+    .gallery-empty-state span {
+        font-size: 0.8rem;
     }
 </style>
 
@@ -1599,6 +2069,11 @@ else
     private string _publicUrl = "";
     private bool _socialSectionExpanded = false;
     private bool _isUploading = false;
+    
+    // Portfolio Gallery
+    private bool _isPortfolioTemplate = false;
+    private List<GalleryImageModel> _galleryImages = new();
+    private bool _isUploadingGallery = false;
     
     // ViewModels for JSON fields
     private SocialLinksModel _socialLinks = new();
@@ -1654,6 +2129,22 @@ else
             }
             catch { _websiteLinks = new(); }
         }
+        
+        // Gallery Images (for portfolio template)
+        if (!string.IsNullOrEmpty(_card?.GalleryImagesJson))
+        {
+            try
+            {
+                _galleryImages = JsonSerializer.Deserialize<List<GalleryImageModel>>(_card.GalleryImagesJson) ?? new();
+            }
+            catch { _galleryImages = new(); }
+        }
+        
+        // Check template type from query parameter or card template
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var templateParam = query["template"];
+        _isPortfolioTemplate = templateParam == "portfolio-creative";
     }
 
     private async Task SaveCard()
@@ -1684,6 +2175,16 @@ else
             else
             {
                 _card.WebsiteLinksJson = null;
+            }
+            
+            // Serialize Gallery Images
+            if (_galleryImages.Any())
+            {
+                _card.GalleryImagesJson = JsonSerializer.Serialize(_galleryImages.OrderBy(i => i.Order).ToList());
+            }
+            else
+            {
+                _card.GalleryImagesJson = null;
             }
 
             _card.UpdatedAt = DateTime.UtcNow;
@@ -1884,5 +2385,107 @@ else
         if (length <= 150) return $"Longitud ideal ({length}/300)";
         if (length <= 250) return $"Considera acortar ({length}/300)";
         return $"Muy largo ({length}/300)";
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // GALLERY IMAGE MODEL
+    // ═══════════════════════════════════════════════════════════════
+    private class GalleryImageModel
+    {
+        public string Url { get; set; } = "";
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public int Order { get; set; }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // GALLERY UPLOAD & MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════
+    private async Task UploadGalleryImage(IBrowserFile file)
+    {
+        if (_card == null || _isUploadingGallery || _galleryImages.Count >= 10) return;
+
+        _isUploadingGallery = true;
+        StateHasChanged();
+
+        try
+        {
+            // Validation: Max size 5MB
+            if (file.Size > 5 * 1024 * 1024)
+            {
+                Snackbar.Add("Imagen muy pesada. Máximo 5 MB permitido.", Severity.Error);
+                return;
+            }
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                Snackbar.Add("Formato no soportado. Usa JPG, PNG o WebP.", Severity.Error);
+                return;
+            }
+
+            var uploadsFolder = Path.Combine(Environment.WebRootPath, "uploads", "gallery");
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+            var fileName = $"{Guid.NewGuid()}{extension}";
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            using (var stream = file.OpenReadStream(5 * 1024 * 1024))
+            using (var fs = new FileStream(filePath, FileMode.Create))
+            {
+                await stream.CopyToAsync(fs);
+            }
+
+            var newImage = new GalleryImageModel
+            {
+                Url = $"/uploads/gallery/{fileName}",
+                Order = _galleryImages.Count
+            };
+            _galleryImages.Add(newImage);
+            
+            MarkUnsaved();
+            Snackbar.Add("Imagen agregada a la galería", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al subir: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploadingGallery = false;
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveGalleryImage(GalleryImageModel image)
+    {
+        _galleryImages.Remove(image);
+        // Reorder remaining images
+        var ordered = _galleryImages.OrderBy(i => i.Order).ToList();
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            ordered[i].Order = i;
+        }
+        MarkUnsaved();
+        StateHasChanged();
+    }
+
+    private void MoveGalleryImage(GalleryImageModel image, int direction)
+    {
+        var ordered = _galleryImages.OrderBy(i => i.Order).ToList();
+        var currentIndex = ordered.IndexOf(image);
+        var newIndex = currentIndex + direction;
+        
+        if (newIndex < 0 || newIndex >= ordered.Count) return;
+        
+        // Swap orders
+        var other = ordered[newIndex];
+        var tempOrder = image.Order;
+        image.Order = other.Order;
+        other.Order = tempOrder;
+        
+        MarkUnsaved();
+        StateHasChanged();
     }
 }
