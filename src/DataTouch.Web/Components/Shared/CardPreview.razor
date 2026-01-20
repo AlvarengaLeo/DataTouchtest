@@ -1,4 +1,5 @@
 @using DataTouch.Domain.Entities
+@using DataTouch.Web.Models
 
 <div class="card-preview-container">
     <div class="preview-header">
@@ -35,7 +36,7 @@
                     
                     @if (!string.IsNullOrEmpty(Card?.Title))
                     {
-                        <div class="preview-title" style="color: @Style?.PrimaryColor">
+                        <div class="preview-title" style="color: @(Tokens?.AccentPrimary ?? "#7C3AED")">
                             @Card.Title
                         </div>
                     }
@@ -232,7 +233,7 @@
         justify-content: center;
         gap: 8px;
         padding: 10px 16px;
-        border-radius: 12px;
+        border-radius: 28px;
         font-size: 0.875rem;
         font-weight: 500;
         cursor: pointer;
@@ -265,8 +266,8 @@
     }
     
     .preview-btn.call {
-        border-color: #8B5CF6;
-        color: #A78BFA;
+        border-color: rgba(255, 255, 255, 0.4);
+        color: rgba(255, 255, 255, 0.8);
     }
     
     .preview-btn.email {
@@ -292,57 +293,47 @@
 
 @code {
     [Parameter] public Card? Card { get; set; }
-    [Parameter] public CardStyle? Style { get; set; }
+    [Parameter] public ThemeTokens? Tokens { get; set; }
     [Parameter] public bool ShowQr { get; set; } = false;
     
     private string _deviceType = "mobile";
     
     private string GetScreenBackgroundStyle()
     {
-        if (Style == null) return "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);";
-        
-        return Style.BackgroundType switch
-        {
-            "solid" => $"background: {Style.BackgroundValue ?? Style.PrimaryColor};",
-            "gradient" => $"background: {Style.BackgroundValue ?? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"};",
-            "image" => $"background: url({Style.BackgroundValue}) center/cover;",
-            _ => "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"
-        };
+        if (Tokens == null) return "background: linear-gradient(135deg, #0F0A1E 0%, #1E1B4B 50%, #0F0A1E 100%);";
+        return $"background: {Tokens.BgValue};";
     }
     
     private string GetCardStyle()
     {
-        if (Style == null) return "background: white; border-radius: 16px;";
-        
-        return $"background: {Style.BackgroundColor}; border-radius: {Style.CardBorderRadius}; box-shadow: {Style.CardShadow};";
+        if (Tokens == null) return "background: rgba(255,255,255,0.08); border-radius: 16px;";
+        return $"background: {Tokens.SurfaceCard}; border-radius: 16px; border: 1px solid {Tokens.SurfaceCardBorder};";
     }
     
     private string GetAvatarStyle()
     {
-        var primary = Style?.PrimaryColor ?? "#6366F1";
-        var secondary = Style?.SecondaryColor ?? "#EC4899";
-        return $"background: linear-gradient(135deg, {primary}, {secondary});";
+        return $"background: {Tokens?.AccentPrimary ?? "#7C3AED"}; color: {Tokens?.TextOnAccent ?? "#FFFFFF"};";
     }
     
     private string GetTextStyle()
     {
-        return $"color: {Style?.TextColor ?? "#1F2937"}; font-family: {Style?.FontFamily ?? "Inter"};";
+        return $"color: {Tokens?.TextPrimary ?? "#FFFFFF"};";
     }
     
     private string GetPrimaryButtonStyle()
     {
-        return $"background: {Style?.PrimaryColor ?? "#6366F1"};";
+        return $"background: {Tokens?.ButtonPrimaryBg ?? Tokens?.AccentPrimary ?? "#7C3AED"}; color: {Tokens?.ButtonPrimaryText ?? "#FFFFFF"};";
     }
     
     private string GetSecondaryButtonStyle()
     {
-        var primary = Style?.PrimaryColor ?? "#6366F1";
-        return $"background: {primary}20; color: {primary};";
+        var accent = Tokens?.AccentPrimary ?? "#7C3AED";
+        return $"border-color: {Tokens?.ButtonSecondaryBorder ?? "rgba(255,255,255,0.3)"}; color: {Tokens?.TextSecondary ?? "rgba(255,255,255,0.8)"};";
     }
     
     private string GetQrStyle()
     {
-        return $"background: {Style?.QrBackground ?? "#FFFFFF"}; color: {Style?.QrForeground ?? "#000000"};";
+        return "background: #FFFFFF; color: #000000;";
     }
     
     private string GetInitials()

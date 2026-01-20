@@ -46,6 +46,12 @@ public class Card
     /// <summary>Plantilla base usada para esta tarjeta (opcional)</summary>
     public Guid? TemplateId { get; set; }
     
+    /// <summary>Tipo de plantilla: 'default', 'portfolio-creative', 'services-quotes', etc.</summary>
+    public string TemplateType { get; set; } = "default";
+    
+    /// <summary>Primary card goal: "booking" or "quote" - defines which CTA is primary</summary>
+    public string PrimaryCardGoal { get; set; } = "booking";
+    
     /// <summary>Estilo personalizado de esta tarjeta (opcional)</summary>
     public Guid? StyleId { get; set; }
     
@@ -76,5 +82,14 @@ public class Card
     public CardStyle? Style { get; set; }
     public ICollection<CardComponent> Components { get; set; } = new List<CardComponent>();
     public ICollection<CardAnalytics> Analytics { get; set; } = new List<CardAnalytics>();
+    
+    // ═══════════════════════════════════════════════════════════════
+    // BOOKING SYSTEM Navigation Properties
+    // ═══════════════════════════════════════════════════════════════
+    public ICollection<Service> Services { get; set; } = new List<Service>();
+    public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+    public ICollection<AvailabilityRule> AvailabilityRules { get; set; } = new List<AvailabilityRule>();
+    public ICollection<AvailabilityException> AvailabilityExceptions { get; set; } = new List<AvailabilityException>();
+    public ICollection<QuoteRequest> QuoteRequests { get; set; } = new List<QuoteRequest>();
 }
 

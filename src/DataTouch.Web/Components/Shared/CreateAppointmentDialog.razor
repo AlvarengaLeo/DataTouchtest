@@ -1,0 +1,834 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+   CREATE APPOINTMENT DIALOG - REUSABLE WIZARD
+   3 steps: Client → Service+Date+Time → Confirmation
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+
+@using DataTouch.Domain.Entities
+@using DataTouch.Web.Services
+@inject AppointmentService AppointmentService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.EventAvailable" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">
+                @(IsFirstTimeOnboarding ? "Crea tu primera cita" : "Nueva Cita")
+            </MudText>
+        </div>
+    </TitleContent>
+    
+    <DialogContent>
+        @if (IsFirstTimeOnboarding)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+                <MudText Typo="Typo.body2">Comienza a gestionar tu agenda creando tu primera cita manualmente.</MudText>
+            </MudAlert>
+        }
+        
+        @* Step Indicator *@
+        <div class="step-indicator mb-4">
+            <div class="step @(_currentStep >= 1 ? "active" : "")">
+                <span class="step-number">1</span>
+                <span class="step-label">Cliente</span>
+            </div>
+            <div class="step-line @(_currentStep >= 2 ? "active" : "")"></div>
+            <div class="step @(_currentStep >= 2 ? "active" : "")">
+                <span class="step-number">2</span>
+                <span class="step-label">Servicio y Hora</span>
+            </div>
+            <div class="step-line @(_currentStep >= 3 ? "active" : "")"></div>
+            <div class="step @(_currentStep >= 3 ? "active" : "")">
+                <span class="step-number">3</span>
+                <span class="step-label">Confirmación</span>
+            </div>
+        </div>
+        
+        @* ═══════════════ STEP 1: CLIENT ═══════════════ *@
+        @if (_currentStep == 1)
+        {
+            <div class="step-content">
+                <MudText Typo="Typo.subtitle1" Class="mb-3" Style="font-weight: 600;">
+                    Información del Cliente
+                </MudText>
+                
+                <MudTextField @bind-Value="_customerName" Label="Nombre completo *" 
+                              Variant="Variant.Outlined" Class="mb-3"
+                              Required="true" RequiredError="El nombre es obligatorio" />
+                
+                <MudTextField @bind-Value="_customerEmail" Label="Correo electrónico" 
+                              Variant="Variant.Outlined" Class="mb-3"
+                              InputType="InputType.Email"
+                              Placeholder="ejemplo@email.com" />
+                
+                <MudTextField @bind-Value="_customerPhone" Label="Teléfono" 
+                              Variant="Variant.Outlined" Class="mb-3"
+                              Placeholder="+503 7000-0000" />
+                
+                <MudTextField @bind-Value="_customerNotes" Label="Notas del cliente" 
+                              Variant="Variant.Outlined" Lines="2"
+                              Placeholder="Notas o comentarios adicionales..." />
+            </div>
+        }
+        
+        @* ═══════════════ STEP 2: SERVICE + DATE + TIME ═══════════════ *@
+        else if (_currentStep == 2)
+        {
+            <div class="step-content">
+                <MudText Typo="Typo.subtitle1" Class="mb-3" Style="font-weight: 600;">
+                    Servicio, Fecha y Hora
+                </MudText>
+                
+                <MudSelect T="Guid?" @bind-Value="_selectedServiceId" Label="Servicio *" 
+                           Variant="Variant.Outlined" Class="mb-3"
+                           Required="true" RequiredError="Selecciona un servicio">
+                    @foreach (var service in Services)
+                    {
+                        <MudSelectItem T="Guid?" Value="@service.Id">
+                            @service.Name (@service.DurationMinutes min)
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+                
+                <MudDatePicker Date="_selectedDate" Label="Fecha *" 
+                               Variant="Variant.Outlined" Class="mb-3"
+                               MinDate="DateTime.Today"
+                               DateChanged="OnDateChanged" />
+                
+                @if (_isLoadingSlots)
+                {
+                    <div class="d-flex justify-center pa-4">
+                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Medium" />
+                    </div>
+                }
+                else if (_selectedDate.HasValue && _availableSlots.Any())
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
+                        Horarios disponibles
+                    </MudText>
+                    <div class="time-slots-grid">
+                        @foreach (var slot in _availableSlots)
+                        {
+                            <MudButton Variant="@(_selectedSlot == slot ? Variant.Filled : Variant.Outlined)"
+                                       Color="@(_selectedSlot == slot ? Color.Primary : Color.Default)"
+                                       Size="Size.Small" Class="time-slot-btn"
+                                       OnClick="@(() => _selectedSlot = slot)">
+                                @slot.DisplayTime
+                            </MudButton>
+                        }
+                    </div>
+                }
+                else if (_selectedDate.HasValue && !_availableSlots.Any())
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true">
+                        No hay horarios disponibles para esta fecha. Intenta con otra fecha.
+                    </MudAlert>
+                }
+            </div>
+        }
+        
+        @* ═══════════════ STEP 3: CONFIRMATION (PREMIUM) ═══════════════ *@
+        else if (_currentStep == 3)
+        {
+            <div class="step-content step-3-premium">
+                
+                @* ═══════════════ HERO SUMMARY HEADER ═══════════════ *@
+                <div class="hero-summary">
+                    <div class="hero-top d-flex justify-space-between align-start">
+                        <div class="hero-client-info">
+                            <MudText Typo="Typo.h5" Class="hero-name">@_customerName</MudText>
+                            <MudText Typo="Typo.body2" Class="hero-service">@(SelectedService?.Name ?? "Servicio")</MudText>
+                        </div>
+                        <MudChip T="string" Color="@GetStatusChipColor(_initialStatus)" 
+                                 Variant="Variant.Filled" Size="Size.Small" Class="status-chip-hero">
+                            @GetStatusLabel(_initialStatus)
+                        </MudChip>
+                    </div>
+                    
+                    <div class="hero-datetime d-flex align-center gap-4 mt-3">
+                        <span class="datetime-item">
+                            <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" />
+                            @FormatDateHeroSpanish(_selectedDate) · @(_selectedSlot?.StartTime.ToString("h:mm tt")) – @(_selectedSlot?.EndTime.ToString("h:mm tt"))
+                        </span>
+                        <span class="datetime-item">
+                            <MudIcon Icon="@Icons.Material.Filled.Timer" Size="Size.Small" />
+                            @(SelectedService?.DurationMinutes ?? 30) min
+                        </span>
+                    </div>
+                </div>
+                
+                @* ═══════════════ TWO INFO CARDS ═══════════════ *@
+                <div class="info-cards-grid">
+                    
+                    @* CARD 1: Información de la Cita *@
+                    <MudPaper Elevation="0" Class="info-card">
+                        <div class="card-header d-flex justify-space-between align-center">
+                            <MudText Typo="Typo.subtitle2" Class="card-title">Información de la cita</MudText>
+                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Edit" Class="edit-link"
+                                       OnClick="@(() => _currentStep = 2)">
+                                Editar
+                            </MudButton>
+                        </div>
+                        <div class="card-grid">
+                            <div class="info-item">
+                                <span class="info-label">Fecha</span>
+                                <span class="info-value">@FormatDateLongSpanish(_selectedDate)</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Hora</span>
+                                <span class="info-value">@(_selectedSlot?.StartTime.ToString("h:mm tt")) – @(_selectedSlot?.EndTime.ToString("h:mm tt"))</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Servicio</span>
+                                <span class="info-value">@(SelectedService?.Name ?? "—")</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Duración</span>
+                                <span class="info-value">@(SelectedService?.DurationMinutes ?? 30) minutos</span>
+                            </div>
+                        </div>
+                    </MudPaper>
+                    
+                    @* CARD 2: Datos del Cliente *@
+                    <MudPaper Elevation="0" Class="info-card">
+                        <div class="card-header d-flex justify-space-between align-center">
+                            <MudText Typo="Typo.subtitle2" Class="card-title">Datos del cliente</MudText>
+                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Edit" Class="edit-link"
+                                       OnClick="@(() => _currentStep = 1)">
+                                Editar
+                            </MudButton>
+                        </div>
+                        <div class="client-info-list">
+                            <div class="client-row">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                                <span class="client-value">@_customerName</span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(_customerEmail) && !_customerEmail.Contains("@datatouch.local"))
+                            {
+                                <div class="client-row">
+                                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
+                                    <span class="client-value">@_customerEmail</span>
+                                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small"
+                                                   OnClick="@(() => CopyToClipboard(_customerEmail))"
+                                                   Title="Copiar email" Class="action-btn" />
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(_customerPhone))
+                            {
+                                <div class="client-row">
+                                    <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
+                                    <span class="client-value">@_customerPhone</span>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Call" Size="Size.Small"
+                                                   Href="@($"tel:{_customerPhone}")" Target="_blank"
+                                                   Title="Llamar" Class="action-btn" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Chat" Size="Size.Small"
+                                                   Href="@($"https://wa.me/{_customerPhone.Replace("+", "").Replace(" ", "").Replace("-", "")}")" Target="_blank"
+                                                   Title="WhatsApp" Class="action-btn" />
+                                </div>
+                            }
+                        </div>
+                    </MudPaper>
+                </div>
+                
+                @* ═══════════════ STATUS SELECTOR (Radio Cards) ═══════════════ *@
+                <div class="status-selector mt-4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2" Style="color: rgba(255,255,255,0.7);">
+                        Estado inicial de la cita
+                    </MudText>
+                    <div class="status-cards">
+                        <div class="status-card @(_initialStatus == AppointmentStatus.Pending ? "selected" : "")"
+                             @onclick="@(() => _initialStatus = AppointmentStatus.Pending)">
+                            <div class="status-radio">
+                                <MudIcon Icon="@(_initialStatus == AppointmentStatus.Pending ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" 
+                                         Color="@(_initialStatus == AppointmentStatus.Pending ? Color.Warning : Color.Default)" />
+                            </div>
+                            <div class="status-content">
+                                <span class="status-title">
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                                    Pendiente
+                                </span>
+                                <span class="status-desc">Requiere confirmación del cliente</span>
+                            </div>
+                        </div>
+                        
+                        <div class="status-card @(_initialStatus == AppointmentStatus.Confirmed ? "selected" : "")"
+                             @onclick="@(() => _initialStatus = AppointmentStatus.Confirmed)">
+                            <div class="status-radio">
+                                <MudIcon Icon="@(_initialStatus == AppointmentStatus.Confirmed ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" 
+                                         Color="@(_initialStatus == AppointmentStatus.Confirmed ? Color.Success : Color.Default)" />
+                            </div>
+                            <div class="status-content">
+                                <span class="status-title">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                                    Confirmada
+                                </span>
+                                <span class="status-desc">Bloquea el horario inmediatamente</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                @* ═══════════════ AVAILABILITY MESSAGE ═══════════════ *@
+                <div class="availability-message mt-4">
+                    @if (_isSlotAvailable)
+                    {
+                        <MudAlert Severity="Severity.Success" Dense="true" Icon="@Icons.Material.Filled.CheckCircle"
+                                  Class="availability-alert success">
+                            Horario disponible. Al crear la cita se bloqueará este espacio.
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Icon="@Icons.Material.Filled.Warning"
+                                  Class="availability-alert warning">
+                            Este horario ya no está disponible. Regresa y selecciona otro.
+                        </MudAlert>
+                    }
+                </div>
+                
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">
+                        @_errorMessage
+                    </MudAlert>
+                }
+            </div>
+        }
+    </DialogContent>
+    
+    <DialogActions>
+        @if (_currentStep > 1)
+        {
+            <MudButton OnClick="PreviousStep" Disabled="_isSaving" Variant="Variant.Text">
+                <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" Class="mr-1" />
+                Atrás
+            </MudButton>
+        }
+        <MudSpacer />
+        <MudButton OnClick="Cancel" Disabled="_isSaving" Variant="Variant.Text" 
+                   Class="cancel-btn">Cancelar</MudButton>
+        
+        @if (_currentStep < 3)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                       OnClick="NextStep" Disabled="!CanAdvance">
+                Siguiente
+                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="ml-1" />
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Success" 
+                       OnClick="CreateAppointment" Disabled="@(_isSaving || !_isSlotAvailable)"
+                       Class="confirm-btn">
+                @if (_isSaving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Guardando...</span>
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="mr-1" />
+                    <span>Confirmar y Crear</span>
+                }
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    
+    [Parameter] public Guid CardId { get; set; }
+    [Parameter] public List<Service> Services { get; set; } = new();
+    [Parameter] public bool IsFirstTimeOnboarding { get; set; } = false;
+    
+    // Wizard state
+    private int _currentStep = 1;
+    
+    // Step 1: Client
+    private string _customerName = "";
+    private string _customerEmail = "";
+    private string _customerPhone = "";
+    private string _customerNotes = "";
+    
+    // Step 2: Service + Date + Time
+    private Guid? _selectedServiceId;
+    private DateTime? _selectedDate;
+    private List<TimeSlot> _availableSlots = new();
+    private TimeSlot? _selectedSlot;
+    private bool _isLoadingSlots = false;
+    
+    // Step 3: Confirmation
+    private AppointmentStatus _initialStatus = AppointmentStatus.Pending;
+    private bool _isSaving = false;
+    private string? _errorMessage;
+    private bool _isSlotAvailable = true; // Updated on slot conflict
+    
+    // Spanish culture for date formatting
+    private static readonly System.Globalization.CultureInfo SpanishCulture = new("es-SV");
+    
+    private Service? SelectedService => Services.FirstOrDefault(s => s.Id == _selectedServiceId);
+    
+    private bool CanAdvance => _currentStep switch
+    {
+        1 => !string.IsNullOrWhiteSpace(_customerName),
+        2 => _selectedServiceId.HasValue && _selectedDate.HasValue && _selectedSlot != null,
+        _ => true
+    };
+    
+    private void NextStep()
+    {
+        if (CanAdvance && _currentStep < 3)
+            _currentStep++;
+    }
+    
+    private void PreviousStep()
+    {
+        if (_currentStep > 1)
+            _currentStep--;
+    }
+    
+    private void Cancel() => MudDialog.Cancel();
+    
+    private async Task OnDateChanged(DateTime? date)
+    {
+        _selectedDate = date;
+        _selectedSlot = null;
+        _availableSlots.Clear();
+        
+        if (!date.HasValue || !_selectedServiceId.HasValue) return;
+        
+        _isLoadingSlots = true;
+        StateHasChanged();
+        
+        try
+        {
+            _availableSlots = await AppointmentService.GetAvailableSlotsAsync(
+                CardId, 
+                DateOnly.FromDateTime(date.Value), 
+                _selectedServiceId.Value);
+        }
+        finally
+        {
+            _isLoadingSlots = false;
+        }
+    }
+    
+    private async Task CreateAppointment()
+    {
+        if (_selectedSlot == null || !_selectedDate.HasValue || !_selectedServiceId.HasValue)
+            return;
+        
+        _isSaving = true;
+        _errorMessage = null;
+        StateHasChanged();
+        
+        try
+        {
+            var dto = new CreateAppointmentDto
+            {
+                CardId = CardId,
+                ServiceId = _selectedServiceId,
+                Date = DateOnly.FromDateTime(_selectedDate.Value),
+                StartTime = _selectedSlot.StartTime,
+                CustomerName = _customerName,
+                CustomerEmail = string.IsNullOrWhiteSpace(_customerEmail) ? $"manual_{Guid.NewGuid():N}@datatouch.local" : _customerEmail,
+                CustomerPhone = _customerPhone,
+                CustomerNotes = _customerNotes,
+                InitialStatus = _initialStatus,
+                Source = "Manual"
+            };
+            
+            var result = await AppointmentService.CreatePublicAppointmentAsync(dto);
+            
+            if (result.Success)
+            {
+                Snackbar.Add("¡Cita creada exitosamente!", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(result.Appointment));
+            }
+            else
+            {
+                _errorMessage = result.Error ?? "Error al crear la cita";
+                _isSlotAvailable = false; // Mark as unavailable on conflict
+                // Reload slots in case of conflict
+                await OnDateChanged(_selectedDate);
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HELPER METHODS FOR PREMIUM STEP 3
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    private string FormatDateHeroSpanish(DateTime? date)
+    {
+        if (!date.HasValue) return "—";
+        var d = date.Value;
+        var dayName = d.ToString("ddd", SpanishCulture).TrimEnd('.');
+        dayName = char.ToUpper(dayName[0]) + dayName.Substring(1);
+        var day = d.Day;
+        var month = d.ToString("MMM", SpanishCulture).TrimEnd('.');
+        month = char.ToUpper(month[0]) + month.Substring(1);
+        return $"{dayName} {day} {month}";
+    }
+    
+    private string FormatDateLongSpanish(DateTime? date)
+    {
+        if (!date.HasValue) return "—";
+        var d = date.Value;
+        var dayName = d.ToString("dddd", SpanishCulture);
+        dayName = char.ToUpper(dayName[0]) + dayName.Substring(1);
+        var day = d.Day;
+        var month = d.ToString("MMMM", SpanishCulture);
+        var year = d.Year;
+        return $"{dayName}, {day} de {month} {year}";
+    }
+    
+    private Color GetStatusChipColor(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Pending => Color.Warning,
+        AppointmentStatus.Confirmed => Color.Success,
+        AppointmentStatus.Cancelled => Color.Error,
+        AppointmentStatus.Completed => Color.Info,
+        _ => Color.Default
+    };
+    
+    private string GetStatusLabel(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Pending => "Pendiente",
+        AppointmentStatus.Confirmed => "Confirmada",
+        AppointmentStatus.Cancelled => "Cancelada",
+        AppointmentStatus.Completed => "Completada",
+        _ => "Desconocido"
+    };
+    
+    private void CopyToClipboard(string text)
+    {
+        // Note: Full clipboard requires JS interop, this is a placeholder
+        Snackbar.Add("Email copiado", Severity.Info);
+    }
+}
+
+<style>
+    /* ═══════════════ STEP INDICATOR ═══════════════ */
+    .step-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+    }
+    
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+    
+    .step.active {
+        opacity: 1;
+    }
+    
+    .step-number {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    
+    .step.active .step-number {
+        background: var(--mud-palette-primary);
+        color: white;
+    }
+    
+    .step-label {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.7);
+    }
+    
+    .step-line {
+        width: 40px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 0 8px;
+        margin-bottom: 20px;
+    }
+    
+    .step-line.active {
+        background: var(--mud-palette-primary);
+    }
+    
+    /* ═══════════════ TIME SLOTS ═══════════════ */
+    .time-slots-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .time-slot-btn {
+        min-width: 90px;
+    }
+    
+    /* ═══════════════ STEP CONTENT ═══════════════ */
+    .step-content {
+        min-height: 280px;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════ */
+    /* STEP 3 PREMIUM STYLES */
+    /* ═══════════════════════════════════════════════════════════ */
+    
+    .step-3-premium {
+        min-height: auto;
+    }
+    
+    /* ═══════════════ HERO SUMMARY ═══════════════ */
+    .hero-summary {
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%);
+        border: 1px solid rgba(79, 70, 229, 0.2);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .hero-name {
+        font-weight: 700 !important;
+        color: rgba(255, 255, 255, 0.95);
+        margin-bottom: 2px;
+    }
+    
+    .hero-service {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.95rem;
+    }
+    
+    .status-chip-hero {
+        font-weight: 600;
+    }
+    
+    .hero-datetime {
+        flex-wrap: wrap;
+    }
+    
+    .datetime-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .datetime-item .mud-icon-root {
+        color: var(--mud-palette-primary);
+        font-size: 1rem;
+    }
+    
+    /* ═══════════════ INFO CARDS GRID ═══════════════ */
+    .info-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+    
+    @@media (max-width: 600px) {
+        .info-cards-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .info-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 14px;
+        padding: 16px;
+    }
+    
+    .card-header {
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .card-title {
+        color: rgba(255, 255, 255, 0.7);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.75rem !important;
+    }
+    
+    .edit-link {
+        font-size: 0.75rem !important;
+        text-transform: none !important;
+        padding: 2px 8px !important;
+    }
+    
+    .card-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .info-label {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.45);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .info-value {
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+    }
+    
+    /* ═══════════════ CLIENT INFO ═══════════════ */
+    .client-info-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .client-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .client-row .mud-icon-root {
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 1.1rem;
+    }
+    
+    .client-value {
+        flex: 1;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.85);
+    }
+    
+    .action-btn {
+        width: 28px !important;
+        height: 28px !important;
+        padding: 0 !important;
+    }
+    
+    .action-btn .mud-icon-root {
+        font-size: 1rem;
+        color: var(--mud-palette-primary);
+    }
+    
+    /* ═══════════════ STATUS SELECTOR ═══════════════ */
+    .status-selector {
+        margin-top: 20px;
+    }
+    
+    .status-cards {
+        display: flex;
+        gap: 12px;
+    }
+    
+    @@media (max-width: 500px) {
+        .status-cards {
+            flex-direction: column;
+        }
+    }
+    
+    .status-card {
+        flex: 1;
+        display: flex;
+        gap: 12px;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    
+    .status-card:hover {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+    
+    .status-card.selected {
+        background: rgba(79, 70, 229, 0.08);
+        border-color: var(--mud-palette-primary);
+    }
+    
+    .status-radio {
+        flex-shrink: 0;
+    }
+    
+    .status-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .status-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .status-title .mud-icon-root {
+        font-size: 1rem;
+    }
+    
+    .status-desc {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.5);
+    }
+    
+    /* ═══════════════ AVAILABILITY MESSAGE ═══════════════ */
+    .availability-message {
+        margin-top: 16px;
+    }
+    
+    .availability-alert {
+        border-radius: 10px !important;
+    }
+    
+    /* ═══════════════ PREMIUM FOOTER ACTIONS ═══════════════ */
+    .premium-actions {
+        padding: 16px 24px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    
+    .cancel-btn {
+        color: rgba(255, 255, 255, 0.5) !important;
+    }
+    
+    .confirm-btn {
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+        font-weight: 600 !important;
+    }
+</style>

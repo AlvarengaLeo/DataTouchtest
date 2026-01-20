@@ -1,0 +1,742 @@
+@page "/quotes"
+@layout MainLayout
+@inject DataTouchDbContext DbContext
+@inject QuoteService QuoteService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@using DataTouch.Domain.Entities
+@using DataTouch.Infrastructure.Data
+@using DataTouch.Web.Services
+
+<PageTitle>Cotizaciones - DataTouch</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    @* ═══════════════════════════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════════════════════════ *@
+    <div class="quotes-header">
+        <div class="header-left">
+            <MudText Typo="Typo.h4" Class="page-title">📝 Cotizaciones</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Gestiona las solicitudes de cotización de tus clientes
+            </MudText>
+        </div>
+        <div class="header-right">
+            <MudButton Variant="Variant.Outlined" 
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="LoadQuotes"
+                       Size="Size.Small">
+                Actualizar
+            </MudButton>
+        </div>
+    </div>
+
+    @* ═══════════════════════════════════════════════════════════════
+       STATUS COUNTS (KPI Cards)
+       ═══════════════════════════════════════════════════════════════ *@
+    <div class="status-cards">
+        @foreach (var status in _statusCounts)
+        {
+            <div class="status-card @(status.Key == _selectedStatus ? "status-card-active" : "")"
+                 @onclick="@(() => FilterByStatus(status.Key))">
+                <div class="status-count">@status.Value</div>
+                <div class="status-label">
+                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(status.Key)" Class="status-chip">
+                        @GetStatusLabel(status.Key)
+                    </MudChip>
+                </div>
+            </div>
+        }
+        <div class="status-card @(_selectedStatus == null ? "status-card-active" : "")"
+             @onclick="@(() => FilterByStatus(null))">
+            <div class="status-count">@_quotes.Count</div>
+            <div class="status-label">
+                <MudChip T="string" Size="Size.Small" Color="Color.Default" Class="status-chip">Todas</MudChip>
+            </div>
+        </div>
+    </div>
+
+    @* ═══════════════════════════════════════════════════════════════
+       FILTERS BAR
+       ═══════════════════════════════════════════════════════════════ *@
+    <MudPaper Class="filters-bar pa-3 mb-4" Elevation="0">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_searchTerm"
+                              Placeholder="Buscar por nombre o email..."
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              OnDebounceIntervalElapsed="SearchChanged"
+                              Class="filter-input" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudSelect @bind-Value="_selectedServiceId"
+                           Label="Servicio"
+                           Variant="Variant.Outlined"
+                           Clearable="true"
+                           Class="filter-input">
+                    @foreach (var service in _services)
+                    {
+                        <MudSelectItem Value="@service.Id">@service.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudSelect @bind-Value="_dateRange"
+                           Label="Fecha"
+                           Variant="Variant.Outlined"
+                           Class="filter-input">
+                    <MudSelectItem Value="@("all")">Todas</MudSelectItem>
+                    <MudSelectItem Value="@("today")">Hoy</MudSelectItem>
+                    <MudSelectItem Value="@("week")">Últimos 7 días</MudSelectItem>
+                    <MudSelectItem Value="@("month")">Este mes</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="2" Class="d-flex align-center justify-end">
+                <MudButton Variant="Variant.Text" 
+                           Color="Color.Primary"
+                           OnClick="ClearFilters"
+                           Size="Size.Small">
+                    Limpiar filtros
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* ═══════════════════════════════════════════════════════════════
+       QUOTES TABLE
+       ═══════════════════════════════════════════════════════════════ *@
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+    }
+
+    @if (_filteredQuotes.Any())
+    {
+        <MudPaper Class="quotes-table" Elevation="0">
+            <MudTable Items="_filteredQuotes" 
+                      Hover="true" 
+                      Dense="true"
+                      OnRowClick="@((TableRowClickEventArgs<QuoteRequest> args) => OpenDetails(args.Item))"
+                      Class="quote-table-content">
+                <HeaderContent>
+                    <MudTh>Solicitud</MudTh>
+                    <MudTh>Cliente</MudTh>
+                    <MudTh>Servicio</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh>Fecha</MudTh>
+                    <MudTh>SLA</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Solicitud">
+                        <span class="request-number">@context.RequestNumber</span>
+                    </MudTd>
+                    <MudTd DataLabel="Cliente">
+                        <div class="customer-cell">
+                            <span class="customer-name">@context.CustomerName</span>
+                            <span class="customer-email">@context.CustomerEmail</span>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Servicio">
+                        <span class="service-name">@context.Service?.Name</span>
+                    </MudTd>
+                    <MudTd DataLabel="Estado">
+                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                            @GetStatusLabel(context.Status)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Fecha">
+                        <span class="date-cell">@context.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                    </MudTd>
+                    <MudTd DataLabel="SLA">
+                        @if (context.Status == QuoteStatus.New || context.Status == QuoteStatus.InReview)
+                        {
+                            var slaStatus = GetSlaStatus(context);
+                            <MudChip T="string" Size="Size.Small" Color="@slaStatus.Color" Variant="Variant.Outlined">
+                                @slaStatus.Label
+                            </MudChip>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" 
+                                       Size="Size.Small" 
+                                       OnClick="@(() => OpenDetails(context))" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+    else if (!_isLoading)
+    {
+        <MudPaper Class="empty-state pa-8" Elevation="0">
+            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Color="Color.Default" />
+            <MudText Typo="Typo.h6" Class="mt-4">No hay cotizaciones</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Las solicitudes de cotización aparecerán aquí
+            </MudText>
+        </MudPaper>
+    }
+</MudContainer>
+
+@* ═══════════════════════════════════════════════════════════════
+   QUOTE DETAILS DRAWER
+   ═══════════════════════════════════════════════════════════════ *@
+<MudDrawer @bind-Open="_drawerOpen" 
+           Anchor="Anchor.End" 
+           Width="480px" 
+           Elevation="2"
+           Variant="DrawerVariant.Temporary"
+           Class="quote-drawer">
+    @if (_selectedQuote != null)
+    {
+        <div class="drawer-content">
+            <div class="drawer-header">
+                <div class="drawer-title">
+                    <MudText Typo="Typo.h6">@_selectedQuote.RequestNumber</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(_selectedQuote.Status)">
+                        @GetStatusLabel(_selectedQuote.Status)
+                    </MudChip>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="CloseDrawer" />
+            </div>
+            
+            @* Customer Info *@
+            <MudPaper Class="drawer-section" Elevation="0">
+                <MudText Typo="Typo.overline">CLIENTE</MudText>
+                <div class="customer-info">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                    <span>@_selectedQuote.CustomerName</span>
+                </div>
+                <div class="customer-info">
+                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
+                    <a href="mailto:@_selectedQuote.CustomerEmail">@_selectedQuote.CustomerEmail</a>
+                </div>
+                @if (!string.IsNullOrEmpty(_selectedQuote.CustomerPhone))
+                {
+                    <div class="customer-info">
+                        <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
+                        <a href="tel:@_selectedQuote.CustomerPhone">@_selectedQuote.CustomerPhone</a>
+                    </div>
+                }
+            </MudPaper>
+            
+            @* Service & Description *@
+            <MudPaper Class="drawer-section" Elevation="0">
+                <MudText Typo="Typo.overline">SERVICIO SOLICITADO</MudText>
+                <MudText Typo="Typo.subtitle1">@_selectedQuote.Service?.Name</MudText>
+                @if (!string.IsNullOrEmpty(_selectedQuote.Description))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                        "@_selectedQuote.Description"
+                    </MudText>
+                }
+            </MudPaper>
+            
+            @* Quick Actions *@
+            <MudPaper Class="drawer-section" Elevation="0">
+                <MudText Typo="Typo.overline">ACCIONES</MudText>
+                <div class="quick-actions">
+                    @if (_selectedQuote.Status == QuoteStatus.New)
+                    {
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   OnClick="@(() => ChangeStatus(QuoteStatus.InReview))">
+                            Iniciar Revisión
+                        </MudButton>
+                    }
+                    @if (_selectedQuote.Status == QuoteStatus.InReview)
+                    {
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.Send"
+                                   OnClick="@(() => ChangeStatus(QuoteStatus.Quoted))">
+                            Marcar como Cotizada
+                        </MudButton>
+                    }
+                    @if (_selectedQuote.Status == QuoteStatus.Quoted || _selectedQuote.Status == QuoteStatus.Negotiation)
+                    {
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Success"
+                                   StartIcon="@Icons.Material.Filled.CheckCircle"
+                                   OnClick="@(() => ChangeStatus(QuoteStatus.Won))">
+                            Marcar Ganada
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Cancel"
+                                   OnClick="OpenLostDialog">
+                            Marcar Perdida
+                        </MudButton>
+                    }
+                    @if (_selectedQuote.Status != QuoteStatus.Won && _selectedQuote.Status != QuoteStatus.Archived)
+                    {
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.CalendarMonth"
+                                   OnClick="ConvertToAppointment">
+                            Convertir a Cita
+                        </MudButton>
+                    }
+                </div>
+            </MudPaper>
+            
+            @* Timeline *@
+            <MudPaper Class="drawer-section timeline-section" Elevation="0">
+                <MudText Typo="Typo.overline">HISTORIAL</MudText>
+                @if (_timeline.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var activity in _timeline)
+                        {
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content">
+                                    <span class="timeline-desc">@activity.Description</span>
+                                    <span class="timeline-date">@activity.CreatedAt.ToString("dd/MM HH:mm")</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Sin actividad registrada</MudText>
+                }
+            </MudPaper>
+            
+            @* Add Note *@
+            <MudPaper Class="drawer-section" Elevation="0">
+                <MudTextField @bind-Value="_newNote"
+                              Label="Agregar nota"
+                              Variant="Variant.Outlined"
+                              Lines="2"
+                              Class="mb-2" />
+                <MudButton Variant="Variant.Outlined" 
+                           Size="Size.Small"
+                           OnClick="AddNote"
+                           Disabled="@(string.IsNullOrWhiteSpace(_newNote))">
+                    Guardar nota
+                </MudButton>
+            </MudPaper>
+        </div>
+    }
+</MudDrawer>
+
+@code {
+    private List<QuoteRequest> _quotes = new();
+    private List<QuoteRequest> _filteredQuotes = new();
+    private List<Service> _services = new();
+    private List<Activity> _timeline = new();
+    private Dictionary<QuoteStatus, int> _statusCounts = new();
+    
+    private bool _isLoading = true;
+    private bool _drawerOpen = false;
+    private QuoteRequest? _selectedQuote;
+    
+    // Filters
+    private string _searchTerm = "";
+    private Guid? _selectedServiceId;
+    private QuoteStatus? _selectedStatus;
+    private string _dateRange = "all";
+    
+    private string _newNote = "";
+    
+    // TODO: Get from auth
+    private Guid _currentOrgId = Guid.Empty;
+    private Guid _currentCardId = Guid.Empty;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        // Get org/card from session/claims
+        var card = await DbContext.Cards.FirstOrDefaultAsync();
+        if (card != null)
+        {
+            _currentOrgId = card.OrganizationId;
+            _currentCardId = card.Id;
+        }
+        
+        await LoadServices();
+        await LoadQuotes();
+    }
+    
+    private async Task LoadServices()
+    {
+        _services = await DbContext.Services
+            .Where(s => s.CardId == _currentCardId && s.IsActive)
+            .OrderBy(s => s.DisplayOrder)
+            .ToListAsync();
+    }
+    
+    private async Task LoadQuotes()
+    {
+        _isLoading = true;
+        StateHasChanged();
+        
+        _quotes = await DbContext.QuoteRequests
+            .Include(q => q.Service)
+            .Where(q => q.OrganizationId == _currentOrgId)
+            .Where(q => q.Status != QuoteStatus.Archived)
+            .OrderByDescending(q => q.CreatedAt)
+            .ToListAsync();
+        
+        _statusCounts = _quotes
+            .GroupBy(q => q.Status)
+            .ToDictionary(g => g.Key, g => g.Count());
+        
+        ApplyFilters();
+        
+        _isLoading = false;
+        StateHasChanged();
+    }
+    
+    private void ApplyFilters()
+    {
+        var query = _quotes.AsEnumerable();
+        
+        if (_selectedStatus.HasValue)
+            query = query.Where(q => q.Status == _selectedStatus.Value);
+        
+        if (_selectedServiceId.HasValue)
+            query = query.Where(q => q.ServiceId == _selectedServiceId.Value);
+        
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            var term = _searchTerm.ToLower();
+            query = query.Where(q => 
+                q.CustomerName.ToLower().Contains(term) ||
+                q.CustomerEmail.ToLower().Contains(term) ||
+                (q.RequestNumber?.ToLower().Contains(term) ?? false));
+        }
+        
+        if (_dateRange != "all")
+        {
+            var now = DateTime.UtcNow;
+            query = _dateRange switch
+            {
+                "today" => query.Where(q => q.CreatedAt.Date == now.Date),
+                "week" => query.Where(q => q.CreatedAt >= now.AddDays(-7)),
+                "month" => query.Where(q => q.CreatedAt.Month == now.Month && q.CreatedAt.Year == now.Year),
+                _ => query
+            };
+        }
+        
+        _filteredQuotes = query.ToList();
+    }
+    
+    private void FilterByStatus(QuoteStatus? status)
+    {
+        _selectedStatus = status;
+        ApplyFilters();
+    }
+    
+    private void SearchChanged(string value)
+    {
+        _searchTerm = value;
+        ApplyFilters();
+    }
+    
+    private void ClearFilters()
+    {
+        _searchTerm = "";
+        _selectedServiceId = null;
+        _selectedStatus = null;
+        _dateRange = "all";
+        ApplyFilters();
+    }
+    
+    private async Task OpenDetails(QuoteRequest quote)
+    {
+        _selectedQuote = quote;
+        _timeline = await QuoteService.GetTimelineAsync(quote.Id);
+        _drawerOpen = true;
+    }
+    
+    private void CloseDrawer()
+    {
+        _drawerOpen = false;
+        _selectedQuote = null;
+        _newNote = "";
+    }
+    
+    private async Task ChangeStatus(QuoteStatus newStatus)
+    {
+        if (_selectedQuote == null) return;
+        
+        await QuoteService.UpdateStatusAsync(_selectedQuote.Id, newStatus);
+        _selectedQuote.Status = newStatus;
+        _timeline = await QuoteService.GetTimelineAsync(_selectedQuote.Id);
+        
+        Snackbar.Add($"Estado actualizado a: {GetStatusLabel(newStatus)}", Severity.Success);
+        await LoadQuotes();
+    }
+    
+    private async Task OpenLostDialog()
+    {
+        var dialog = await DialogService.ShowMessageBox(
+            "Marcar como Perdida",
+            "¿Cuál fue la razón de pérdida?",
+            yesText: "Confirmar",
+            cancelText: "Cancelar");
+        
+        if (dialog == true && _selectedQuote != null)
+        {
+            await QuoteService.UpdateStatusAsync(_selectedQuote.Id, QuoteStatus.Lost, "Cliente no interesado");
+            await LoadQuotes();
+            CloseDrawer();
+        }
+    }
+    
+    private async Task ConvertToAppointment()
+    {
+        Snackbar.Add("Función de conversión próximamente", Severity.Info);
+    }
+    
+    private async Task AddNote()
+    {
+        if (_selectedQuote == null || string.IsNullOrWhiteSpace(_newNote)) return;
+        
+        await QuoteService.AddNoteAsync(_selectedQuote.Id, _newNote);
+        _newNote = "";
+        _timeline = await QuoteService.GetTimelineAsync(_selectedQuote.Id);
+        
+        Snackbar.Add("Nota agregada", Severity.Success);
+    }
+    
+    private Color GetStatusColor(QuoteStatus status) => status switch
+    {
+        QuoteStatus.New => Color.Info,
+        QuoteStatus.InReview => Color.Warning,
+        QuoteStatus.NeedsInfo => Color.Dark,
+        QuoteStatus.Quoted => Color.Secondary,
+        QuoteStatus.Negotiation => Color.Primary,
+        QuoteStatus.Won => Color.Success,
+        QuoteStatus.Lost => Color.Error,
+        QuoteStatus.Archived => Color.Default,
+        _ => Color.Default
+    };
+    
+    private string GetStatusLabel(QuoteStatus status) => status switch
+    {
+        QuoteStatus.New => "Nueva",
+        QuoteStatus.InReview => "En revisión",
+        QuoteStatus.NeedsInfo => "Falta info",
+        QuoteStatus.Quoted => "Cotizada",
+        QuoteStatus.Negotiation => "Negociación",
+        QuoteStatus.Won => "Ganada",
+        QuoteStatus.Lost => "Perdida",
+        QuoteStatus.Archived => "Archivada",
+        _ => status.ToString()
+    };
+    
+    private (string Label, Color Color) GetSlaStatus(QuoteRequest quote)
+    {
+        if (quote.SlaDeadlineAt == null)
+            return ("—", Color.Default);
+        
+        var remaining = quote.SlaDeadlineAt.Value - DateTime.UtcNow;
+        
+        if (remaining.TotalHours < 0)
+            return ("Vencido", Color.Error);
+        if (remaining.TotalHours < 2)
+            return ($"{(int)remaining.TotalMinutes}m", Color.Warning);
+        if (remaining.TotalHours < 24)
+            return ($"{(int)remaining.TotalHours}h", Color.Info);
+        
+        return ($"{(int)remaining.TotalDays}d", Color.Success);
+    }
+}
+
+<style>
+    /* Header */
+    .quotes-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+    }
+    
+    .page-title {
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Status Cards */
+    .status-cards {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+    
+    .status-card {
+        flex: 0 0 auto;
+        min-width: 100px;
+        padding: 1rem;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .status-card:hover {
+        background: rgba(255,255,255,0.08);
+        transform: translateY(-2px);
+    }
+    
+    .status-card-active {
+        border-color: var(--mud-palette-primary);
+        background: rgba(var(--mud-palette-primary-rgb), 0.1);
+    }
+    
+    .status-count {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Filters Bar */
+    .filters-bar {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+    }
+    
+    /* Table */
+    .quotes-table {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .request-number {
+        font-family: monospace;
+        font-weight: 600;
+        color: var(--mud-palette-primary);
+    }
+    
+    .customer-cell {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .customer-name {
+        font-weight: 500;
+    }
+    
+    .customer-email {
+        font-size: 0.85rem;
+        color: var(--mud-palette-text-secondary);
+    }
+    
+    .service-name {
+        font-size: 0.9rem;
+    }
+    
+    .date-cell {
+        font-size: 0.85rem;
+        color: var(--mud-palette-text-secondary);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        text-align: center;
+    }
+    
+    /* Drawer */
+    .drawer-content {
+        padding: 1.5rem;
+        height: 100%;
+        overflow-y: auto;
+    }
+    
+    .drawer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .drawer-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .drawer-section {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: rgba(255,255,255,0.03);
+        border-radius: 8px;
+    }
+    
+    .customer-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .customer-info a {
+        color: var(--mud-palette-primary);
+        text-decoration: none;
+    }
+    
+    .quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    /* Timeline */
+    .timeline {
+        margin-top: 0.75rem;
+    }
+    
+    .timeline-item {
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+    }
+    
+    .timeline-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--mud-palette-primary);
+        border-radius: 50%;
+        margin-top: 6px;
+        flex-shrink: 0;
+    }
+    
+    .timeline-content {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .timeline-desc {
+        font-size: 0.9rem;
+    }
+    
+    .timeline-date {
+        font-size: 0.75rem;
+        color: var(--mud-palette-text-secondary);
+    }
+</style>

@@ -21,7 +21,8 @@ builder.Services.AddHttpContextAccessor();
 
 // Add DbContext - Use InMemory for development (no MySQL required)
 builder.Services.AddDbContext<DataTouchDbContext>(options =>
-    options.UseInMemoryDatabase("DataTouchDb"));
+    options.UseInMemoryDatabase("DataTouchDb")
+           .EnableSensitiveDataLogging());
 
 // Add Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -46,6 +47,16 @@ builder.Services.AddSingleton<CountryPhoneService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<GeoLocationService>();
+
+// ═══════════════════════════════════════════════════════════════
+// BOOKING SYSTEM Services
+// ═══════════════════════════════════════════════════════════════
+builder.Services.AddScoped<AvailabilityService>();
+builder.Services.AddScoped<AppointmentService>();
+builder.Services.AddScoped<QuoteService>();
+
+// Quote Automations (SLA alerts, reminders)
+builder.Services.AddQuoteAutomations();
 
 var app = builder.Build();
 

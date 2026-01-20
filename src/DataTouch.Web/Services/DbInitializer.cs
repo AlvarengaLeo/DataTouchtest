@@ -71,6 +71,7 @@ public static class DbInitializer
             ShowEmail = true,
             SocialLinksJson = "{\"linkedin\":\"https://linkedin.com/in/demo\",\"instagram\":\"https://instagram.com/demo\"}",
             WebsiteLinksJson = "[{\"title\":\"Nuestros Servicios\",\"url\":\"https://example.com/services\"},{\"title\":\"Agendar Consulta\",\"url\":\"https://example.com/book\"}]",
+            TemplateType = "services-quotes", // Use services template for demo
             IsActive = true,
             CreatedAt = DateTime.UtcNow.AddDays(-30)
         };
@@ -91,6 +92,70 @@ public static class DbInitializer
 
         context.Cards.Add(activeCard);
         context.Cards.Add(inactiveCard);
+        
+        // Create sample services for services template demo
+        var services = new List<Service>
+        {
+            new Service
+            {
+                Id = Guid.NewGuid(),
+                CardId = activeCard.Id,
+                OrganizationId = organization.Id,
+                Name = "Consultoría Empresarial",
+                Description = "Asesoría estratégica para tu negocio",
+                DurationMinutes = 60,
+                PriceFrom = 50m,
+                DisplayOrder = 0,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new Service
+            {
+                Id = Guid.NewGuid(),
+                CardId = activeCard.Id,
+                OrganizationId = organization.Id,
+                Name = "Análisis de Proyectos",
+                Description = "Evaluación detallada de viabilidad",
+                DurationMinutes = 90,
+                PriceFrom = 75m,
+                DisplayOrder = 1,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+        context.Services.AddRange(services);
+        
+        // Create availability rules for booking system (Monday-Friday, 9am-5pm)
+        var availabilityRules = new List<AvailabilityRule>();
+        for (int day = 1; day <= 5; day++) // Monday (1) to Friday (5)
+        {
+            availabilityRules.Add(new AvailabilityRule
+            {
+                Id = Guid.NewGuid(),
+                CardId = activeCard.Id,
+                DayOfWeek = day, // int: 0=Sunday, 1=Monday, etc.
+                StartTime = new TimeSpan(9, 0, 0),  // 9:00 AM
+                EndTime = new TimeSpan(17, 0, 0),   // 5:00 PM
+                IsActive = true
+            });
+        }
+        context.AvailabilityRules.AddRange(availabilityRules);
+        
+        // Create booking settings for demo card
+        var bookingSettings = new BookingSettings
+        {
+            Id = Guid.NewGuid(),
+            CardId = activeCard.Id,
+            TimeZoneId = "America/El_Salvador",
+            SlotIntervalMinutes = 30,
+            BufferBeforeMinutes = 0,
+            BufferAfterMinutes = 15,
+            MaxAppointmentsPerDay = 10,
+            MinNoticeMinutes = 60,
+            MaxAdvanceDays = 30,
+            CreatedAt = DateTime.UtcNow
+        };
+        context.BookingSettings.Add(bookingSettings);
 
         // Create sample leads with varied dates
         var leads = new List<Lead>

@@ -186,18 +186,22 @@ public class DashboardService
         var cardIds = await GetOrganizationCardIds(organizationId);
         if (!cardIds.Any()) return 0;
         
+        var endDate = dateRange.End.AddDays(1);
+        var eventTypes = InteractionEventTypes.ToList();
+
         return await _context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
-            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < dateRange.End.AddDays(1))
-            .Where(a => InteractionEventTypes.Contains(a.EventType))
+            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
+            .Where(a => eventTypes.Contains(a.EventType))
             .CountAsync();
     }
 
     private async Task<int> GetLeadsCapturedAsync(Guid organizationId, DateRangeFilter dateRange)
     {
+        var endDate = dateRange.End.AddDays(1);
         return await _context.Leads
             .Where(l => l.OrganizationId == organizationId)
-            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < dateRange.End.AddDays(1))
+            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
             .CountAsync();
     }
 
@@ -206,10 +210,12 @@ public class DashboardService
         var cardIds = await GetOrganizationCardIds(organizationId);
         if (!cardIds.Any()) return 0;
         
+        var endDate = dateRange.End.AddDays(1);
+        
         // Count CTA clicks for calendar/booking/meeting actions
         var meetingEvents = await _context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
-            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < dateRange.End.AddDays(1))
+            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
             .Where(a => a.EventType == "cta_click" && a.MetadataJson != null)
             .Select(a => a.MetadataJson)
             .ToListAsync();
@@ -233,11 +239,14 @@ public class DashboardService
         var cardIds = await GetOrganizationCardIds(organizationId);
 
         // Get all interactions in range (using same definition as KPIs)
+        var endDate = dateRange.End.AddDays(1);
+        var eventTypes = InteractionEventTypes.ToList();
+
         var interactions = cardIds.Any() 
             ? await _context.CardAnalytics
                 .Where(a => cardIds.Contains(a.CardId))
-                .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < dateRange.End.AddDays(1))
-                .Where(a => InteractionEventTypes.Contains(a.EventType))
+                .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
+                .Where(a => eventTypes.Contains(a.EventType))
                 .Select(a => a.Timestamp)
                 .ToListAsync()
             : new List<DateTime>();
@@ -245,7 +254,7 @@ public class DashboardService
         // Get all leads in range (using same definition as KPIs)
         var leads = await _context.Leads
             .Where(l => l.OrganizationId == organizationId)
-            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < dateRange.End.AddDays(1))
+            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
             .Select(l => l.CreatedAt)
             .ToListAsync();
 
@@ -320,10 +329,13 @@ public class DashboardService
         }
 
         // Get current period events with location data
+        var endDate = dateRange.End.AddDays(1);
+        var eventTypes = InteractionEventTypes.ToList();
+
         var currentEvents = await _context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
-            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < dateRange.End.AddDays(1))
-            .Where(a => InteractionEventTypes.Contains(a.EventType))
+            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
+            .Where(a => eventTypes.Contains(a.EventType))
             .ToListAsync();
 
         if (!currentEvents.Any())
@@ -334,7 +346,7 @@ public class DashboardService
         // Get leads for conversion calculation
         var leadsInRange = await _context.Leads
             .Where(l => l.OrganizationId == organizationId)
-            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < dateRange.End.AddDays(1))
+            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
             .ToListAsync();
 
         // Group by location (city + country or just country)
@@ -410,10 +422,13 @@ public class DashboardService
         decimal topLocationDelta = 0;
         if (topLocation != null && topLocation.Location != "Unknown")
         {
+            var prevEndDate = prevPeriod.End.AddDays(1);
+            var prevEventTypes = InteractionEventTypes.ToList();
+
             var prevEvents = await _context.CardAnalytics
                 .Where(a => cardIds.Contains(a.CardId))
-                .Where(a => a.Timestamp >= prevPeriod.Start && a.Timestamp < prevPeriod.End.AddDays(1))
-                .Where(a => InteractionEventTypes.Contains(a.EventType))
+                .Where(a => a.Timestamp >= prevPeriod.Start && a.Timestamp < prevEndDate)
+                .Where(a => prevEventTypes.Contains(a.EventType))
                 .ToListAsync();
 
             var prevCount = prevEvents.Count(a => GetLocationKey(a.City, a.Country) == topLocation.Location);
@@ -572,25 +587,32 @@ public class DashboardService
         var prevPeriod = dateRange.GetPreviousPeriod();
 
         // Get all CTA clicks in current period
+        var endDate = dateRange.End.AddDays(1);
+        
         var currentClicks = await _context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
-            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < dateRange.End.AddDays(1))
+            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
             .Where(a => a.EventType == "cta_click")
             .ToListAsync();
 
         if (!currentClicks.Any()) return new List<LinkPerformance>();
 
         // Get previous period clicks for trend
+        var prevEndDate = prevPeriod.End.AddDays(1);
+
         var prevClicks = await _context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
-            .Where(a => a.Timestamp >= prevPeriod.Start && a.Timestamp < prevPeriod.End.AddDays(1))
+            .Where(a => a.Timestamp >= prevPeriod.Start && a.Timestamp < prevEndDate)
             .Where(a => a.EventType == "cta_click")
             .ToListAsync();
 
         // Get leads for conversion attribution (24h window)
+        var startWindow = dateRange.Start.AddDays(-1);
+        var endWindow = dateRange.End.AddDays(2);
+
         var leads = await _context.Leads
             .Where(l => l.OrganizationId == organizationId)
-            .Where(l => l.CreatedAt >= dateRange.Start.AddDays(-1) && l.CreatedAt < dateRange.End.AddDays(2))
+            .Where(l => l.CreatedAt >= startWindow && l.CreatedAt < endWindow)
             .ToListAsync();
 
         // Group clicks by link type
@@ -732,10 +754,12 @@ public class DashboardService
             .Where(c => c.OrganizationId == organizationId && c.IsActive)
             .CountAsync();
 
+        var endDate = dateRange.End.AddDays(1);
+
         var activeCardIds = cardIds.Any() 
             ? await _context.CardAnalytics
                 .Where(a => cardIds.Contains(a.CardId))
-                .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < dateRange.End.AddDays(1))
+                .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
                 .Select(a => a.CardId)
                 .Distinct()
                 .ToListAsync()
@@ -745,10 +769,12 @@ public class DashboardService
         var inactivePercent = totalCards > 0 ? Math.Round((decimal)inactiveCount / totalCards * 100, 1) : 0;
 
         // Potential loss calculation
+        var potentialLossEndDate = dateRange.End.AddDays(1);
+
         var totalInteractions = cardIds.Any() 
             ? await _context.CardAnalytics
                 .Where(a => activeCardIds.Contains(a.CardId))
-                .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < dateRange.End.AddDays(1))
+                .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < potentialLossEndDate)
                 .CountAsync()
             : 0;
             
@@ -779,9 +805,11 @@ public class DashboardService
         if (!cardIds.Any()) return (0, false);
 
         // Get leads in range
+        var endDate = dateRange.End.AddDays(1);
+
         var leads = await _context.Leads
             .Where(l => l.OrganizationId == organizationId)
-            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < dateRange.End.AddDays(1))
+            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
             .ToListAsync();
 
         if (!leads.Any()) return (0, false);
@@ -791,10 +819,11 @@ public class DashboardService
         foreach (var lead in leads)
         {
             // Find first interaction for this card before lead creation
+            var eventTypes = InteractionEventTypes.ToList();
             var firstInteraction = await _context.CardAnalytics
                 .Where(a => a.CardId == lead.CardId)
                 .Where(a => a.Timestamp <= lead.CreatedAt)
-                .Where(a => InteractionEventTypes.Contains(a.EventType))
+                .Where(a => eventTypes.Contains(a.EventType))
                 .OrderBy(a => a.Timestamp)
                 .Select(a => a.Timestamp)
                 .FirstOrDefaultAsync();
@@ -833,10 +862,13 @@ public class DashboardService
         }
 
         // Get all relevant events
+        var endDate = dateRange.End.AddDays(1);
+        var highIntentInfos = HighIntentEventTypes.ToList();
+
         var allEvents = await _context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
-            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < dateRange.End.AddDays(1))
-            .Where(a => HighIntentEventTypes.Contains(a.EventType) || a.EventType == "cta_click")
+            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
+            .Where(a => highIntentInfos.Contains(a.EventType) || a.EventType == "cta_click")
             .ToListAsync();
 
         // Categorize events

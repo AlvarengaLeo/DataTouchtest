@@ -211,6 +211,66 @@
                                                 </div>
                                             </div>
                                         }
+                                        else if (template.IsServices)
+                                        {
+                                            @* Services & Quotes Template Preview *@
+                                            <div class="services-preview-full">
+                                                @* Hero Section *@
+                                                <div class="sp-hero">
+                                                    <div class="sp-avatar">
+                                                        <span>@GetUserInitials()</span>
+                                                    </div>
+                                                    <h3 class="sp-name">@GetUserDisplayName()</h3>
+                                                    <p class="sp-title">@(_userCard?.Title ?? "Consultor Profesional")</p>
+                                                    <p class="sp-company">🏢 @(_userCard?.CompanyName ?? "Asesoría Empresarial")</p>
+                                                </div>
+
+                                                @* Services Section *@
+                                                <div class="sp-services-section">
+                                                    <h4 class="sp-section-title">MIS SERVICIOS</h4>
+                                                    <div class="sp-services-list">
+                                                        <div class="sp-service-card">
+                                                            <div class="sp-service-icon">💼</div>
+                                                            <div class="sp-service-info">
+                                                                <span class="sp-service-name">Consultoría Empresarial</span>
+                                                                <span class="sp-service-meta">60 min • Desde $50</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="sp-service-card">
+                                                            <div class="sp-service-icon">📊</div>
+                                                            <div class="sp-service-info">
+                                                                <span class="sp-service-name">Análisis de Proyectos</span>
+                                                                <span class="sp-service-meta">90 min • Desde $75</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="sp-service-card">
+                                                            <div class="sp-service-icon">🎯</div>
+                                                            <div class="sp-service-info">
+                                                                <span class="sp-service-name">Planificación Estratégica</span>
+                                                                <span class="sp-service-meta">120 min • Desde $100</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                @* Booking CTAs *@
+                                                <div class="sp-cta-section">
+                                                    <button class="sp-cta-primary sp-book">📅 Reservar Cita</button>
+                                                    <button class="sp-cta-secondary sp-quote">📝 Solicitar Cotización</button>
+                                                </div>
+
+                                                @* Contact Info *@
+                                                <div class="sp-contact-section">
+                                                    <div class="sp-contact-item">📧 tu@email.com</div>
+                                                    <div class="sp-contact-item">📱 +503 7000-0000</div>
+                                                </div>
+
+                                                @* Footer *@
+                                                <div class="sp-footer">
+                                                    <span>Powered by <strong>DataTouch</strong></span>
+                                                </div>
+                                            </div>
+                                        }
                                         else
                                         {
                                             @* Standard Template Preview *@
@@ -1245,6 +1305,183 @@
         color: rgba(255,255,255,0.6);
     }
 
+    /* ═══════════════════════════════════════════════════════════════════════════
+       SERVICES & QUOTES TEMPLATE PREVIEW
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .services-preview-full {
+        display: block;
+        background: linear-gradient(180deg, #0f171e 0%, #0d2528 30%, #134e4a 60%, #0d2528 100%);
+        padding: 50px 16px 16px;
+        padding-bottom: 40px;
+        border-radius: calc(var(--phone-radius) - 10px);
+        min-height: 100%;
+    }
+    
+    /* Hero Section */
+    .sp-hero {
+        text-align: center;
+        padding-bottom: 14px;
+    }
+    
+    .sp-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #14B8A6 0%, #0D9488 50%, #0891B2 100%);
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.3), 0 0 30px rgba(20, 184, 166, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 1.5rem;
+        margin: 0 auto 10px;
+    }
+    
+    .sp-name {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #fff;
+        margin: 0 0 4px;
+    }
+    
+    .sp-title {
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.7);
+        margin: 0 0 4px;
+    }
+    
+    .sp-company {
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.5);
+        margin: 0;
+    }
+    
+    /* Services Section */
+    .sp-services-section {
+        margin-top: 12px;
+        padding: 12px 0;
+        border-top: 1px solid rgba(20, 184, 166, 0.15);
+    }
+    
+    .sp-section-title {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0 0 10px;
+    }
+    
+    .sp-services-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .sp-service-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: rgba(20, 184, 166, 0.08);
+        border: 1px solid rgba(20, 184, 166, 0.2);
+        border-radius: 10px;
+    }
+    
+    .sp-service-icon {
+        font-size: 1.1rem;
+    }
+    
+    .sp-service-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .sp-service-name {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .sp-service-meta {
+        font-size: 0.55rem;
+        color: rgba(255, 255, 255, 0.5);
+    }
+    
+    /* Booking CTAs */
+    .sp-cta-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 14px;
+    }
+    
+    .sp-cta-primary {
+        width: 100%;
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: none;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    .sp-book {
+        background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
+        color: white;
+        box-shadow: 0 4px 14px rgba(20, 184, 166, 0.3);
+    }
+    
+    .sp-cta-secondary {
+        width: 100%;
+        padding: 9px 16px;
+        border-radius: 10px;
+        border: 2px solid rgba(20, 184, 166, 0.4);
+        background: transparent;
+        color: #5EEAD4;
+        font-size: 0.7rem;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    /* Contact Section */
+    .sp-contact-section {
+        margin-top: 14px;
+        padding: 10px 0;
+        border-top: 1px solid rgba(20, 184, 166, 0.15);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .sp-contact-item {
+        font-size: 0.6rem;
+        color: rgba(255, 255, 255, 0.6);
+    }
+    
+    /* Footer */
+    .sp-footer {
+        text-align: center;
+        padding: 12px 0 8px;
+        font-size: 0.55rem;
+        color: rgba(255,255,255,0.4);
+    }
+    
+    .sp-footer strong {
+        color: rgba(255,255,255,0.6);
+    }
+
 
     /* Labels */
     .item-label { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 16px; }
@@ -1293,13 +1530,14 @@
         public required string HeroGradient { get; init; }
         public bool IsPortfolio { get; init; } = false;
         public bool IsDefault { get; init; } = false;
+        public bool IsServices { get; init; } = false;
         public string TemplateType { get; init; } = "default";
     }
 
     // User data for portfolio preview
     private DataTouch.Domain.Entities.Card? _userCard;
 
-    private int _activeIndex = 3; // Start at Portafolio Creativo (index 3)
+    private int _activeIndex = 0; // Start at Perfil Profesional (first template)
     private bool _hasScrolled = false;
     private string _navDirection = "";
     private DateTime _lastNavTime = DateTime.MinValue;
@@ -1349,12 +1587,13 @@
 
     private readonly List<TemplateData> _templates = new()
     {
+        new() { Name = "Perfil Profesional", Description = "Perfil con acciones rápidas y formulario de contacto.", HeroGradient = "linear-gradient(180deg, #0d0a1a 0%, #1a1035 30%, #2d1b4e 60%, #1a1035 100%)", IsDefault = true, TemplateType = "default" },
+        new() { Name = "Portafolio Creativo", Description = "Galería visual para creativos y artistas.", HeroGradient = "linear-gradient(135deg, #8B5CF6, #EC4899)", IsPortfolio = true, TemplateType = "portfolio-creative" },
+        new() { Name = "Servicios y Cotizaciones", Description = "Ofrece servicios, cotiza y agenda citas en línea.", HeroGradient = "linear-gradient(135deg, #14B8A6, #0891B2)", IsServices = true, TemplateType = "services-quotes" },
         new() { Name = "Creative", Description = "Stand out with modern designs.", HeroGradient = "linear-gradient(135deg, #ec4899, #f97316)", TemplateType = "creative" },
         new() { Name = "Minimal", Description = "Clean and distraction-free.", HeroGradient = "linear-gradient(135deg, #6b7280, #4b5563)", TemplateType = "minimal" },
         new() { Name = "Professional", Description = "Best for sales and enterprise.", HeroGradient = "linear-gradient(135deg, #6366f1, #8b5cf6)", TemplateType = "professional" },
-        new() { Name = "Portafolio Creativo", Description = "Galería visual para creativos y artistas.", HeroGradient = "linear-gradient(135deg, #8B5CF6, #EC4899)", IsPortfolio = true, TemplateType = "portfolio-creative" },
-        new() { Name = "Corporate", Description = "Strong branding presence.", HeroGradient = "linear-gradient(135deg, #0ea5e9, #3b82f6)", TemplateType = "corporate" },
-        new() { Name = "Perfil Profesional", Description = "Perfil con acciones rápidas y formulario de contacto.", HeroGradient = "linear-gradient(180deg, #0d0a1a 0%, #1a1035 30%, #2d1b4e 60%, #1a1035 100%)", IsDefault = true, TemplateType = "default" }
+        new() { Name = "Corporate", Description = "Strong branding presence.", HeroGradient = "linear-gradient(135deg, #0ea5e9, #3b82f6)", TemplateType = "corporate" }
     };
 
     private TemplateData? SelectedTemplate => _templates.Count > 0 ? _templates[_activeIndex] : null;

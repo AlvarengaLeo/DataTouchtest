@@ -4,6 +4,9 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
+@using DataTouch.Web.Models
+@using DataTouch.Web.Components.Shared
 
 <MudThemeProvider Theme="_theme" IsDarkMode="true" />
 <MudSnackbarProvider />
@@ -30,7 +33,7 @@ else
        LANDING PÚBLICA - ESTRUCTURA EN 3 BLOQUES
        Fondo continuo en gradient, sin cortes blancos
        ═══════════════════════════════════════════════════════════════════════════ *@
-    <div class="landing-wrapper @GetBackgroundContrastClass()" style="@GetDynamicBackgroundStyle()">
+    <div class="landing-wrapper @GetBackgroundContrastClass()" style="@GetDynamicBackgroundStyle(); @GetThemeCssVariables()">
         
         @* ─────────────────────────────────────────────────────────────────────────
            BLOQUE 1: HERO / PERFIL
@@ -49,9 +52,11 @@ else
                     }
                     else
                     {
-                        <MudAvatar Color="Color.Primary" Class="profile-avatar">
+                        @* Custom avatar div - bypasses MudBlazor internal styles *@
+                        <div class="profile-avatar profile-avatar-initials" 
+                             style="background: @_themeTokens.AccentPrimary; color: @_themeTokens.TextOnAccent; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
                             @_card.FullName?.FirstOrDefault()
-                        </MudAvatar>
+                        </div>
                     }
                 </div>
 
@@ -63,13 +68,13 @@ else
                     <span>@GetDisplayCompanyName()</span>
                 </div>
 
-                @if (!string.IsNullOrEmpty(_card.Bio))
+                @if (!string.IsNullOrEmpty(_card.Bio) && !_isServicesTemplate)
                 {
                     <MudText Typo="Typo.body2" Class="profile-bio">@_card.Bio</MudText>
                 }
 
-                @* Links y Redes Sociales - Dinámico desde JSON *@
-                @if (_socialLinks != null && _socialLinks.HasAnyLink())
+                @* Links y Redes Sociales - Hide for services template *@
+                @if (_socialLinks != null && _socialLinks.HasAnyLink() && !_isServicesTemplate)
                 {
                     <div class="social-row">
                         @if (!string.IsNullOrEmpty(_socialLinks.LinkedIn))
@@ -95,21 +100,24 @@ else
                     </div>
                 }
 
-                @* Status Chips *@
-                <div class="status-chips">
-                    <span class="status-chip">
-                        <span class="chip-dot"></span>
-                        Disponible
-                    </span>
-                    <span class="status-chip">
-                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
-                        Responde &lt; 1h
-                    </span>
-                    <span class="status-chip">
-                        <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
-                        El Salvador
-                    </span>
-                </div>
+                @* Status Chips - Hide for services template *@
+                @if (!_isServicesTemplate)
+                {
+                    <div class="status-chips">
+                        <span class="status-chip">
+                            <span class="chip-dot"></span>
+                            Disponible
+                        </span>
+                        <span class="status-chip">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                            Responde &lt; 1h
+                        </span>
+                        <span class="status-chip">
+                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
+                            El Salvador
+                        </span>
+                    </div>
+                }
 
                 @* ─────────────────────────────────────────────────────────────────────
                    PORTFOLIO GALLERY (Conditional - Only if has gallery images)
@@ -136,55 +144,161 @@ else
                 }
 
                 @* ─────────────────────────────────────────────────────────────────────
-                   BLOQUE 2: CTAs / ACCIONES RÁPIDAS
+                   SERVICES SECTION (Services Template) - Matches TemplateLibrary Preview
+                   ───────────────────────────────────────────────────────────────────── *@
+                @if (_isServicesTemplate && _services.Any())
+                {
+                    <div class="services-template-section">
+                        <h3 class="services-section-title">MIS SERVICIOS</h3>
+                        <div class="services-cards-list">
+                            @{ var serviceIcons = new[] { "💼", "📊", "🎯", "🛠️", "💡" }; }
+                            @foreach (var (service, index) in _services.Select((s, i) => (s, i)))
+                            {
+                                <div class="service-card-item">
+                                    <div class="service-card-icon" style="background: @GetServiceIconColor(index)">
+                                        @serviceIcons[index % serviceIcons.Length]
+                                    </div>
+                                    <div class="service-card-content">
+                                        <span class="service-card-name">@service.Name</span>
+                                        <span class="service-card-meta">
+                                            @service.DurationMinutes min • Desde $@(service.PriceFrom?.ToString("N0") ?? "--")
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        
+                        @* Booking and Quote CTAs - Smart display based on service types *@
+                        <div class="services-cta-section">
+                            @{
+                                // Determine effective goal (auto-detect or user preference)
+                                var types = _services.Where(s => s.IsActive).Select(s => s.ConversionType ?? "booking").Distinct().ToList();
+                                var hasBooking = _services.Any(s => s.IsActive && (s.ConversionType == "booking" || s.ConversionType == "both"));
+                                var hasQuote = _services.Any(s => s.IsActive && (s.ConversionType == "quote" || s.ConversionType == "both"));
+                                
+                                // Auto-detect if all same type, otherwise use card preference
+                                var effectiveGoal = "booking";
+                                if (types.Count == 1 && types[0] != "both")
+                                {
+                                    effectiveGoal = types[0];
+                                }
+                                else
+                                {
+                                    effectiveGoal = _card.PrimaryCardGoal ?? "booking";
+                                }
+                            }
+                            
+                            @if (effectiveGoal == "booking" && hasBooking)
+                            {
+                                <a href="@GetBookingUrl()" class="btn-booking-primary">
+                                    📅 Reservar Cita
+                                </a>
+                                @if (hasQuote)
+                                {
+                                    <button class="btn-quote-link" @onclick="OpenQuoteModal">
+                                        o solicitar cotización
+                                    </button>
+                                }
+                            }
+                            else if (effectiveGoal == "quote" && hasQuote)
+                            {
+                                <button class="btn-booking-primary" @onclick="OpenQuoteModal">
+                                    📝 Solicitar Cotización
+                                </button>
+                                @if (hasBooking)
+                                {
+                                    <a href="@GetBookingUrl()" class="btn-quote-link">
+                                        o reservar cita
+                                    </a>
+                                }
+                            }
+                            else if (hasBooking)
+                            {
+                                <a href="@GetBookingUrl()" class="btn-booking-primary">
+                                    📅 Reservar Cita
+                                </a>
+                            }
+                            else if (hasQuote)
+                            {
+                                <button class="btn-booking-primary" @onclick="OpenQuoteModal">
+                                    📝 Solicitar Cotización
+                                </button>
+                            }
+                        </div>
+                        
+                        @* Contact Info Footer *@
+                        <div class="services-contact-footer">
+                            @if (!string.IsNullOrEmpty(_card.Email))
+                            {
+                                <a href="mailto:@_card.Email" class="contact-item">
+                                    ✉️ @_card.Email
+                                </a>
+                            }
+                            @if (!string.IsNullOrEmpty(_card.Phone))
+                            {
+                                <a href="tel:@GetFullPhoneForLink()" class="contact-item">
+                                    📞 @_card.PhoneCountryCode @_card.Phone
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* ─────────────────────────────────────────────────────────────────────
+                   BLOQUE 2: CTAs / ACCIONES RÁPIDAS - Hide for services template
                    Integrados DENTRO de la card, no como sección aparte
                    ───────────────────────────────────────────────────────────────────── *@
-                <div class="cta-section">
-                    @* Botón primario: Guardar contacto - respetar flag *@
-                    @if (_card.ShowSaveContact)
-                    {
-                        <MudButton Variant="Variant.Filled" FullWidth="true" 
-                                   Class="btn-primary-cta" OnClick="@DownloadVCard"
-                                   StartIcon="@Icons.Material.Filled.PersonAdd">
-                            Guardar Contacto
-                        </MudButton>
-                    }
+                @if (!_isServicesTemplate)
+                {
+                    <div class="cta-section">
+                        @* Botón primario: Guardar contacto - respetar flag *@
+                        @if (_card.ShowSaveContact)
+                        {
+                            <MudButton Variant="Variant.Filled" FullWidth="true" 
+                                       Class="btn-primary-cta" OnClick="@DownloadVCard"
+                                       StartIcon="@Icons.Material.Filled.PersonAdd">
+                                Guardar Contacto
+                            </MudButton>
+                        }
 
-                    @* Fila de botones secundarios - respetar flags *@
-                    <div class="cta-row">
-                        @if (_card.ShowWhatsApp && !string.IsNullOrEmpty(_card.WhatsAppNumber))
-                        {
-                            <MudButton Variant="Variant.Filled" Class="btn-whatsapp"
-                                       Href="@($"https://wa.me/{GetFullWhatsAppForLink()}")"
-                                       Target="_blank" StartIcon="@Icons.Custom.Brands.WhatsApp">
-                                WhatsApp
-                            </MudButton>
-                        }
-                        @if (_card.ShowCall && !string.IsNullOrEmpty(_card.Phone))
-                        {
-                            <MudButton Variant="Variant.Filled" Class="btn-call"
-                                       Href="@($"tel:{GetFullPhoneForLink()}")"
-                                       StartIcon="@Icons.Material.Filled.Phone">
-                                Llamar
-                            </MudButton>
-                        }
-                        @if (_card.ShowEmail && !string.IsNullOrEmpty(_card.Email))
-                        {
-                            <MudButton Variant="Variant.Filled" Class="btn-email"
-                                       Href="@($"mailto:{_card.Email}")"
-                                       StartIcon="@Icons.Material.Filled.Email">
-                                Email
-                            </MudButton>
-                        }
+                        @* Fila de botones secundarios - respetar flags *@
+                        <div class="cta-row">
+                            @if (_card.ShowWhatsApp && !string.IsNullOrEmpty(_card.WhatsAppNumber))
+                            {
+                                <MudButton Variant="Variant.Filled" Class="btn-whatsapp"
+                                           Href="@($"https://wa.me/{GetFullWhatsAppForLink()}")"
+                                           Target="_blank" StartIcon="@Icons.Custom.Brands.WhatsApp">
+                                    WhatsApp
+                                </MudButton>
+                            }
+                            @if (_card.ShowCall && !string.IsNullOrEmpty(_card.Phone))
+                            {
+                                <MudButton Variant="Variant.Filled" Class="btn-call"
+                                           Href="@($"tel:{GetFullPhoneForLink()}")"
+                                           StartIcon="@Icons.Material.Filled.Phone">
+                                    Llamar
+                                </MudButton>
+                            }
+                            @if (_card.ShowEmail && !string.IsNullOrEmpty(_card.Email))
+                            {
+                                <MudButton Variant="Variant.Filled" Class="btn-email"
+                                           Href="@($"mailto:{_card.Email}")"
+                                           StartIcon="@Icons.Material.Filled.Email">
+                                    Email
+                                </MudButton>
+                            }
+                        </div>
                     </div>
-                </div>
+                }
             </div>
         </div>
 
         @* ─────────────────────────────────────────────────────────────────────────
-           BLOQUE 3: FORMULARIO DE LEAD PREMIUM
+           BLOQUE 3: FORMULARIO DE LEAD PREMIUM - Hide for services template
            Diseño enterprise-grade con validación avanzada de teléfono
            ───────────────────────────────────────────────────────────────────────── *@
+        @if (!_isServicesTemplate)
+        {
         <div class="lead-form-card @GetCardContrastClass() @(_showSuccess ? "success-state" : "")" style="@GetCardBackgroundStyle()">
             @if (_showSuccess)
             {
@@ -322,6 +436,7 @@ else
                 </EditForm>
             }
         </div>
+        }
         @* ─────────────────────────────────────────────────────────
            LIGHTBOX MODAL (Gallery Image)
            ───────────────────────────────────────────────────────── *@
@@ -389,19 +504,19 @@ else
     .premium-form .mud-input-slot,
     .compact-input .mud-input-root input,
     .compact-input .mud-input-root textarea {
-        color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
-        caret-color: #A78BFA !important;
+        color: var(--surface-input-text, #FFFFFF) !important;
+        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
+        caret-color: var(--dt-accent-primary, #A78BFA) !important;
         opacity: 1 !important;
     }
     
-    /* OVERRIDE MUDBLAZOR CSS VARIABLES FOR DARK THEME INPUTS */
+    /* OVERRIDE MUDBLAZOR CSS VARIABLES - contrast aware */
     .landing-wrapper,
     .lead-form-card,
     .premium-form {
-        --mud-palette-text-primary: #FFFFFF !important;
-        --mud-palette-text-secondary: #FFFFFF !important;
-        --mud-palette-action-default: #FFFFFF !important;
+        --mud-palette-text-primary: var(--surface-input-text, #FFFFFF) !important;
+        --mud-palette-text-secondary: var(--surface-text-secondary, #FFFFFF) !important;
+        --mud-palette-action-default: var(--surface-icon, #FFFFFF) !important;
     }
     
     /* ULTRA-SPECIFIC MUDBLAZOR INPUT TEXT COLOR OVERRIDE */
@@ -419,8 +534,8 @@ else
     .premium-form .mud-input,
     .premium-form .mud-input-text,
     .premium-form .mud-input-root {
-        color: #FFFFFF !important;
-        --mud-palette-text-primary: #FFFFFF !important;
+        color: var(--surface-input-text, #FFFFFF) !important;
+        --mud-palette-text-primary: var(--surface-input-text, #FFFFFF) !important;
     }
     
     /* Target the actual input and textarea elements INSIDE MudBlazor components */
@@ -438,9 +553,9 @@ else
     .premium-form .mud-input-control textarea.mud-input-slot,
     .compact-input input.mud-input-slot,
     .compact-input textarea.mud-input-slot {
-        color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
-        caret-color: #A78BFA !important;
+        color: var(--surface-input-text, #FFFFFF) !important;
+        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
+        caret-color: var(--dt-accent-primary, #A78BFA) !important;
         opacity: 1 !important;
     }
     
@@ -452,8 +567,8 @@ else
     .lead-form-card textarea.mud-input-slot,
     .premium-form input.mud-input-slot,
     .premium-form textarea.mud-input-slot {
-        color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
+        color: var(--surface-input-text, #FFFFFF) !important;
+        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
     }
     
     /* Fix for autofill styles that override text color */
@@ -469,11 +584,11 @@ else
     .premium-form input:-webkit-autofill:hover,
     .premium-form input:-webkit-autofill:focus,
     .premium-form input:-webkit-autofill:active {
-        -webkit-text-fill-color: #FFFFFF !important;
-        -webkit-box-shadow: 0 0 0 1000px rgba(25, 18, 45, 0.95) inset !important;
-        box-shadow: 0 0 0 1000px rgba(25, 18, 45, 0.95) inset !important;
+        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
+        -webkit-box-shadow: 0 0 0 1000px var(--surface-input-bg, rgba(25, 18, 45, 0.95)) inset !important;
+        box-shadow: 0 0 0 1000px var(--surface-input-bg, rgba(25, 18, 45, 0.95)) inset !important;
         transition: background-color 5000s ease-in-out 0s !important;
-        caret-color: #A78BFA !important;
+        caret-color: var(--dt-accent-primary, #A78BFA) !important;
     }
     
     /* Force country selector text to white */
@@ -483,8 +598,8 @@ else
     .lead-form-card .mud-select-input,
     .country-selector-wrapper .mud-select-input,
     .country-selector-wrapper .mud-input-slot {
-        color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
+        color: var(--surface-input-text, #FFFFFF) !important;
+        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
     }
     
     /* ═══════════════════════════════════════════════════════════════════════════
@@ -519,8 +634,8 @@ else
     .compact-input textarea.mud-input-slot {
         position: relative !important;
         z-index: 10 !important;
-        color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
+        color: var(--surface-input-text, #FFFFFF) !important;
+        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
     }
     
     /* Ensure the fieldset stays behind the input */
@@ -583,13 +698,13 @@ else
     .profile-card {
         width: 100%;
         max-width: 420px;
-        background: rgba(45, 27, 78, 0.65);
+        background: var(--dt-surface-card);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border-radius: 28px;
-        border: 1px solid rgba(139, 92, 246, 0.25);
+        border: 1px solid var(--dt-surface-card-border);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
-                    inset 0 0 80px rgba(139, 92, 246, 0.05);
+                    inset 0 0 80px var(--dt-accent-soft);
         position: relative;
         z-index: 1;
         overflow: visible;
@@ -615,10 +730,10 @@ else
         width: 160px !important;
         height: 160px !important;
         font-size: 3.75rem !important;
-        background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 50%, #7C3AED 100%) !important;
+        background: var(--dt-accent-gradient) !important;
         border: 5px solid rgba(255, 255, 255, 0.25) !important;
-        box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.35),
-                    0 0 60px rgba(139, 92, 246, 0.45),
+        box-shadow: 0 0 0 6px var(--dt-accent-soft),
+                    0 0 60px var(--dt-accent-soft),
                     0 12px 32px rgba(0, 0, 0, 0.35) !important;
         color: white !important;
         overflow: hidden !important;
@@ -632,6 +747,13 @@ else
         object-fit: cover !important;
         object-position: center center !important;
         border-radius: 50% !important;
+    }
+    
+    /* Avatar initials fill - uses theme tokens instead of MudBlazor Color.Primary */
+    /* Double class for specificity over .profile-avatar gradient */
+    .profile-avatar.profile-avatar-initials {
+        background: var(--dt-accent-primary) !important;
+        color: var(--dt-text-on-accent, #FFFFFF) !important;
     }
 
     /* Info - White text for dark theme */
@@ -689,7 +811,7 @@ else
     }
 
     .social-icon:hover {
-        background: rgba(139, 92, 246, 0.3) !important;
+        background: var(--dt-accent-soft) !important;
         color: #fff !important;
         transform: scale(1.05);
     }
@@ -738,15 +860,15 @@ else
     }
 
     .btn-primary-cta {
-        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #7C3AED 100%) !important;
-        color: #fff !important;
+        background: var(--dt-button-primary-bg) !important;
+        color: var(--dt-button-primary-text) !important;
         font-weight: 600 !important;
         text-transform: none !important;
         border-radius: 28px !important;
         padding: 10px 17px !important;
         font-size: 1rem !important;
         margin-bottom: 15px !important;
-        box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4) !important;
+        box-shadow: 0 4px 20px var(--dt-accent-soft) !important;
         letter-spacing: 0.01em;
     }
     
@@ -755,7 +877,8 @@ else
     }
 
     .btn-primary-cta:hover {
-        box-shadow: 0 6px 28px rgba(139, 92, 246, 0.55) !important;
+        background: var(--dt-button-primary-hover) !important;
+        box-shadow: 0 6px 28px var(--dt-accent-soft) !important;
         transform: translateY(-2px);
     }
 
@@ -794,21 +917,26 @@ else
         color: #25D366 !important;
     }
 
-    /* Llamar - Outlined Purple */
+    /* Llamar - Neutral Theme (uses theme tokens) */
     .btn-call {
         background: transparent !important;
-        border: 2px solid #8B5CF6 !important;
-        color: #A78BFA !important;
+        border: 2px solid var(--dt-button-secondary-border) !important;
+        color: var(--dt-text-secondary) !important;
         transition: all 0.2s ease !important;
     }
 
     .btn-call:hover {
-        background: rgba(139, 92, 246, 0.15) !important;
-        border-color: #A78BFA !important;
+        background: var(--dt-state-hover-overlay) !important;
+        border-color: var(--dt-accent-primary) !important;
+        color: var(--dt-accent-primary) !important;
     }
 
     .btn-call .mud-icon-root {
-        color: #A78BFA !important;
+        color: var(--dt-text-secondary) !important;
+    }
+    
+    .btn-call:hover .mud-icon-root {
+        color: var(--dt-accent-primary) !important;
     }
 
     /* Email - Outlined Orange */
@@ -865,7 +993,7 @@ else
     
     .public-gallery-item:hover {
         transform: scale(1.03);
-        box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+        box-shadow: 0 8px 24px var(--dt-accent-soft);
     }
     
     .public-gallery-item img {
@@ -1076,7 +1204,7 @@ else
     }
     
     .compact-label .optional {
-        color: rgba(255, 255, 255, 0.4);
+        color: var(--surface-text-muted, rgba(255, 255, 255, 0.4));
         font-weight: 400;
         font-size: 0.75rem;
     }
@@ -1084,20 +1212,20 @@ else
     /* Dark Theme Input Styling - Premium Form Fields */
     .compact-input .mud-input-outlined-border {
         border-radius: 12px !important;
-        border: 1.5px solid rgba(139, 92, 246, 0.35) !important;
-        background: rgba(25, 18, 45, 0.85) !important;
+        border: 1.5px solid var(--dt-surface-input-border) !important;
+        background: var(--dt-surface-input) !important;
         transition: all 0.2s ease !important;
     }
     
     .compact-input:hover .mud-input-outlined-border {
-        border-color: rgba(139, 92, 246, 0.55) !important;
-        background: rgba(35, 25, 60, 0.9) !important;
+        border-color: var(--dt-accent-soft) !important;
+        background: var(--dt-surface-input) !important;
     }
     
     .compact-input:focus-within .mud-input-outlined-border {
-        border-color: #A78BFA !important;
-        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2) !important;
-        background: rgba(35, 25, 60, 0.95) !important;
+        border-color: var(--dt-surface-input-focus) !important;
+        box-shadow: 0 0 0 3px var(--dt-focus-ring) !important;
+        background: var(--dt-surface-input) !important;
     }
     
     .compact-input .mud-input-root {
@@ -1111,7 +1239,7 @@ else
         font-size: 0.9375rem !important;
         font-weight: 500 !important;
         letter-spacing: 0.2px !important;
-        color: #FFFFFF !important;
+        color: var(--surface-input-text, #FFFFFF) !important;
     }
     
     .compact-input .mud-input-root-outlined .mud-input-slot {
@@ -1141,9 +1269,9 @@ else
     .lead-form-card input,
     .lead-form-card textarea,
     .lead-form-card .mud-input-slot {
-        color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
-        caret-color: #A78BFA !important;
+        color: var(--dt-text-primary) !important;
+        -webkit-text-fill-color: var(--dt-text-primary) !important;
+        caret-color: var(--dt-accent-primary) !important;
         opacity: 1 !important;
     }
 
@@ -1157,6 +1285,54 @@ else
         -webkit-text-fill-color: rgba(255, 255, 255, 0.4) !important;
         font-weight: 400 !important;
         opacity: 1 !important;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       AUTOFILL OVERRIDES - Maintain theme colors when browser autofill is active
+       Chrome/Safari use :-webkit-autofill, Firefox uses :autofill
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Chrome/Safari Autofill - use box-shadow to override UA background */
+    .native-text-input:-webkit-autofill,
+    .native-text-input:-webkit-autofill:hover,
+    .native-text-input:-webkit-autofill:focus,
+    .native-textarea-input:-webkit-autofill,
+    .native-textarea-input:-webkit-autofill:hover,
+    .native-textarea-input:-webkit-autofill:focus,
+    .premium-form input:-webkit-autofill,
+    .premium-form input:-webkit-autofill:hover,
+    .premium-form input:-webkit-autofill:focus,
+    .lead-form-card input:-webkit-autofill,
+    .lead-form-card input:-webkit-autofill:hover,
+    .lead-form-card input:-webkit-autofill:focus {
+        /* Override browser autofill background with theme surface */
+        -webkit-box-shadow: 0 0 0 1000px var(--dt-surface-input) inset !important;
+        box-shadow: 0 0 0 1000px var(--dt-surface-input) inset !important;
+        -webkit-text-fill-color: var(--dt-text-primary) !important;
+        color: var(--dt-text-primary) !important;
+        caret-color: var(--dt-accent-primary) !important;
+        border-color: var(--dt-surface-input-border) !important;
+        transition: background-color 5000s ease-in-out 0s !important;
+    }
+    
+    /* Firefox Autofill */
+    .native-text-input:autofill,
+    .native-text-input:autofill:hover,
+    .native-text-input:autofill:focus,
+    .native-textarea-input:autofill,
+    .native-textarea-input:autofill:hover,
+    .native-textarea-input:autofill:focus,
+    .premium-form input:autofill,
+    .premium-form input:autofill:hover,
+    .premium-form input:autofill:focus,
+    .lead-form-card input:autofill,
+    .lead-form-card input:autofill:hover,
+    .lead-form-card input:autofill:focus {
+        background-color: var(--dt-surface-input) !important;
+        color: var(--dt-text-primary) !important;
+        -webkit-text-fill-color: var(--dt-text-primary) !important;
+        caret-color: var(--dt-accent-primary) !important;
+        border-color: var(--dt-surface-input-border) !important;
     }
     
     /* Compact Textarea - 2 lines, ~60px */
@@ -1198,14 +1374,14 @@ else
         font-weight: 500;
         letter-spacing: 0.3px;
         font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #FFFFFF;
-        -webkit-text-fill-color: #FFFFFF;
-        background: rgba(25, 18, 45, 0.85);
-        border: 1.5px solid rgba(139, 92, 246, 0.35);
+        color: var(--dt-text-primary);
+        -webkit-text-fill-color: var(--dt-text-primary);
+        background: var(--dt-surface-input);
+        border: 1.5px solid var(--dt-surface-input-border);
         border-radius: 12px;
         outline: none;
         transition: all 0.2s ease;
-        caret-color: #A78BFA;
+        caret-color: var(--dt-accent-primary);
         box-sizing: border-box;
     }
     
@@ -1227,15 +1403,15 @@ else
     
     .native-text-input:hover,
     .native-textarea-input:hover {
-        border-color: rgba(139, 92, 246, 0.55);
-        background: rgba(35, 25, 60, 0.9);
+        border-color: var(--dt-accent-soft);
+        background: var(--dt-surface-input);
     }
     
     .native-text-input:focus,
     .native-textarea-input:focus {
-        border-color: #A78BFA;
-        background: rgba(35, 25, 60, 0.95);
-        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+        border-color: var(--dt-surface-input-focus);
+        background: var(--dt-surface-input);
+        box-shadow: 0 0 0 3px var(--dt-focus-ring);
     }
     
     /* Valid State */
@@ -1291,7 +1467,7 @@ else
         padding-left: 2px;
     }
     
-    /* Submit Button - Teal/Cyan gradient */
+    /* Submit Button - Uses accent color */
     .premium-submit-btn {
         width: 100%;
         height: 48px;
@@ -1299,21 +1475,22 @@ else
         align-items: center;
         justify-content: center;
         gap: 10px;
-        background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
-        color: #fff;
+        background: var(--dt-button-primary-bg);
+        color: var(--dt-button-primary-text);
         font-size: 0.9375rem;
         font-weight: 600;
         border: none;
         border-radius: 14px;
         cursor: pointer;
         transition: all 0.25s ease;
-        box-shadow: 0 4px 16px rgba(20, 184, 166, 0.35);
+        box-shadow: 0 4px 16px var(--dt-accent-soft);
         margin-top: 8px;
     }
     
     .premium-submit-btn:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 6px 24px rgba(20, 184, 166, 0.5);
+        background: var(--dt-button-primary-hover);
+        box-shadow: 0 6px 24px var(--dt-accent-soft);
     }
     
     .premium-submit-btn:active:not(:disabled) {
@@ -1326,10 +1503,11 @@ else
         color: rgba(255, 255, 255, 0.4);
         cursor: not-allowed;
         box-shadow: none;
+        opacity: var(--dt-state-disabled-opacity);
     }
     
     .premium-submit-btn.loading {
-        background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
+        background: var(--dt-button-primary-bg);
         cursor: wait;
     }
     
@@ -1622,6 +1800,230 @@ else
     .profile-card.contrast-light .gallery-section-title {
         color: var(--surface-text-primary) !important;
     }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       COUNTRY PHONE INPUT - Contrast aware styling for light themes
+       Forces proper text/placeholder colors on phone number field
+       ═══════════════════════════════════════════════════════════════ */
+    
+    /* Phone number input text - contrast aware */
+    .lead-form-card.contrast-dark .phone-number-input,
+    .lead-form-card.contrast-light .phone-number-input {
+        color: var(--surface-input-text) !important;
+        -webkit-text-fill-color: var(--surface-input-text) !important;
+    }
+    
+    /* Phone number placeholder - contrast aware */
+    .lead-form-card.contrast-dark .phone-number-input::placeholder,
+    .lead-form-card.contrast-light .phone-number-input::placeholder {
+        color: var(--surface-input-placeholder) !important;
+        -webkit-text-fill-color: var(--surface-input-placeholder) !important;
+        opacity: 1 !important;
+    }
+    
+    /* Phone label - contrast aware */
+    .lead-form-card.contrast-dark .phone-input-label,
+    .lead-form-card.contrast-light .phone-input-label {
+        color: var(--surface-label-text) !important;
+    }
+    
+    .lead-form-card.contrast-dark .phone-input-label .label-icon,
+    .lead-form-card.contrast-light .phone-input-label .label-icon {
+        color: var(--surface-text-muted) !important;
+    }
+    
+    /* Country selector text - contrast aware */
+    .lead-form-card.contrast-dark .country-selector-wrapper .mud-input-slot,
+    .lead-form-card.contrast-dark .country-selector-wrapper .mud-select-input,
+    .lead-form-card.contrast-light .country-selector-wrapper .mud-input-slot,
+    .lead-form-card.contrast-light .country-selector-wrapper .mud-select-input {
+        color: var(--surface-input-text) !important;
+        -webkit-text-fill-color: var(--surface-input-text) !important;
+    }
+    
+    /* Country dial code - contrast aware */
+    .lead-form-card.contrast-dark .country-dial,
+    .lead-form-card.contrast-light .country-dial {
+        color: var(--surface-input-text) !important;
+    }
+    
+    /* Phone hints and counters - contrast aware */
+    .lead-form-card.contrast-dark .digit-counter,
+    .lead-form-card.contrast-dark .example-hint,
+    .lead-form-card.contrast-light .digit-counter,
+    .lead-form-card.contrast-light .example-hint {
+        color: var(--surface-text-muted) !important;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       SERVICES TEMPLATE - Matches TemplateLibrary Preview
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    .services-template-section {
+        margin: 24px 0 20px;
+        width: 100%;
+    }
+    
+    .services-template-section .services-section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.5);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+    }
+    
+    .services-cards-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .service-card-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    
+    .service-card-item:hover {
+        background: rgba(255,255,255,0.08);
+        border-color: rgba(20,184,166,0.3);
+    }
+    
+    .service-card-icon {
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .service-card-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .service-card-name {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #ffffff;
+    }
+    
+    .service-card-meta {
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.6);
+    }
+    
+    /* Services Template CTAs */
+    .services-cta-section {
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .btn-booking-primary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #14B8A6, #0891B2);
+        border: none;
+        border-radius: 12px;
+        color: #ffffff;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+    
+    .btn-booking-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(20,184,166,0.4);
+    }
+    
+    .btn-quote-outlined {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 14px 20px;
+        background: transparent;
+        border: 1px solid rgba(20,184,166,0.5);
+        border-radius: 12px;
+        color: #14B8A6;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+    
+    .btn-quote-outlined:hover {
+        background: rgba(20,184,166,0.1);
+        border-color: #14B8A6;
+    }
+    
+    .btn-quote-link {
+        display: block;
+        width: 100%;
+        text-align: center;
+        margin-top: 12px;
+        padding: 8px;
+        background: transparent;
+        border: none;
+        color: rgba(255,255,255,0.6);
+        font-size: 0.85rem;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        transition: color 0.2s ease;
+    }
+    
+    .btn-quote-link:hover {
+        color: #14B8A6;
+    }
+    
+    a.btn-quote-link {
+        text-decoration: underline;
+    }
+    
+    /* Services Contact Footer */
+    .services-contact-footer {
+        margin-top: 24px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .services-contact-footer .contact-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.6);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .services-contact-footer .contact-item:hover {
+        color: #14B8A6;
+    }
 </style>
 
 @code {
@@ -1657,8 +2059,13 @@ else
     private GalleryImageModel? _selectedImage;
     private int _selectedIndex = 0;
     
+    // Services (Services Template)
+    private List<DataTouch.Domain.Entities.Service> _services = new();
+    private bool _isServicesTemplate = false;
+    
     // Appearance Style
     private CardStyleModel _cardStyle = new();
+    private ThemeTokens _themeTokens = PresetRegistry.Default.Tokens;
 
     private MudTheme _theme = new()
     {
@@ -1719,6 +2126,15 @@ else
             if (_card != null)
             {
                 DeserializeJsonFields();
+                
+                // Detect template type
+                _isServicesTemplate = _card.TemplateType == "services-quotes";
+                
+                // Load services for services template
+                _services = await DbContext.Services
+                    .Where(s => s.CardId == _card.Id && s.IsActive)
+                    .OrderBy(s => s.DisplayOrder)
+                    .ToListAsync();
             }
         }
         _isLoading = false;
@@ -1762,6 +2178,16 @@ else
             try
             {
                 _cardStyle = System.Text.Json.JsonSerializer.Deserialize<CardStyleModel>(_card.AppearanceStyleJson) ?? new();
+                
+                // Load ThemeTokens from preset registry
+                if (!string.IsNullOrEmpty(_cardStyle.PresetId))
+                {
+                    var preset = PresetRegistry.GetById(_cardStyle.PresetId);
+                    if (preset != null)
+                    {
+                        _themeTokens = preset.Tokens;
+                    }
+                }
             }
             catch { _cardStyle = new(); }
         }
@@ -1878,6 +2304,51 @@ END:VCARD";
         return "ready";
     }
     
+    // ═══════════════════════════════════════════════════════════════
+    // Services/Booking Methods
+    // ═══════════════════════════════════════════════════════════════
+    private string GetBookingUrl()
+    {
+        if (_organization == null || _card == null) return "#";
+        return $"/p/{_organization.Slug}/{_card.Slug}/book";
+    }
+    
+    private async Task ScrollToContactForm()
+    {
+        await JSRuntime.InvokeVoidAsync("scrollToElement", ".lead-form-card");
+    }
+    
+    private async Task OpenQuoteModal()
+    {
+        var parameters = new DialogParameters<QuoteRequestModal>
+        {
+            { x => x.Services, _services },
+            { x => x.CardId, _card!.Id }
+        };
+        
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseButton = true,
+            BackdropClick = false
+        };
+        
+        await DialogService.ShowAsync<QuoteRequestModal>("Solicitar Cotización", parameters, options);
+    }
+    
+    private string GetServiceIconColor(int index)
+    {
+        var colors = new[] { 
+            "linear-gradient(135deg, #EC4899, #F97316)", // Pink to Orange
+            "linear-gradient(135deg, #3B82F6, #8B5CF6)", // Blue to Purple
+            "linear-gradient(135deg, #14B8A6, #10B981)", // Teal to Green
+            "linear-gradient(135deg, #F59E0B, #EF4444)", // Amber to Red
+            "linear-gradient(135deg, #8B5CF6, #EC4899)"  // Purple to Pink
+        };
+        return colors[index % colors.Length];
+    }
+    
     // ViewModels for JSON fields
     private class SocialLinksModel
     {
@@ -1934,6 +2405,10 @@ END:VCARD";
         public bool BackgroundIsDark { get; set; } = true;
         public bool CardIsDark { get; set; } = true;
         public bool CardIsDarkOverride { get; set; } = true;
+        
+        // Preset tracking (new v2)
+        public string? PresetId { get; set; } = "premium-dark";
+        public string? AccentColor { get; set; } = "#7C3AED";
     }
     
     private string GetDynamicBackgroundStyle()
@@ -1941,8 +2416,13 @@ END:VCARD";
         if (_cardStyle.BackgroundType == "image" && !string.IsNullOrEmpty(_cardStyle.BackgroundImageUrl))
             return $"background: url('{_cardStyle.BackgroundImageUrl}') center/cover no-repeat, linear-gradient(180deg, #0d0a1a 0%, #1a1035 100%);";
         if (_cardStyle.BackgroundType == "solid")
-            return $"background: {_cardStyle.BackgroundValue};";
-        return $"background: {_cardStyle.BackgroundValue};";
+            return $"background: {_themeTokens.BgValue};";
+        return $"background: {_themeTokens.BgValue};";
+    }
+    
+    private string GetThemeCssVariables()
+    {
+        return ThemeHelper.GenerateCssVariables(_themeTokens);
     }
     
     private string GetCardBackgroundStyle()

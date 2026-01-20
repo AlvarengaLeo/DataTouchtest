@@ -21,13 +21,57 @@
             <MudNavLink Href="/" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">Panel de Control</MudNavLink>
             <MudNavLink Href="/leads" Icon="@Icons.Material.Filled.People">Leads</MudNavLink>
             <MudNavLink Href="/cards/mine" Icon="@Icons.Material.Filled.CreditCard">Mi Tarjeta</MudNavLink>
+            <MudNavLink Href="/appointments" Icon="@Icons.Material.Filled.CalendarMonth">Reservas y Citas</MudNavLink>
+            <MudNavLink Href="/quotes" Icon="@Icons.Material.Filled.RequestQuote">Cotizaciones</MudNavLink>
             <MudNavLink Href="/templates" Icon="@Icons.Material.Filled.Style">Plantillas</MudNavLink>
         </MudNavMenu>
     </MudDrawer>
     <MudMainContent Class="main-content-wrapper">
-        @Body
+        <div class="page-container">
+            @Body
+        </div>
     </MudMainContent>
 </MudLayout>
+
+<style>
+    /* ═══════════════ PAGE CONTAINER (Premium Layout) ═══════════════ */
+    .page-container {
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 24px 32px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Medium screens (tablets, smaller laptops) */
+    @@media (max-width: 1280px) {
+        .page-container {
+            padding: 20px 24px;
+        }
+    }
+    
+    /* Tablets */
+    @@media (max-width: 960px) {
+        .page-container {
+            padding: 16px 20px;
+        }
+    }
+    
+    /* Mobile */
+    @@media (max-width: 600px) {
+        .page-container {
+            padding: 12px 16px;
+        }
+    }
+    
+    /* Extra wide screens - add more breathing room */
+    @@media (min-width: 1920px) {
+        .page-container {
+            max-width: 1600px;
+            padding: 28px 40px;
+        }
+    }
+</style>
 
 <div id="blazor-error-ui" data-nosnippet>
     Ha ocurrido un error inesperado.

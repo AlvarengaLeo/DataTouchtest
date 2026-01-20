@@ -1,0 +1,1683 @@
+@page "/appointments"
+@attribute [Authorize]
+@inject DataTouchDbContext DbContext
+@inject AuthService AuthService
+@inject AppointmentService AppointmentService
+@inject AvailabilityService AvailabilityService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+@using DataTouch.Web.Services
+@using DataTouch.Domain.Entities
+@using System.Globalization
+
+<PageTitle>Reservas y Citas - DataTouch</PageTitle>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   PREMIUM HEADER
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<div class="page-header d-flex justify-space-between align-center flex-wrap gap-3 mb-4">
+    <div>
+        <MudText Typo="Typo.h4" Class="d-flex align-center gap-2" Style="font-weight: 700;">
+            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" />
+            Reservas y Citas
+        </MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Gestiona tus citas, servicios y disponibilidad
+        </MudText>
+    </div>
+    <div class="d-flex gap-2">
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Download"
+                   OnClick="@(() => Snackbar.Add("Exportando...", Severity.Info))">
+            Exportar
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@(() => OpenCreateAppointmentDialog(false))">
+            Nueva Cita
+        </MudButton>
+    </div>
+</div>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   METRICS CARDS
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<div class="metrics-row d-flex flex-wrap gap-3 mb-4">
+    <MudPaper Elevation="0" Class="@($"metric-card {(_activeQuickFilter == "today" ? "active" : "")}")" 
+              Style="cursor: pointer;" @onclick="@(() => ApplyQuickFilter("today"))">
+        <div class="metric-icon today">
+            <MudIcon Icon="@Icons.Material.Filled.Today" Size="Size.Small" />
+        </div>
+        <div class="metric-content">
+            <span class="metric-value">@_metricsToday</span>
+            <span class="metric-label">Hoy</span>
+        </div>
+    </MudPaper>
+    
+    <MudPaper Elevation="0" Class="@($"metric-card {(_activeQuickFilter == "pending" ? "active" : "")}")" 
+              Style="cursor: pointer;" @onclick="@(() => ApplyQuickFilter("pending"))">
+        <div class="metric-icon pending">
+            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+        </div>
+        <div class="metric-content">
+            <span class="metric-value">@_metricsPending</span>
+            <span class="metric-label">Pendientes</span>
+        </div>
+    </MudPaper>
+    
+    <MudPaper Elevation="0" Class="@($"metric-card {(_activeQuickFilter == "confirmed" ? "active" : "")}")" 
+              Style="cursor: pointer;" @onclick="@(() => ApplyQuickFilter("confirmed"))">
+        <div class="metric-icon confirmed">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+        </div>
+        <div class="metric-content">
+            <span class="metric-value">@_metricsConfirmed</span>
+            <span class="metric-label">Confirmadas</span>
+        </div>
+    </MudPaper>
+    
+    <MudPaper Elevation="0" Class="@($"metric-card {(_activeQuickFilter == "cancelled" ? "active" : "")}")" 
+              Style="cursor: pointer;" @onclick="@(() => ApplyQuickFilter("cancelled"))">
+        <div class="metric-icon cancelled">
+            <MudIcon Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" />
+        </div>
+        <div class="metric-content">
+            <span class="metric-value">@_metricsCancelled</span>
+            <span class="metric-label">Canceladas</span>
+        </div>
+    </MudPaper>
+</div>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   PREMIUM TOOLBAR
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<MudPaper Elevation="0" Class="toolbar-card pa-4 mb-4">
+    <div class="toolbar-row d-flex flex-wrap gap-3 align-center">
+        @* Search Input *@
+        <MudTextField @bind-Value="_searchQuery" Placeholder="Buscar cliente, correo o teléfono..."
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="search-input"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" DebounceInterval="350"
+                      OnDebounceIntervalElapsed="OnSearchChanged" />
+        
+        @* Quick Filters *@
+        <div class="quick-filters d-flex gap-1 flex-wrap">
+            <MudChip T="string" Color="@(_activeQuickFilter == "today" ? Color.Primary : Color.Default)" 
+                     Variant="@(_activeQuickFilter == "today" ? Variant.Filled : Variant.Outlined)"
+                     Size="Size.Small" OnClick="@(() => ApplyQuickFilter("today"))">
+                Hoy
+            </MudChip>
+            <MudChip T="string" Color="@(_activeQuickFilter == "tomorrow" ? Color.Primary : Color.Default)"
+                     Variant="@(_activeQuickFilter == "tomorrow" ? Variant.Filled : Variant.Outlined)"
+                     Size="Size.Small" OnClick="@(() => ApplyQuickFilter("tomorrow"))">
+                Mañana
+            </MudChip>
+            <MudChip T="string" Color="@(_activeQuickFilter == "week" ? Color.Primary : Color.Default)"
+                     Variant="@(_activeQuickFilter == "week" ? Variant.Filled : Variant.Outlined)"
+                     Size="Size.Small" OnClick="@(() => ApplyQuickFilter("week"))">
+                Esta semana
+            </MudChip>
+            <MudChip T="string" Color="@(_activeQuickFilter == "month" ? Color.Primary : Color.Default)"
+                     Variant="@(_activeQuickFilter == "month" ? Variant.Filled : Variant.Outlined)"
+                     Size="Size.Small" OnClick="@(() => ApplyQuickFilter("month"))">
+                Este mes
+            </MudChip>
+        </div>
+        
+        <MudSpacer />
+        
+        @* Advanced Filters *@
+        <MudDatePicker @bind-Date="_dateFrom" Label="Desde" Variant="Variant.Outlined" 
+                       Margin="Margin.Dense" Class="date-filter" />
+        <MudDatePicker @bind-Date="_dateTo" Label="Hasta" Variant="Variant.Outlined" 
+                       Margin="Margin.Dense" Class="date-filter" />
+        <MudSelect T="AppointmentStatus?" @bind-Value="_statusFilter" Label="Estado" 
+                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="status-filter">
+            <MudSelectItem T="AppointmentStatus?" Value="@((AppointmentStatus?)null)">Todos</MudSelectItem>
+            <MudSelectItem T="AppointmentStatus?" Value="@AppointmentStatus.Pending">Pendiente</MudSelectItem>
+            <MudSelectItem T="AppointmentStatus?" Value="@AppointmentStatus.Confirmed">Confirmada</MudSelectItem>
+            <MudSelectItem T="AppointmentStatus?" Value="@AppointmentStatus.Completed">Completada</MudSelectItem>
+            <MudSelectItem T="AppointmentStatus?" Value="@AppointmentStatus.Cancelled">Cancelada</MudSelectItem>
+        </MudSelect>
+        
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAppointments"
+                   StartIcon="@Icons.Material.Filled.FilterList" Size="Size.Small">
+            Aplicar
+        </MudButton>
+        
+        @if (HasActiveFilters)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="ClearFilters"
+                       StartIcon="@Icons.Material.Filled.Clear" Size="Size.Small">
+                Limpiar
+            </MudButton>
+        }
+    </div>
+</MudPaper>
+
+@* Tab Navigation *@
+<MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="premium-tabs mb-4">
+    <MudTabPanel Text="Citas" Icon="@Icons.Material.Filled.Event">
+        @if (_isLoading)
+        {
+            <div class="skeleton-container pa-4">
+                @for (int i = 0; i < 5; i++)
+                {
+                    <MudSkeleton Animation="Animation.Wave" Height="60px" Class="mb-2" />
+                }
+            </div>
+        }
+        else if (!_filteredAppointments.Any())
+        {
+            @* Premium Empty State *@
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" />
+                </div>
+                <MudText Typo="Typo.h6" Class="mt-4">No hay citas en este rango</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+                    Intenta ajustar los filtros o crea una nueva cita
+                </MudText>
+                <div class="d-flex gap-2">
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => ApplyQuickFilter("today"))">
+                        Ver hoy
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="@(() => OpenCreateAppointmentDialog(true))">
+                        Crear primera cita
+                    </MudButton>
+                </div>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="_filteredAppointments" Hover="true" Elevation="0" 
+                      T="Appointment" OnRowClick="@((e) => OpenAppointmentDrawer(e.Item))" 
+                      RowStyle="cursor: pointer;" Class="appointments-table"
+                      RowsPerPage="10">
+                <HeaderContent>
+                    <MudTh><MudTableSortLabel SortBy="new Func<Appointment, object>(x => x.StartDateTime)">Fecha/Hora</MudTableSortLabel></MudTh>
+                    <MudTh>Cliente</MudTh>
+                    <MudTh>Servicio</MudTh>
+                    <MudTh>Duración</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh Style="width: 80px;">Acciones</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Fecha/Hora">
+                        <div class="date-cell">
+                            @if (IsToday(context.StartDateTime))
+                            {
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled" Class="today-badge">HOY</MudChip>
+                            }
+                            <span class="date-text">@FormatDateSpanish(context.StartDateTime)</span>
+                            <span class="time-text">@context.StartDateTime.ToString("h:mm tt") – @context.EndDateTime.ToString("h:mm tt")</span>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Cliente">
+                        <div class="client-cell">
+                            <span class="client-name">@context.CustomerName</span>
+                            <span class="client-email">@context.CustomerEmail</span>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Servicio">
+                        <span class="service-name">@(context.Service?.Name ?? "—")</span>
+                    </MudTd>
+                    <MudTd DataLabel="Duración">
+                        <span class="duration-text">@((context.EndDateTime - context.StartDateTime).TotalMinutes) min</span>
+                    </MudTd>
+                    <MudTd DataLabel="Estado">
+                        <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small" 
+                                 Variant="Variant.Filled" Class="status-chip">
+                            @GetStatusLabel(context.Status)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Acciones" @onclick:stopPropagation="true">
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
+                                 AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                            <MudMenuItem Icon="@Icons.Material.Filled.Visibility" OnClick="@(() => OpenAppointmentDrawer(context))">
+                                Ver detalle
+                            </MudMenuItem>
+                            @if (context.Status == AppointmentStatus.Pending)
+                            {
+                                <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success"
+                                             OnClick="@(() => UpdateStatus(context, AppointmentStatus.Confirmed))">
+                                    Confirmar
+                                </MudMenuItem>
+                            }
+                            @if (context.Status == AppointmentStatus.Confirmed)
+                            {
+                                <MudMenuItem Icon="@Icons.Material.Filled.Done" IconColor="Color.Primary"
+                                             OnClick="@(() => UpdateStatus(context, AppointmentStatus.Completed))">
+                                    Marcar completada
+                                </MudMenuItem>
+                            }
+                            @if (context.Status != AppointmentStatus.Cancelled && context.Status != AppointmentStatus.Completed)
+                            {
+                                <MudMenuItem Icon="@Icons.Material.Filled.Schedule" 
+                                             OnClick="@(() => { _selectedAppointment = context; OpenRescheduleDialog(); })">
+                                    Reprogramar
+                                </MudMenuItem>
+                                <MudDivider />
+                                <MudMenuItem Icon="@Icons.Material.Filled.Cancel" IconColor="Color.Error"
+                                             OnClick="@(() => OpenCancelModal(context))">
+                                    Cancelar cita
+                                </MudMenuItem>
+                            }
+                            @if (context.Status == AppointmentStatus.Cancelled)
+                            {
+                                <MudMenuItem Icon="@Icons.Material.Filled.Restore" IconColor="Color.Warning"
+                                             OnClick="@(() => RestoreAppointment(context))">
+                                    Restaurar cita
+                                </MudMenuItem>
+                            }
+                        </MudMenu>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" 
+                                   RowsPerPageString="Filas por página" 
+                                   InfoFormat="{first_item}-{last_item} de {all_items}" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudTabPanel>
+    
+    <MudTabPanel Text="Servicios" Icon="@Icons.Material.Filled.Handyman">
+        <div class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddService" Class="mb-4">
+                Agregar Servicio
+            </MudButton>
+            
+            @if (_services.Any())
+            {
+                <MudTable Items="_services" Hover="true" Striped="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Nombre</MudTh>
+                        <MudTh>Duracion</MudTh>
+                        <MudTh>Precio</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Nombre">@context.Name</MudTd>
+                        <MudTd DataLabel="Duracion">@context.DurationMinutes min</MudTd>
+                        <MudTd DataLabel="Precio">@(context.PriceFrom.HasValue ? $"${context.PriceFrom:N2}" : "-")</MudTd>
+                        <MudTd DataLabel="Estado">
+                            <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Default)" Size="Size.Small">
+                                @(context.IsActive ? "Activo" : "Inactivo")
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditService(context)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteService(context)" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">No tienes servicios configurados. Agrega al menos uno para recibir reservas.</MudAlert>
+            }
+        </div>
+    </MudTabPanel>
+    
+    <MudTabPanel Text="Disponibilidad" Icon="@Icons.Material.Filled.Schedule">
+        <div class="pa-4">
+            @* Weekly Schedule *@
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarViewWeek" Class="mr-2" />
+                Horario Semanal
+            </MudText>
+            
+            @foreach (var day in _daysOfWeek)
+            {
+                var rule = _availabilityRules.FirstOrDefault(r => r.DayOfWeek == day.Value);
+                <MudPaper Class="pa-3 mb-2" Elevation="1">
+                    <MudGrid>
+                        <MudItem xs="12" md="3" Class="d-flex align-center">
+                            <MudSwitch T="bool" Checked="@(rule?.IsActive ?? false)" 
+                                       CheckedChanged="(val) => ToggleDayAvailability(day.Value, val)" 
+                                       Color="Color.Primary" />
+                            <MudText Class="ml-2 font-weight-bold">@day.Name</MudText>
+                        </MudItem>
+                        @if (rule?.IsActive == true)
+                        {
+                            <MudItem xs="12" md="4">
+                                <MudTimePicker Label="Inicio" Time="@rule.StartTime" 
+                                               TimeChanged="(t) => UpdateRuleTime(rule, t, true)"
+                                               Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTimePicker Label="Fin" Time="@rule.EndTime" 
+                                               TimeChanged="(t) => UpdateRuleTime(rule, t, false)"
+                                               Variant="Variant.Outlined" />
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+            }
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAvailability" Class="mt-4 mb-6">
+                Guardar Disponibilidad
+            </MudButton>
+            
+            <MudDivider Class="my-4" />
+            
+            @* Availability Exceptions / Blocks *@
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h6">
+                    <MudIcon Icon="@Icons.Material.Filled.Block" Class="mr-2" />
+                    Bloqueos de Agenda
+                </MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="OpenAddBlockDialog">
+                    Agregar Bloqueo
+                </MudButton>
+            </div>
+            
+            @if (_availabilityExceptions.Any())
+            {
+                <MudTable Items="_availabilityExceptions" Hover="true" Dense="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>Horario</MudTh>
+                        <MudTh>Motivo</MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.ExceptionDate.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd>
+                            @if (context.StartTime.HasValue && context.EndTime.HasValue)
+                            {
+                                @($"{context.StartTime.Value:hh\\:mm} - {context.EndTime.Value:hh\\:mm}")
+                            }
+                            else
+                            {
+                                <span>Todo el día</span>
+                            }
+                        </MudTd>
+                        <MudTd>@(context.ExceptionType == AvailabilityExceptionType.Blocked ? "Bloqueado" : "Horas extra")</MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" 
+                                           Color="Color.Error" OnClick="@(() => DeleteException(context))" />
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Class="pa-4">No hay bloqueos programados</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">
+                    No hay bloqueos de agenda. Puedes agregar días libres, vacaciones o tiempo bloqueado.
+                </MudAlert>
+            }
+            
+            <MudDivider Class="my-4" />
+            
+            @* Booking Settings *@
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.Settings" Class="mr-2" />
+                Configuración de Agenda
+            </MudText>
+            
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudNumericField @bind-Value="_bookingSettings.SlotIntervalMinutes"
+                                     Label="Intervalo de citas (min)"
+                                     Min="5" Max="120"
+                                     Variant="Variant.Outlined"
+                                     HelperText="Ej: 30 = slots cada 30 min" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudNumericField @bind-Value="_bookingSettings.BufferAfterMinutes"
+                                     Label="Tiempo entre citas (min)"
+                                     Min="0" Max="60"
+                                     Variant="Variant.Outlined"
+                                     HelperText="Descanso después de cada cita" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudNumericField @bind-Value="_bookingSettings.MaxAppointmentsPerDay"
+                                     Label="Máximo citas por día"
+                                     Min="0" Max="50"
+                                     Variant="Variant.Outlined"
+                                     HelperText="0 = sin límite" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudNumericField @bind-Value="_bookingSettings.MinNoticeMinutes"
+                                     Label="Aviso mínimo (min)"
+                                     Min="0" Max="10080"
+                                     Variant="Variant.Outlined"
+                                     HelperText="60 = 1 hora de anticipación" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudNumericField @bind-Value="_bookingSettings.MaxAdvanceDays"
+                                     Label="Días máximos por adelantado"
+                                     Min="1" Max="365"
+                                     Variant="Variant.Outlined"
+                                     HelperText="Cuántos días a futuro permitir" />
+                </MudItem>
+            </MudGrid>
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                       OnClick="SaveBookingSettings" Class="mt-4">
+                Guardar Configuración
+            </MudButton>
+        </div>
+    </MudTabPanel>
+    
+    <MudTabPanel Text="Cotizaciones" Icon="@Icons.Material.Filled.RequestQuote">
+        <div class="pa-4">
+            @if (_quoteRequests.Any())
+            {
+                <MudTable Items="_quoteRequests" Hover="true" Striped="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>Cliente</MudTh>
+                        <MudTh>Descripcion</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Fecha">@context.CreatedAt.ToString("dd/MM/yyyy")</MudTd>
+                        <MudTd DataLabel="Cliente">
+                            <div class="d-flex flex-column">
+                                <span>@context.CustomerName</span>
+                                <span class="mud-text-secondary" style="font-size: 0.8rem;">@context.CustomerEmail</span>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Descripcion">@(context.Description?.Length > 50 ? context.Description.Substring(0, 50) + "..." : context.Description)</MudTd>
+                        <MudTd DataLabel="Estado">
+                            <MudChip T="string" Color="@GetQuoteStatusColor(context.Status)" Size="Size.Small">@GetQuoteStatusLabel(context.Status)</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="() => ViewQuote(context)">
+                                Ver
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">No tienes solicitudes de cotizacion.</MudAlert>
+            }
+        </div>
+    </MudTabPanel>
+</MudTabs>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   SERVICE DIALOG (Add/Edit)
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<MudDialog @bind-Visible="_showServiceDialog" Options="@(new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Handyman" Class="mr-2" />
+            @(_isNewService ? "Nuevo Servicio" : "Editar Servicio")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_editingService.Name" 
+                      Label="Nombre del servicio" 
+                      Required="true"
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+        
+        <MudTextField @bind-Value="_editingService.Description" 
+                      Label="Descripción (opcional)" 
+                      Lines="2"
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+        
+        <MudGrid>
+            <MudItem xs="6">
+                <MudNumericField @bind-Value="_editingService.DurationMinutes" 
+                                 Label="Duración (minutos)" 
+                                 Min="5" Max="480"
+                                 Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudNumericField @bind-Value="_editingService.PriceFrom" 
+                                 Label="Precio desde ($)" 
+                                 Format="N2"
+                                 Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+        
+        <MudSwitch @bind-Value="_editingService.IsActive" 
+                   Label="Servicio activo (visible al público)" 
+                   Color="Color.Primary"
+                   Class="mt-4" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CancelServiceDialog">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveService">
+            @(_isNewService ? "Crear Servicio" : "Guardar Cambios")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   APPOINTMENT DETAIL DRAWER - USING PREMIUM COMPONENT
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<DataTouch.Web.Components.Shared.AppointmentDetailsDrawer 
+    @bind-IsOpen="_showAppointmentDrawer"
+    Appointment="_selectedAppointment"
+    OnConfirm="@(async () => await UpdateStatusFromDrawer(AppointmentStatus.Confirmed))"
+    OnComplete="@(async () => await UpdateStatusFromDrawer(AppointmentStatus.Completed))"
+    OnReschedule="OpenRescheduleDialog"
+    OnCancel="@(() => { if(_selectedAppointment != null) OpenCancelModal(_selectedAppointment); })"
+    OnRestore="@(async () => { if(_selectedAppointment != null) await RestoreAppointment(_selectedAppointment); })" />
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   RESCHEDULE DIALOG
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<MudDialog @bind-Visible="_showRescheduleDialog" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Reprogramar Cita</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudDatePicker @bind-Date="_rescheduleDate" Label="Nueva Fecha" 
+                       Variant="Variant.Outlined" Class="mb-4"
+                       MinDate="DateTime.Today" />
+        
+        @if (_rescheduleDate.HasValue)
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Horarios disponibles</MudText>
+            @if (_isLoadingSlots)
+            {
+                <MudProgressLinear Indeterminate="true" />
+            }
+            else if (_rescheduleSlots.Any())
+            {
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var slot in _rescheduleSlots)
+                    {
+                        <MudButton Variant="@(slot == _selectedRescheduleSlot ? Variant.Filled : Variant.Outlined)"
+                                   Color="Color.Primary" Size="Size.Small"
+                                   OnClick="@(() => _selectedRescheduleSlot = slot)">
+                            @slot.DisplayTime
+                        </MudButton>
+                    }
+                </div>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning">No hay horarios disponibles para esta fecha</MudAlert>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showRescheduleDialog = false)">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                   Disabled="@(_selectedRescheduleSlot == null)"
+                   OnClick="ConfirmReschedule">
+            Confirmar Reprogramación
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   ADD BLOCK DIALOG
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<MudDialog @bind-Visible="_showBlockDialog" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Block" Class="mr-2" />
+            Agregar Bloqueo
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudDatePicker Date="@_newBlock.ExceptionDate.ToDateTime(TimeOnly.MinValue)" 
+                       Label="Fecha a bloquear" 
+                       Variant="Variant.Outlined" Class="mb-4"
+                       MinDate="DateTime.Today"
+                       DateChanged="@(d => { if(d.HasValue) _newBlock.ExceptionDate = DateOnly.FromDateTime(d.Value); })" />
+        
+        <MudSwitch @bind-Value="_blockAllDay" Label="Bloquear todo el día" Color="Color.Primary" Class="mb-4" />
+        
+        @if (!_blockAllDay)
+        {
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudTimePicker Label="Hora inicio" 
+                                   Time="@_newBlock.StartTime"
+                                   TimeChanged="@(t => _newBlock.StartTime = t)"
+                                   Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTimePicker Label="Hora fin" 
+                                   Time="@_newBlock.EndTime"
+                                   TimeChanged="@(t => _newBlock.EndTime = t)"
+                                   Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showBlockDialog = false)">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveBlock">
+            Agregar Bloqueo
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   CANCEL MODAL
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<MudDialog @bind-Visible="_showCancelModal" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Cancel" Class="mr-2" Color="Color.Error" />
+            Cancelar Cita
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_appointmentToCancel != null)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                ¿Está seguro de cancelar la cita de <strong>@_appointmentToCancel.CustomerName</strong> 
+                para el <strong>@_appointmentToCancel.StartDateTime.ToString("dd/MM/yyyy h:mm tt")</strong>?
+            </MudAlert>
+        }
+        
+        <MudTextField @bind-Value="_cancelReason" 
+                      Label="Motivo de cancelación *" 
+                      Variant="Variant.Outlined"
+                      Lines="3"
+                      Required="true"
+                      Placeholder="Ej: Solicitud del cliente, Conflicto de agenda..." />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _showCancelModal = false)">Cerrar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" 
+                   Disabled="@(string.IsNullOrWhiteSpace(_cancelReason))"
+                   OnClick="ConfirmCancel">
+            Confirmar Cancelación
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<Appointment> _appointments = new();
+    private List<Service> _services = new();
+    private List<AvailabilityRule> _availabilityRules = new();
+    private List<QuoteRequest> _quoteRequests = new();
+    private bool _isLoading = true;
+    private DateTime? _dateFrom;
+    private DateTime? _dateTo;
+    private AppointmentStatus? _statusFilter;
+    private Guid? _cardId;
+    
+    // Search & Quick Filters (Premium)
+    private string _searchQuery = "";
+    private string _activeQuickFilter = "";
+    
+    // Metrics
+    private int _metricsToday = 0;
+    private int _metricsPending = 0;
+    private int _metricsConfirmed = 0;
+    private int _metricsCancelled = 0;
+    
+    // Spanish Culture
+    private static readonly CultureInfo SpanishCulture = new("es-SV");
+    
+    // Computed: Filtered Appointments (search + status)
+    private IEnumerable<Appointment> _filteredAppointments => _appointments
+        .Where(a => string.IsNullOrEmpty(_searchQuery) || 
+                    a.CustomerName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    a.CustomerEmail.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    (a.CustomerPhone != null && a.CustomerPhone.Contains(_searchQuery)))
+        .OrderBy(a => a.StartDateTime);
+    
+    // Has Active Filters
+    private bool HasActiveFilters => _dateFrom.HasValue || _dateTo.HasValue || 
+                                      _statusFilter.HasValue || !string.IsNullOrEmpty(_searchQuery) ||
+                                      !string.IsNullOrEmpty(_activeQuickFilter);
+    
+    // Appointment Drawer
+    private bool _showAppointmentDrawer = false;
+    private Appointment? _selectedAppointment;
+    
+    // Reschedule Dialog
+    private bool _showRescheduleDialog = false;
+    private DateTime? _rescheduleDate;
+    private List<TimeSlot> _rescheduleSlots = new();
+    private TimeSlot? _selectedRescheduleSlot;
+    private bool _isLoadingSlots = false;
+    
+    // Availability Exceptions
+    private List<AvailabilityException> _availabilityExceptions = new();
+    private bool _showBlockDialog = false;
+    private AvailabilityException _newBlock = new();
+    private bool _blockAllDay = true;
+    
+    // Booking Settings
+    private BookingSettings _bookingSettings = new();
+    
+    // Cancel Modal
+    private bool _showCancelModal = false;
+    private Appointment? _appointmentToCancel;
+    private string _cancelReason = "";
+    private Guid? _lastCancelledAppointmentId; // For undo
+    
+    private readonly List<(int Value, string Name)> _daysOfWeek = new()
+    {
+        (0, "Domingo"), (1, "Lunes"), (2, "Martes"), (3, "Miercoles"),
+        (4, "Jueves"), (5, "Viernes"), (6, "Sabado")
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgId = AuthService.GetCurrentOrganizationId();
+        var userId = AuthService.GetCurrentUserId();
+        
+        if (orgId.HasValue && userId.HasValue)
+        {
+            // Get user's card - use UserId for reliable matching
+            var card = await DbContext.Cards
+                .FirstOrDefaultAsync(c => c.OrganizationId == orgId && c.UserId == userId);
+            
+            if (card != null)
+            {
+                _cardId = card.Id;
+                await LoadAllData();
+            }
+        }
+        _isLoading = false;
+    }
+
+    private async Task LoadAllData()
+    {
+        await LoadAppointments();
+        await LoadServices();
+        await LoadAvailability();
+        await LoadExceptions();
+        await LoadBookingSettings();
+        await LoadQuotes();
+    }
+
+    private async Task LoadAppointments()
+    {
+        if (!_cardId.HasValue) return;
+        _isLoading = true;
+        
+        var query = DbContext.Appointments
+            .Include(a => a.Service)
+            .Where(a => a.CardId == _cardId.Value)
+            .AsQueryable();
+
+        if (_dateFrom.HasValue)
+            query = query.Where(a => a.StartDateTime >= _dateFrom.Value);
+
+        if (_dateTo.HasValue)
+        {
+            var endDate = _dateTo.Value.AddDays(1);
+            query = query.Where(a => a.StartDateTime <= endDate);
+        }
+
+        if (_statusFilter.HasValue)
+            query = query.Where(a => a.Status == _statusFilter.Value);
+
+        _appointments = await query.OrderByDescending(a => a.StartDateTime).ToListAsync();
+        UpdateMetrics();
+        _isLoading = false;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PREMIUM UI METHODS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    private void UpdateMetrics()
+    {
+        var today = DateTime.Today;
+        var tomorrow = today.AddDays(1);
+        
+        _metricsToday = _appointments.Count(a => a.StartDateTime.Date == today);
+        _metricsPending = _appointments.Count(a => a.Status == AppointmentStatus.Pending);
+        _metricsConfirmed = _appointments.Count(a => a.Status == AppointmentStatus.Confirmed);
+        _metricsCancelled = _appointments.Count(a => a.Status == AppointmentStatus.Cancelled);
+    }
+    
+    private async Task ApplyQuickFilter(string filter)
+    {
+        var today = DateTime.Today;
+        
+        // Toggle off if same filter clicked
+        if (_activeQuickFilter == filter)
+        {
+            _activeQuickFilter = "";
+            _dateFrom = null;
+            _dateTo = null;
+            _statusFilter = null;
+        }
+        else
+        {
+            _activeQuickFilter = filter;
+            
+            switch (filter)
+            {
+                case "today":
+                    _dateFrom = today;
+                    _dateTo = today;
+                    _statusFilter = null;
+                    break;
+                case "tomorrow":
+                    _dateFrom = today.AddDays(1);
+                    _dateTo = today.AddDays(1);
+                    _statusFilter = null;
+                    break;
+                case "week":
+                    _dateFrom = today;
+                    _dateTo = today.AddDays(7);
+                    _statusFilter = null;
+                    break;
+                case "month":
+                    _dateFrom = today;
+                    _dateTo = today.AddMonths(1);
+                    _statusFilter = null;
+                    break;
+                case "pending":
+                    _dateFrom = null;
+                    _dateTo = null;
+                    _statusFilter = AppointmentStatus.Pending;
+                    break;
+                case "confirmed":
+                    _dateFrom = null;
+                    _dateTo = null;
+                    _statusFilter = AppointmentStatus.Confirmed;
+                    break;
+                case "cancelled":
+                    _dateFrom = null;
+                    _dateTo = null;
+                    _statusFilter = AppointmentStatus.Cancelled;
+                    break;
+            }
+        }
+        
+        await LoadAppointments();
+    }
+    
+    private void OnSearchChanged(string value)
+    {
+        _searchQuery = value;
+        StateHasChanged();
+    }
+    
+    private async Task ClearFilters()
+    {
+        _dateFrom = null;
+        _dateTo = null;
+        _statusFilter = null;
+        _searchQuery = "";
+        _activeQuickFilter = "";
+        await LoadAppointments();
+    }
+    
+    private string FormatDateSpanish(DateTime date)
+    {
+        var dayName = date.ToString("ddd", SpanishCulture);
+        dayName = char.ToUpper(dayName[0]) + dayName.Substring(1).TrimEnd('.');
+        var day = date.Day;
+        var month = date.ToString("MMM", SpanishCulture);
+        month = char.ToUpper(month[0]) + month.Substring(1).TrimEnd('.');
+        var year = date.Year;
+        
+        return $"{dayName} {day} {month} {year}";
+    }
+    
+    private bool IsToday(DateTime date) => date.Date == DateTime.Today;
+    
+    private async Task OpenCreateAppointmentDialog(bool isOnboarding)
+    {
+        if (!_cardId.HasValue) return;
+        
+        var parameters = new DialogParameters<DataTouch.Web.Components.Shared.CreateAppointmentDialog>
+        {
+            { x => x.CardId, _cardId.Value },
+            { x => x.Services, _services },
+            { x => x.IsFirstTimeOnboarding, isOnboarding }
+        };
+        
+        var options = new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Small, 
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<DataTouch.Web.Components.Shared.CreateAppointmentDialog>(
+            isOnboarding ? "Crea tu primera cita" : "Nueva Cita", 
+            parameters, 
+            options);
+        
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            // Refresh appointments list
+            await LoadAppointments();
+            Snackbar.Add("Cita agregada a la lista", Severity.Info);
+        }
+    }
+
+    private async Task LoadServices()
+    {
+        if (!_cardId.HasValue) return;
+        _services = await DbContext.Services
+            .Where(s => s.CardId == _cardId.Value)
+            .OrderBy(s => s.DisplayOrder)
+            .ToListAsync();
+    }
+
+    private async Task LoadAvailability()
+    {
+        if (!_cardId.HasValue) return;
+        _availabilityRules = await DbContext.AvailabilityRules
+            .Where(r => r.CardId == _cardId.Value)
+            .ToListAsync();
+    }
+
+    private async Task LoadQuotes()
+    {
+        if (!_cardId.HasValue) return;
+        _quoteRequests = await DbContext.QuoteRequests
+            .Where(q => q.CardId == _cardId.Value)
+            .OrderByDescending(q => q.CreatedAt)
+            .ToListAsync();
+    }
+
+    private async Task UpdateStatus(Appointment appointment, AppointmentStatus newStatus)
+    {
+        appointment.Status = newStatus;
+        appointment.UpdatedAt = DateTime.UtcNow;
+        await DbContext.SaveChangesAsync();
+        Snackbar.Add($"Cita {GetStatusLabel(newStatus).ToLower()}", Severity.Success);
+        await LoadAppointments();
+    }
+
+    private Color GetStatusColor(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Pending => Color.Warning,
+        AppointmentStatus.Confirmed => Color.Info,
+        AppointmentStatus.Completed => Color.Success,
+        AppointmentStatus.Cancelled => Color.Default,
+        AppointmentStatus.NoShow => Color.Error,
+        _ => Color.Default
+    };
+
+    private string GetStatusLabel(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Pending => "Pendiente",
+        AppointmentStatus.Confirmed => "Confirmada",
+        AppointmentStatus.Completed => "Completada",
+        AppointmentStatus.Cancelled => "Cancelada",
+        AppointmentStatus.NoShow => "No asistio",
+        _ => status.ToString()
+    };
+    
+    private string GetStatusIcon(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Pending => Icons.Material.Filled.Schedule,
+        AppointmentStatus.Confirmed => Icons.Material.Filled.CheckCircle,
+        AppointmentStatus.Completed => Icons.Material.Filled.Done,
+        AppointmentStatus.Cancelled => Icons.Material.Filled.Cancel,
+        AppointmentStatus.NoShow => Icons.Material.Filled.PersonOff,
+        _ => Icons.Material.Filled.Info
+    };
+    
+    private async Task CopyToClipboard(string text)
+    {
+        // Note: In production, use JS interop for clipboard
+        Snackbar.Add("Copiado al portapapeles", Severity.Info);
+    }
+
+    private Color GetQuoteStatusColor(QuoteStatus status) => status switch
+    {
+        QuoteStatus.New => Color.Info,
+        QuoteStatus.InReview => Color.Warning,
+        QuoteStatus.NeedsInfo => Color.Dark,
+        QuoteStatus.Quoted => Color.Secondary,
+        QuoteStatus.Negotiation => Color.Primary,
+        QuoteStatus.Won => Color.Success,
+        QuoteStatus.Lost => Color.Error,
+        QuoteStatus.Archived => Color.Default,
+        _ => Color.Default
+    };
+
+    private string GetQuoteStatusLabel(QuoteStatus status) => status switch
+    {
+        QuoteStatus.New => "Nueva",
+        QuoteStatus.InReview => "En revisión",
+        QuoteStatus.NeedsInfo => "Falta info",
+        QuoteStatus.Quoted => "Cotizada",
+        QuoteStatus.Negotiation => "Negociación",
+        QuoteStatus.Won => "Ganada",
+        QuoteStatus.Lost => "Perdida",
+        QuoteStatus.Archived => "Archivada",
+        _ => status.ToString()
+    };
+
+    // Service management
+    private bool _showServiceDialog = false;
+    private Service _editingService = new();
+    private bool _isNewService = true;
+    
+    private void AddService()
+    {
+        _isNewService = true;
+        _editingService = new Service
+        {
+            Id = Guid.NewGuid(),
+            CardId = _cardId!.Value,
+            OrganizationId = AuthService.GetCurrentOrganizationId()!.Value,
+            DurationMinutes = 30,
+            IsActive = true,
+            DisplayOrder = _services.Count,
+            CreatedAt = DateTime.UtcNow
+        };
+        _showServiceDialog = true;
+    }
+
+    private void EditService(Service service)
+    {
+        _isNewService = false;
+        _editingService = new Service
+        {
+            Id = service.Id,
+            CardId = service.CardId,
+            OrganizationId = service.OrganizationId,
+            Name = service.Name,
+            Description = service.Description,
+            DurationMinutes = service.DurationMinutes,
+            PriceFrom = service.PriceFrom,
+            IsActive = service.IsActive,
+            DisplayOrder = service.DisplayOrder,
+            CreatedAt = service.CreatedAt
+        };
+        _showServiceDialog = true;
+    }
+    
+    private async Task SaveService()
+    {
+        if (string.IsNullOrWhiteSpace(_editingService.Name))
+        {
+            Snackbar.Add("El nombre es requerido", Severity.Warning);
+            return;
+        }
+        
+        if (_isNewService)
+        {
+            DbContext.Services.Add(_editingService);
+        }
+        else
+        {
+            var existing = await DbContext.Services.FindAsync(_editingService.Id);
+            if (existing != null)
+            {
+                existing.Name = _editingService.Name;
+                existing.Description = _editingService.Description;
+                existing.DurationMinutes = _editingService.DurationMinutes;
+                existing.PriceFrom = _editingService.PriceFrom;
+                existing.IsActive = _editingService.IsActive;
+                existing.DisplayOrder = _editingService.DisplayOrder;
+            }
+        }
+        
+        await DbContext.SaveChangesAsync();
+        await LoadServices();
+        _showServiceDialog = false;
+        Snackbar.Add(_isNewService ? "Servicio creado" : "Servicio actualizado", Severity.Success);
+    }
+    
+    private void CancelServiceDialog()
+    {
+        _showServiceDialog = false;
+    }
+
+    private async Task DeleteService(Service service)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Eliminar Servicio",
+            $"¿Estás seguro que deseas eliminar '{service.Name}'?",
+            yesText: "Eliminar", cancelText: "Cancelar");
+        
+        if (confirm == true)
+        {
+            DbContext.Services.Remove(service);
+            await DbContext.SaveChangesAsync();
+            await LoadServices();
+            Snackbar.Add("Servicio eliminado", Severity.Success);
+        }
+    }
+
+    // Availability management
+    private async Task ToggleDayAvailability(int dayOfWeek, bool isActive)
+    {
+        if (!_cardId.HasValue) return;
+        
+        var rule = _availabilityRules.FirstOrDefault(r => r.DayOfWeek == dayOfWeek);
+        if (rule == null && isActive)
+        {
+            rule = new AvailabilityRule
+            {
+                Id = Guid.NewGuid(),
+                CardId = _cardId.Value,
+                DayOfWeek = dayOfWeek,
+                StartTime = new TimeSpan(9, 0, 0),
+                EndTime = new TimeSpan(17, 0, 0),
+                IsActive = true
+            };
+            _availabilityRules.Add(rule);
+            DbContext.AvailabilityRules.Add(rule);
+        }
+        else if (rule != null)
+        {
+            rule.IsActive = isActive;
+        }
+        await DbContext.SaveChangesAsync();
+        StateHasChanged();
+    }
+
+    private void UpdateRuleTime(AvailabilityRule rule, TimeSpan? time, bool isStart)
+    {
+        if (time == null) return;
+        if (isStart) rule.StartTime = time.Value;
+        else rule.EndTime = time.Value;
+        StateHasChanged();
+    }
+
+    private async Task SaveAvailability()
+    {
+        await DbContext.SaveChangesAsync();
+        Snackbar.Add("Disponibilidad guardada", Severity.Success);
+    }
+
+    // Quote management
+    private void ViewQuote(QuoteRequest quote)
+    {
+        // TODO: Open dialog to view/manage quote
+        Snackbar.Add($"Cotizacion de {quote.CustomerName}", Severity.Info);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // APPOINTMENT DRAWER
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    private void OpenAppointmentDrawer(Appointment appointment)
+    {
+        _selectedAppointment = appointment;
+        _showAppointmentDrawer = true;
+    }
+    
+    private async Task UpdateStatusFromDrawer(AppointmentStatus newStatus)
+    {
+        if (_selectedAppointment == null) return;
+        
+        await UpdateStatus(_selectedAppointment, newStatus);
+        _showAppointmentDrawer = false;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RESCHEDULE
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    private void OpenRescheduleDialog()
+    {
+        if (_selectedAppointment == null) return;
+        
+        _rescheduleDate = _selectedAppointment.StartDateTime;
+        _rescheduleSlots = new();
+        _selectedRescheduleSlot = null;
+        _showRescheduleDialog = true;
+        _showAppointmentDrawer = false;
+        
+        // Load slots for current date
+        _ = LoadRescheduleSlots();
+    }
+    
+    private async Task LoadRescheduleSlots()
+    {
+        if (!_rescheduleDate.HasValue || !_cardId.HasValue || _selectedAppointment == null) return;
+        
+        _isLoadingSlots = true;
+        StateHasChanged();
+        
+        try
+        {
+            var date = DateOnly.FromDateTime(_rescheduleDate.Value);
+            _rescheduleSlots = await AppointmentService.GetAvailableSlotsAsync(_cardId.Value, date, _selectedAppointment.ServiceId);
+        }
+        catch
+        {
+            _rescheduleSlots = new();
+        }
+        finally
+        {
+            _isLoadingSlots = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task ConfirmReschedule()
+    {
+        if (_selectedAppointment == null || _selectedRescheduleSlot == null || !_rescheduleDate.HasValue) return;
+        
+        var newStart = _rescheduleDate.Value.Date.Add(_selectedRescheduleSlot.StartTime.ToTimeSpan());
+        var result = await AppointmentService.RescheduleAsync(_selectedAppointment.Id, newStart);
+        
+        if (result.Success)
+        {
+            Snackbar.Add("Cita reprogramada exitosamente", Severity.Success);
+            _showRescheduleDialog = false;
+            await LoadAppointments();
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Error al reprogramar", Severity.Error);
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CANCEL WITH UNDO
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    private void OpenCancelModal(Appointment appointment)
+    {
+        _appointmentToCancel = appointment;
+        _cancelReason = "";
+        _showCancelModal = true;
+    }
+    
+    private async Task ConfirmCancel()
+    {
+        if (_appointmentToCancel == null || string.IsNullOrWhiteSpace(_cancelReason)) return;
+        
+        var userId = AuthService.GetCurrentUserId();
+        var result = await AppointmentService.CancelWithReasonAsync(
+            _appointmentToCancel.Id, 
+            _cancelReason.Trim(), 
+            userId);
+        
+        if (result.Success)
+        {
+            _lastCancelledAppointmentId = _appointmentToCancel.Id;
+            _showCancelModal = false;
+            _showAppointmentDrawer = false;
+            await LoadAppointments();
+            
+            // Show snackbar with UNDO button
+            Snackbar.Add(
+                "Cita cancelada", 
+                Severity.Warning, 
+                config => 
+                {
+                    config.Action = "DESHACER";
+                    config.ActionColor = Color.Warning;
+                    config.OnClick = async snackbar => 
+                    {
+                        await UndoCancel();
+                    };
+                    config.VisibleStateDuration = 8000; // 8 seconds to undo
+                });
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "Error al cancelar", Severity.Error);
+        }
+    }
+    
+    private async Task UndoCancel()
+    {
+        if (!_lastCancelledAppointmentId.HasValue) return;
+        
+        var result = await AppointmentService.RestoreAsync(_lastCancelledAppointmentId.Value);
+        
+        if (result.Success)
+        {
+            Snackbar.Add("¡Cita restaurada!", Severity.Success);
+            _lastCancelledAppointmentId = null;
+            await LoadAppointments();
+        }
+        else
+        {
+            Snackbar.Add(result.Error ?? "No se pudo restaurar", Severity.Error);
+        }
+    }
+    
+    private async Task RestoreAppointment(Appointment appointment)
+    {
+        var result = await AppointmentService.RestoreAsync(appointment.Id);
+        
+        if (result.Success)
+        {
+            Snackbar.Add("Cita restaurada exitosamente", Severity.Success);
+            await LoadAppointments();
+        }
+        else
+        {
+            // 409 Conflict - slot was taken
+            Snackbar.Add(result.Error ?? "No se pudo restaurar", Severity.Error);
+        }
+    }
+    
+    // Backward compatibility for drawer cancel button
+    private async Task OpenCancelDialog()
+    {
+        if (_selectedAppointment != null)
+        {
+            OpenCancelModal(_selectedAppointment);
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AVAILABILITY EXCEPTIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    private async Task LoadExceptions()
+    {
+        if (!_cardId.HasValue) return;
+        _availabilityExceptions = await DbContext.AvailabilityExceptions
+            .Where(e => e.CardId == _cardId.Value && e.ExceptionDate >= DateOnly.FromDateTime(DateTime.Today))
+            .OrderBy(e => e.ExceptionDate)
+            .ToListAsync();
+    }
+    
+    private void OpenAddBlockDialog()
+    {
+        _newBlock = new AvailabilityException
+        {
+            Id = Guid.NewGuid(),
+            CardId = _cardId!.Value,
+            ExceptionDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1)),
+            ExceptionType = AvailabilityExceptionType.Blocked
+        };
+        _blockAllDay = true;
+        _showBlockDialog = true;
+    }
+    
+    private async Task SaveBlock()
+    {
+        if (!_blockAllDay && _newBlock.StartTime.HasValue && _newBlock.EndTime.HasValue)
+        {
+            // Partial day block
+        }
+        else
+        {
+            // All day block
+            _newBlock.StartTime = null;
+            _newBlock.EndTime = null;
+        }
+        
+        DbContext.AvailabilityExceptions.Add(_newBlock);
+        await DbContext.SaveChangesAsync();
+        await LoadExceptions();
+        _showBlockDialog = false;
+        Snackbar.Add("Bloqueo agregado", Severity.Success);
+    }
+    
+    private async Task DeleteException(AvailabilityException exception)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Eliminar Bloqueo",
+            $"¿Eliminar el bloqueo del {exception.ExceptionDate:dd/MM/yyyy}?",
+            yesText: "Eliminar", cancelText: "Cancelar");
+        
+        if (confirm == true)
+        {
+            DbContext.AvailabilityExceptions.Remove(exception);
+            await DbContext.SaveChangesAsync();
+            await LoadExceptions();
+            Snackbar.Add("Bloqueo eliminado", Severity.Success);
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // BOOKING SETTINGS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    private async Task LoadBookingSettings()
+    {
+        if (!_cardId.HasValue) return;
+        
+        var settings = await DbContext.BookingSettings
+            .FirstOrDefaultAsync(s => s.CardId == _cardId.Value);
+        
+        if (settings != null)
+        {
+            _bookingSettings = settings;
+        }
+        else
+        {
+            // Create default settings
+            _bookingSettings = new BookingSettings
+            {
+                Id = Guid.NewGuid(),
+                CardId = _cardId.Value,
+                TimeZoneId = "America/El_Salvador",
+                SlotIntervalMinutes = 30,
+                BufferBeforeMinutes = 0,
+                BufferAfterMinutes = 0,
+                MaxAppointmentsPerDay = 0,
+                MinNoticeMinutes = 0,
+                MaxAdvanceDays = 60,
+                CreatedAt = DateTime.UtcNow
+            };
+        }
+    }
+    
+    private async Task SaveBookingSettings()
+    {
+        var existing = await DbContext.BookingSettings.FindAsync(_bookingSettings.Id);
+        if (existing == null)
+        {
+            DbContext.BookingSettings.Add(_bookingSettings);
+        }
+        else
+        {
+            existing.SlotIntervalMinutes = _bookingSettings.SlotIntervalMinutes;
+            existing.BufferBeforeMinutes = _bookingSettings.BufferBeforeMinutes;
+            existing.BufferAfterMinutes = _bookingSettings.BufferAfterMinutes;
+            existing.MaxAppointmentsPerDay = _bookingSettings.MaxAppointmentsPerDay;
+            existing.MinNoticeMinutes = _bookingSettings.MinNoticeMinutes;
+            existing.MaxAdvanceDays = _bookingSettings.MaxAdvanceDays;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+        
+        await DbContext.SaveChangesAsync();
+        Snackbar.Add("Configuración guardada", Severity.Success);
+    }
+}
+
+<style>
+    /* ═══════════════ METRICS CARDS ═══════════════ */
+    .metric-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        min-width: 140px;
+    }
+    
+    .metric-card:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .metric-card.active {
+        border-color: var(--mud-palette-primary);
+        background: rgba(var(--mud-palette-primary-rgb), 0.1);
+    }
+    
+    .metric-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .metric-icon.today { background: rgba(33, 150, 243, 0.15); color: #2196F3; }
+    .metric-icon.pending { background: rgba(255, 152, 0, 0.15); color: #FF9800; }
+    .metric-icon.confirmed { background: rgba(76, 175, 80, 0.15); color: #4CAF50; }
+    .metric-icon.cancelled { background: rgba(158, 158, 158, 0.15); color: #9E9E9E; }
+    
+    .metric-content {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    
+    .metric-label {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* ═══════════════ TOOLBAR ═══════════════ */
+    .toolbar-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+    }
+    
+    .search-input {
+        min-width: 280px;
+        max-width: 320px;
+    }
+    
+    .date-filter {
+        width: 150px;
+    }
+    
+    .status-filter {
+        width: 140px;
+    }
+    
+    /* ═══════════════ TABLE ═══════════════ */
+    .appointments-table .mud-table-row:hover {
+        background: rgba(255, 255, 255, 0.04) !important;
+    }
+    
+    .date-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .date-text {
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .time-text {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .today-badge {
+        font-size: 0.65rem !important;
+        height: 18px !important;
+        padding: 0 6px !important;
+        margin-bottom: 2px;
+    }
+    
+    .client-cell {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .client-name {
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .client-email {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .service-name {
+        color: rgba(255, 255, 255, 0.85);
+    }
+    
+    .duration-text {
+        color: rgba(255, 255, 255, 0.7);
+    }
+    
+    .status-chip {
+        font-weight: 500;
+    }
+    
+    /* ═══════════════ EMPTY STATE ═══════════════ */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        text-align: center;
+    }
+    
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.3);
+    }
+    
+    .empty-icon .mud-icon-root {
+        font-size: 2.5rem;
+    }
+    
+    /* ═══════════════ PREMIUM TABS ═══════════════ */
+    .premium-tabs {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+    }
+    
+    /* ═══════════════ RESPONSIVE ═══════════════ */
+    @@media (max-width: 960px) {
+        .search-input {
+            min-width: 100%;
+        }
+        
+        .toolbar-row {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+        
+        .quick-filters {
+            order: -1;
+        }
+        
+        .date-filter, .status-filter {
+            width: 100%;
+        }
+        
+        .metric-card {
+            flex: 1;
+            min-width: 120px;
+        }
+    }
+</style>

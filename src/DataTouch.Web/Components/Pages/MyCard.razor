@@ -8,6 +8,7 @@
 @inject IJSRuntime JSRuntime
 @using System.Text.Json
 @using System.IO
+@using DataTouch.Web.Models
 
 <PageTitle>Mi Tarjeta - DataTouch</PageTitle>
 
@@ -94,275 +95,111 @@ else
                     </div>
                     <MudCollapse Expanded="_appearanceSectionExpanded">
                         <div class="section-content appearance-content">
-                            @* PRESETS RECOMENDADOS *@
-                            <div class="appearance-block">
-                                <h3 class="appearance-block-title">Presets recomendados</h3>
-                                <div class="appearance-presets-grid">
-                                    @foreach (var preset in _presets)
-                                    {
-                                        <div class="appearance-preset-card @(preset.Id == _selectedPreset ? "selected" : "")" 
-                                             @onclick="() => ApplyPreset(preset.Id)">
-                                            <div class="preset-preview" style="background: @preset.BackgroundValue;"></div>
-                                            <span class="preset-name">@preset.Name</span>
-                                            @if (preset.Id == _selectedPreset)
-                                            {
-                                                <span class="preset-check">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
-                                                </span>
-                                            }
-                                        </div>
-                                    }
+                            @* PRESETS RECOMENDADOS - CATEGORIZED *@
+                            <div class="appearance-block appearance-presets-block">
+                                <h3 class="appearance-block-title">Elige tu estilo</h3>
+                                
+                                @* DARK PRESETS *@
+                                <div class="preset-category">
+                                    <span class="preset-category-label">
+                                        <MudIcon Icon="@Icons.Material.Filled.DarkMode" Size="Size.Small" />
+                                        Oscuros
+                                    </span>
+                                    <div class="appearance-presets-grid">
+                                        @foreach (var preset in _presets.Where(p => p.Category == "dark"))
+                                        {
+                                            <MudTooltip Text="@preset.Personality" Placement="Placement.Top" Arrow="true">
+                                                <div class="appearance-preset-card @(preset.Id == _selectedPreset ? "selected" : "")" 
+                                                     @onclick="() => ApplyPreset(preset.Id)">
+                                                    <div class="preset-preview" style="background: @preset.BackgroundValue;">
+                                                        <div class="preset-accent-dot" style="background: @preset.AccentColor;"></div>
+                                                    </div>
+                                                    <span class="preset-name">@preset.Name</span>
+                                                    @if (preset.Id == _selectedPreset)
+                                                    {
+                                                        <span class="preset-check">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </MudTooltip>
+                                        }
+                                    </div>
+                                </div>
+                                
+                                @* LIGHT PRESETS *@
+                                <div class="preset-category">
+                                    <span class="preset-category-label">
+                                        <MudIcon Icon="@Icons.Material.Filled.LightMode" Size="Size.Small" />
+                                        Claros
+                                    </span>
+                                    <div class="appearance-presets-grid">
+                                        @foreach (var preset in _presets.Where(p => p.Category == "light"))
+                                        {
+                                            <MudTooltip Text="@preset.Personality" Placement="Placement.Top" Arrow="true">
+                                                <div class="appearance-preset-card light @(preset.Id == _selectedPreset ? "selected" : "")" 
+                                                     @onclick="() => ApplyPreset(preset.Id)">
+                                                    <div class="preset-preview" style="background: @preset.BackgroundValue;">
+                                                        <div class="preset-accent-dot" style="background: @preset.AccentColor;"></div>
+                                                    </div>
+                                                    <span class="preset-name">@preset.Name</span>
+                                                    @if (preset.Id == _selectedPreset)
+                                                    {
+                                                        <span class="preset-check light">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </MudTooltip>
+                                        }
+                                    </div>
                                 </div>
                             </div>
 
-                            @* FONDO Y TARJETA EN GRID *@
-                            <div class="appearance-options-row">
-                                @* FONDO *@
-                                <div class="appearance-block">
+                            @* FONDO (SIMPLIFICADO: COLORES / IMAGEN) *@
+                            <div class="appearance-options-simple">
+                                <div class="appearance-block appearance-block-full">
                                     <h3 class="appearance-block-title">Fondo</h3>
-                                    <div class="segment-selector">
-                                        <button class="segment-btn @(_cardStyle.BackgroundType == "gradient" ? "active" : "")" 
-                                                @onclick="SetBackgroundGradient">
-                                            Gradiente
-                                        </button>
-                                        <button class="segment-btn @(_cardStyle.BackgroundType == "solid" ? "active" : "")" 
-                                                @onclick="SetBackgroundSolid">
-                                            Sólido
+                                    <div class="segment-selector segment-selector-centered">
+                                        <button class="segment-btn @(_cardStyle.BackgroundType != "image" ? "active" : "")" 
+                                                @onclick="SetBackgroundColores">
+                                            <MudIcon Icon="@Icons.Material.Filled.Palette" Size="Size.Small" />
+                                            Colores
                                         </button>
                                         <button class="segment-btn @(_cardStyle.BackgroundType == "image" ? "active" : "")" 
                                                 @onclick="SetBackgroundImage">
+                                            <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Small" />
                                             Imagen
                                         </button>
                                     </div>
                                     @if (_cardStyle.BackgroundType == "image")
                                     {
-                                        <MudFileUpload T="IBrowserFile" 
-                                                       FilesChanged="UploadBackgroundImage" 
-                                                       Accept="image/png,image/jpeg,image/webp"
-                                                       Class="mt-3">
-                                            <ActivatorContent>
-                                                <MudButton Variant="Variant.Outlined" 
-                                                           Color="Color.Primary" 
-                                                           StartIcon="@Icons.Material.Filled.Upload"
-                                                           Size="Size.Small">
-                                                    Subir imagen
-                                                </MudButton>
-                                            </ActivatorContent>
-                                        </MudFileUpload>
-                                    }
-                                </div>
-
-                                @* TARJETA *@
-                                <div class="appearance-block">
-                                    <h3 class="appearance-block-title">Tarjeta</h3>
-                                    <div class="segment-selector">
-                                        <button class="segment-btn @(_cardStyle.CardContainerStyle == "glass" ? "active" : "")" 
-                                                @onclick="SetCardStyleGlass">
-                                            Glass
-                                        </button>
-                                        <button class="segment-btn @(_cardStyle.CardContainerStyle == "solid" ? "active" : "")" 
-                                                @onclick="SetCardStyleSolid">
-                                            Solid
-                                        </button>
-                                        <button class="segment-btn @(_cardStyle.CardContainerStyle == "elevated" ? "active" : "")" 
-                                                @onclick="SetCardStyleElevated">
-                                            Elevated
-                                        </button>
-                                    </div>
-                                    @if (_cardStyle.CardContainerStyle == "glass")
-                                    {
-                                        <div class="intensity-slider">
-                                            <span class="slider-label">Intensidad</span>
-                                            <MudSlider T="int" Value="_cardStyle.GlassIntensity" 
-                                                       ValueChanged="OnGlassIntensityChanged"
-                                                       Min="0" Max="100" Step="10"
-                                                       Color="Color.Primary" />
+                                        <div class="image-upload-section">
+                                            <MudFileUpload T="IBrowserFile" 
+                                                           FilesChanged="UploadBackgroundImage" 
+                                                           Accept="image/png,image/jpeg,image/webp"
+                                                           Class="mt-3">
+                                                <ActivatorContent>
+                                                    <MudButton Variant="Variant.Outlined" 
+                                                               Color="Color.Primary" 
+                                                               StartIcon="@Icons.Material.Filled.Upload"
+                                                               Size="Size.Small">
+                                                        Subir imagen
+                                                    </MudButton>
+                                                </ActivatorContent>
+                                            </MudFileUpload>
                                         </div>
                                     }
                                 </div>
                             </div>
 
-                            @* MODO AVANZADO *@
+                            @* FOOTER CON RESTAURAR *@
                             <div class="appearance-footer">
-                                <button class="advanced-toggle-link" @onclick="ToggleAdvancedMode">
-                                    @if (_advancedModeExpanded)
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.ExpandLess" Size="Size.Small" />
-                                        <span>Ocultar personalización avanzada</span>
-                                    }
-                                    else
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" />
-                                        <span>Personalización avanzada</span>
-                                    }
-                                </button>
                                 <button class="reset-link" @onclick="ResetAppearanceToDefault">
                                     <MudIcon Icon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" />
                                     <span>Restaurar</span>
                                 </button>
                             </div>
-
-                            <MudCollapse Expanded="_advancedModeExpanded">
-                                <div class="advanced-options">
-                                    @* FONDO AVANZADO *@
-                                    <div class="advanced-block">
-                                        <h4 class="advanced-block-title">Fondo</h4>
-                                        <div class="advanced-controls">
-                                            <div class="control-row">
-                                                <span>Opacidad overlay</span>
-                                                <MudSlider T="double" @bind-Value="_cardStyle.OverlayOpacity" 
-                                                           Min="0" Max="1" Step="0.1"
-                                                           Color="Color.Primary" Size="Size.Small" />
-                                            </div>
-                                            <div class="control-row">
-                                                <span>Efecto grain</span>
-                                                <MudSwitch T="bool" @bind-Value="_cardStyle.ShowGrain" Color="Color.Primary" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    @* CONTENEDOR AVANZADO *@
-                                    <div class="advanced-block">
-                                        <h4 class="advanced-block-title">Contenedor</h4>
-                                        <div class="advanced-controls">
-                                            @* Toggle de Independencia *@
-                                            <div class="control-row control-row-toggle">
-                                                <div class="toggle-info">
-                                                    <span>Tarjeta independiente</span>
-                                                    <span class="toggle-hint">Permite estilo diferente al fondo</span>
-                                                </div>
-                                                <MudSwitch T="bool" Value="!_cardStyle.CardLinkedToBackground" 
-                                                           ValueChanged="@((bool val) => { _cardStyle.CardLinkedToBackground = !val; MarkUnsaved(); })" 
-                                                           Color="Color.Primary" />
-                                            </div>
-                                            
-                                            @if (!_cardStyle.CardLinkedToBackground)
-                                            {
-                                                @* Controles de color independiente *@
-                                                <div class="control-row">
-                                                    <span>Color de fondo</span>
-                                                    <div class="color-picker-row">
-                                                        <button class="color-swatch @(_cardStyle.CardBackgroundColor == "#1A1035" ? "selected" : "")" 
-                                                                style="background: #1A1035;" 
-                                                                @onclick="@(() => SetCardBackgroundColor("#1A1035"))"></button>
-                                                        <button class="color-swatch @(_cardStyle.CardBackgroundColor == "#0F0A1E" ? "selected" : "")" 
-                                                                style="background: #0F0A1E;" 
-                                                                @onclick="@(() => SetCardBackgroundColor("#0F0A1E"))"></button>
-                                                        <button class="color-swatch @(_cardStyle.CardBackgroundColor == "#1E1B4B" ? "selected" : "")" 
-                                                                style="background: #1E1B4B;" 
-                                                                @onclick="@(() => SetCardBackgroundColor("#1E1B4B"))"></button>
-                                                        <button class="color-swatch @(_cardStyle.CardBackgroundColor == "#FFFFFF" ? "selected" : "")" 
-                                                                style="background: #FFFFFF; border: 1px solid #444;" 
-                                                                @onclick="@(() => SetCardBackgroundColor("#FFFFFF"))"></button>
-                                                        <button class="color-swatch @(_cardStyle.CardBackgroundColor == "#F8FAFC" ? "selected" : "")" 
-                                                                style="background: #F8FAFC; border: 1px solid #444;" 
-                                                                @onclick="@(() => SetCardBackgroundColor("#F8FAFC"))"></button>
-                                                    </div>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <div class="control-row control-row-inherited">
-                                                    <span class="inherited-label">
-                                                        <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Small" />
-                                                        Heredando estilo del fondo
-                                                    </span>
-                                                </div>
-                                            }
-                                            
-                                            <div class="control-row">
-                                                <span>Radio de borde</span>
-                                                <div class="radio-group">
-                                                    <button class="radio-btn @(_cardStyle.BorderRadius == "small" ? "active" : "")" 
-                                                            @onclick="SetBorderRadiusSmall">S</button>
-                                                    <button class="radio-btn @(_cardStyle.BorderRadius == "medium" ? "active" : "")" 
-                                                            @onclick="SetBorderRadiusMedium">M</button>
-                                                    <button class="radio-btn @(_cardStyle.BorderRadius == "large" ? "active" : "")" 
-                                                            @onclick="SetBorderRadiusLarge">L</button>
-                                                </div>
-                                            </div>
-                                            <div class="control-row">
-                                                <span>Sombra</span>
-                                                <div class="radio-group">
-                                                    <button class="radio-btn @(_cardStyle.ShadowStyle == "soft" ? "active" : "")" 
-                                                            @onclick="SetShadowSoft">Soft</button>
-                                                    <button class="radio-btn @(_cardStyle.ShadowStyle == "medium" ? "active" : "")" 
-                                                            @onclick="SetShadowMedium">Med</button>
-                                                    <button class="radio-btn @(_cardStyle.ShadowStyle == "strong" ? "active" : "")" 
-                                                            @onclick="SetShadowStrong">Strong</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    @* AVATAR AVANZADO *@
-                                    <div class="advanced-block">
-                                        <h4 class="advanced-block-title">Avatar</h4>
-                                        <div class="advanced-controls">
-                                            <div class="control-row">
-                                                <span>Tamaño</span>
-                                                <div class="radio-group">
-                                                    <button class="radio-btn @(_cardStyle.AvatarSize == "S" ? "active" : "")" 
-                                                            @onclick="SetAvatarSizeS">S</button>
-                                                    <button class="radio-btn @(_cardStyle.AvatarSize == "M" ? "active" : "")" 
-                                                            @onclick="SetAvatarSizeM">M</button>
-                                                    <button class="radio-btn @(_cardStyle.AvatarSize == "L" ? "active" : "")" 
-                                                            @onclick="SetAvatarSizeL">L</button>
-                                                </div>
-                                            </div>
-                                            <div class="control-row">
-                                                <span>Efecto glow</span>
-                                                <MudSwitch T="bool" @bind-Value="_cardStyle.AvatarGlow" Color="Color.Primary" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    @* BOTONES AVANZADO *@
-                                    <div class="advanced-block">
-                                        <h4 class="advanced-block-title">Botones</h4>
-                                        <div class="advanced-controls">
-                                            <div class="control-row">
-                                                <span>Forma</span>
-                                                <div class="radio-group">
-                                                    <button class="radio-btn @(_cardStyle.ButtonShape == "pill" ? "active" : "")" 
-                                                            @onclick="SetButtonShapePill">Pill</button>
-                                                    <button class="radio-btn @(_cardStyle.ButtonShape == "rounded" ? "active" : "")" 
-                                                            @onclick="SetButtonShapeRounded">Round</button>
-                                                    <button class="radio-btn @(_cardStyle.ButtonShape == "square" ? "active" : "")" 
-                                                            @onclick="SetButtonShapeSquare">Square</button>
-                                                </div>
-                                            </div>
-                                            <div class="control-row">
-                                                <span>Estilo</span>
-                                                <div class="radio-group">
-                                                    <button class="radio-btn @(_cardStyle.ButtonStyle == "filled" ? "active" : "")" 
-                                                            @onclick="SetButtonStyleFilled">Filled</button>
-                                                    <button class="radio-btn @(_cardStyle.ButtonStyle == "outline" ? "active" : "")" 
-                                                            @onclick="SetButtonStyleOutline">Outline</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    @* CONTRASTE DE TEXTO *@
-                                    <div class="advanced-block">
-                                        <h4 class="advanced-block-title">Contraste</h4>
-                                        <div class="advanced-controls">
-                                            <div class="control-row">
-                                                <span>Modo de texto</span>
-                                                <div class="radio-group">
-                                                    <button class="radio-btn @(_cardStyle.ContrastMode == "auto" ? "active" : "")" 
-                                                            @onclick="SetContrastAuto">Auto ✓</button>
-                                                    <button class="radio-btn @(_cardStyle.ContrastMode == "force-light" ? "active" : "")" 
-                                                            @onclick="SetContrastLight">Claro</button>
-                                                    <button class="radio-btn @(_cardStyle.ContrastMode == "force-dark" ? "active" : "")" 
-                                                            @onclick="SetContrastDark">Oscuro</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </MudCollapse>
                         </div>
                     </MudCollapse>
                 </section>
@@ -808,6 +645,275 @@ else
                 }
 
                 @* ─────────────────────────────────────────────────────────
+                   SERVICES (CONDITIONAL - Only for Services Template)
+                   ───────────────────────────────────────────────────────── *@
+                @if (_isServicesTemplate)
+                {
+                    @* SERVICES EDITOR - With integrated CTA indicator *@
+                    <section class="section-card section-level-1 section-services">
+                        <div class="section-header section-header-collapsible" @onclick="() => _servicesSectionExpanded = !_servicesSectionExpanded">
+                            <div class="section-icon icon-services">
+                                <MudIcon Icon="@Icons.Material.Filled.Handyman" Size="Size.Medium" />
+                            </div>
+                            <div class="section-header-text">
+                                <h2 class="section-title">Mis Servicios</h2>
+                                <p class="section-description">Configura los servicios que ofreces (máximo 10)</p>
+                            </div>
+                            <MudIcon Icon="@(_servicesSectionExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" 
+                                     Size="Size.Medium" 
+                                     Class="section-collapse-icon" />
+                        </div>
+                        
+                        @* Compact CTA Status Indicator - Always visible when services exist *@
+                        @if (_services.Any())
+                        {
+                            <div class="cta-status-bar">
+                                <div class="cta-status-left">
+                                    <span class="cta-label">CTA principal:</span>
+                                    @if (IsGoalSelectorVisible)
+                                    {
+                                        @* Mixed types: Show compact selector *@
+                                        <div class="cta-selector-compact">
+                                            <button class="cta-chip @(GetEffectivePrimaryGoal() == "booking" ? "cta-chip-active" : "")"
+                                                    @onclick:stopPropagation="true"
+                                                    @onclick="@(() => SetPrimaryGoal("booking"))">
+                                                📅 Reservar
+                                            </button>
+                                            <button class="cta-chip @(GetEffectivePrimaryGoal() == "quote" ? "cta-chip-active" : "")"
+                                                    @onclick:stopPropagation="true"
+                                                    @onclick="@(() => SetPrimaryGoal("quote"))">
+                                                📝 Cotizar
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @* Homogeneous types: Show auto badge *@
+                                        <span class="cta-auto-badge">
+                                            @(GetEffectivePrimaryGoal() == "booking" ? "📅 Reservar Cita" : "📝 Solicitar Cotización")
+                                            <span class="cta-auto-tag">auto</span>
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        
+                        <MudCollapse Expanded="_servicesSectionExpanded">
+                            <div class="section-content">
+                                @* Add Service Button *@
+                                <div class="services-add-area">
+                                    <MudButton Variant="Variant.Outlined" 
+                                               Color="Color.Primary" 
+                                               StartIcon="@Icons.Material.Filled.Add"
+                                               OnClick="AddNewService"
+                                               Disabled="@(_services.Count >= 10)"
+                                               Size="Size.Small">
+                                        Agregar servicio
+                                    </MudButton>
+                                    <span class="services-count">@_services.Count / 10</span>
+                                </div>
+
+                                @* Services List *@
+                                @if (_services.Any())
+                                {
+                                    <div class="services-editor-list">
+                                        @foreach (var (service, index) in _services.OrderBy(s => s.DisplayOrder).Select((s, i) => (s, i)))
+                                        {
+                                            <div class="service-editor-card @(service.IsActive ? "" : "service-inactive")">
+                                                @* Service Header *@
+                                                <div class="service-card-header">
+                                                    <div class="service-header-left">
+                                                        <span class="service-drag-handle" title="Arrastra para reordenar">≡</span>
+                                                        <span class="service-number">#@(index + 1)</span>
+                                                        <span class="service-name-preview">@(string.IsNullOrEmpty(service.Name) ? "Nuevo servicio" : service.Name)</span>
+                                                    </div>
+                                                    <div class="service-header-right">
+                                                        <MudSwitch @bind-Value="service.IsActive" 
+                                                                   Color="Color.Success" 
+                                                                   Size="Size.Small"
+                                                                   title="@(service.IsActive ? "Activo" : "Inactivo")" />
+                                                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
+                                                            <MudMenuItem Icon="@Icons.Material.Filled.ContentCopy" OnClick="() => DuplicateService(service)">Duplicar</MudMenuItem>
+                                                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="() => RemoveService(service)" Class="mud-error-text">Eliminar</MudMenuItem>
+                                                        </MudMenu>
+                                                    </div>
+                                                </div>
+
+                                                @* Conversion Type Selector *@
+                                                <div class="service-conversion-type">
+                                                    <label class="conversion-label">Este servicio se ofrece como:</label>
+                                                    <div class="conversion-options">
+                                                        <div class="conversion-option @(service.ConversionType == "booking" ? "conversion-active" : "")"
+                                                             @onclick="@(() => SetServiceConversionType(service, "booking"))">
+                                                            <span class="conversion-icon">📅</span>
+                                                            <span class="conversion-text">Cita</span>
+                                                        </div>
+                                                        <div class="conversion-option @(service.ConversionType == "quote" ? "conversion-active" : "")"
+                                                             @onclick="@(() => SetServiceConversionType(service, "quote"))">
+                                                            <span class="conversion-icon">📝</span>
+                                                            <span class="conversion-text">Cotización</span>
+                                                        </div>
+                                                        <div class="conversion-option @(service.ConversionType == "both" ? "conversion-active" : "")"
+                                                             @onclick="@(() => SetServiceConversionType(service, "both"))">
+                                                            <span class="conversion-icon">✅</span>
+                                                            <span class="conversion-text">Ambos</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                @* Basic Fields *@
+                                                <div class="service-basic-fields">
+                                                    <MudTextField @bind-Value="service.Name" 
+                                                                  Label="Nombre del servicio" 
+                                                                  Variant="Variant.Outlined"
+                                                                  Required="true"
+                                                                  Margin="Margin.Dense"
+                                                                  @oninput="MarkUnsaved" />
+                                                    <div class="service-row">
+                                                        <MudNumericField @bind-Value="service.DurationMinutes" 
+                                                                         Label="Duración (min)" 
+                                                                         Variant="Variant.Outlined"
+                                                                         Min="15" Max="480"
+                                                                         Margin="Margin.Dense"
+                                                                         @oninput="MarkUnsaved" />
+                                                        <MudNumericField @bind-Value="service.PriceFrom" 
+                                                                         Label="Precio desde $" 
+                                                                         Variant="Variant.Outlined"
+                                                                         Min="0"
+                                                                         Margin="Margin.Dense"
+                                                                         @oninput="MarkUnsaved" />
+                                                    </div>
+                                                    <MudTextField @bind-Value="service.Description" 
+                                                                  Label="Descripción (opcional)" 
+                                                                  Variant="Variant.Outlined"
+                                                                  Lines="2"
+                                                                  Margin="Margin.Dense"
+                                                                  @oninput="MarkUnsaved" />
+                                                </div>
+
+                                                @* Booking Config (Collapsible) - Only if booking or both *@
+                                                @if (service.ConversionType == "booking" || service.ConversionType == "both")
+                                                {
+                                                    <div class="service-config-panel">
+                                                        <div class="config-panel-header" @onclick="() => ToggleServiceBookingConfig(service.Id)">
+                                                            <span class="config-panel-icon">⚙️</span>
+                                                            <span class="config-panel-title">Configuración de Agenda</span>
+                                                            <MudIcon Icon="@(IsServiceBookingConfigExpanded(service.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
+                                                        </div>
+                                                        <MudCollapse Expanded="IsServiceBookingConfigExpanded(service.Id)">
+                                                            <div class="config-panel-content">
+                                                                <div class="config-row">
+                                                                    <MudSelect @bind-Value="service.Modality" 
+                                                                               Label="Modalidad" 
+                                                                               Variant="Variant.Outlined"
+                                                                               Margin="Margin.Dense"
+                                                                               @oninput="MarkUnsaved">
+                                                                        <MudSelectItem Value="@("presencial")">🏢 Presencial</MudSelectItem>
+                                                                        <MudSelectItem Value="@("online")">💻 Online</MudSelectItem>
+                                                                        <MudSelectItem Value="@("domicilio")">🏠 A domicilio</MudSelectItem>
+                                                                    </MudSelect>
+                                                                    <MudSelect @bind-Value="service.MinNoticeMinutes" 
+                                                                               Label="Anticipación mínima" 
+                                                                               Variant="Variant.Outlined"
+                                                                               Margin="Margin.Dense"
+                                                                               @oninput="MarkUnsaved">
+                                                                        <MudSelectItem Value="@((int?)60)">1 hora</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)180)">3 horas</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)1440)">24 horas</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)2880)">48 horas</MudSelectItem>
+                                                                    </MudSelect>
+                                                                </div>
+                                                                <div class="config-row">
+                                                                    <MudSelect @bind-Value="service.BufferBeforeMinutes" 
+                                                                               Label="Buffer antes" 
+                                                                               Variant="Variant.Outlined"
+                                                                               Margin="Margin.Dense"
+                                                                               @oninput="MarkUnsaved">
+                                                                        <MudSelectItem Value="@((int?)0)">0 min</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)5)">5 min</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)10)">10 min</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)15)">15 min</MudSelectItem>
+                                                                    </MudSelect>
+                                                                    <MudSelect @bind-Value="service.BufferAfterMinutes" 
+                                                                               Label="Buffer después" 
+                                                                               Variant="Variant.Outlined"
+                                                                               Margin="Margin.Dense"
+                                                                               @oninput="MarkUnsaved">
+                                                                        <MudSelectItem Value="@((int?)0)">0 min</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)5)">5 min</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)10)">10 min</MudSelectItem>
+                                                                        <MudSelectItem Value="@((int?)15)">15 min</MudSelectItem>
+                                                                    </MudSelect>
+                                                                </div>
+                                                                <MudSelect @bind-Value="service.MaxBookingsPerDay" 
+                                                                           Label="Límite de citas por día" 
+                                                                           Variant="Variant.Outlined"
+                                                                           Margin="Margin.Dense"
+                                                                           FullWidth="true"
+                                                                           @oninput="MarkUnsaved">
+                                                                    <MudSelectItem Value="@((int?)0)">Ilimitado</MudSelectItem>
+                                                                    <MudSelectItem Value="@((int?)3)">3 citas</MudSelectItem>
+                                                                    <MudSelectItem Value="@((int?)5)">5 citas</MudSelectItem>
+                                                                    <MudSelectItem Value="@((int?)10)">10 citas</MudSelectItem>
+                                                                </MudSelect>
+                                                            </div>
+                                                        </MudCollapse>
+                                                    </div>
+                                                }
+
+                                                @* Quote Config (Collapsible) - Only if quote or both *@
+                                                @if (service.ConversionType == "quote" || service.ConversionType == "both")
+                                                {
+                                                    <div class="service-config-panel">
+                                                        <div class="config-panel-header" @onclick="() => ToggleServiceQuoteConfig(service.Id)">
+                                                            <span class="config-panel-icon">📋</span>
+                                                            <span class="config-panel-title">Formulario de Cotización</span>
+                                                            <MudIcon Icon="@(IsServiceQuoteConfigExpanded(service.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
+                                                        </div>
+                                                        <MudCollapse Expanded="IsServiceQuoteConfigExpanded(service.Id)">
+                                                            <div class="config-panel-content">
+                                                                @{
+                                                                    var quoteConfig = GetQuoteConfig(service);
+                                                                }
+                                                                <div class="quote-fields-list">
+                                                                    <label class="config-sublabel">Campos del formulario:</label>
+                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireName" Label="Nombre (obligatorio)" Disabled="true" Dense="true" />
+                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireWhatsApp" Label="WhatsApp (obligatorio)" Disabled="true" Dense="true" />
+                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireEmail" Label="Email" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
+                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireCompany" Label="Empresa" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
+                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireBudget" Label="Presupuesto estimado" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
+                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireDetails" Label="Detalle del proyecto" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
+                                                                    <MudCheckBox @bind-Value="quoteConfig.AllowAttachment" Label="Adjuntar archivo" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
+                                                                </div>
+                                                                <MudTextField @bind-Value="quoteConfig.AutoResponseMessage" 
+                                                                              Label="Mensaje de respuesta automática" 
+                                                                              Variant="Variant.Outlined"
+                                                                              Lines="2"
+                                                                              Margin="Margin.Dense"
+                                                                              HelperText="Se envía al cliente al solicitar cotización"
+                                                                              @onblur="() => UpdateQuoteConfig(service, quoteConfig)" />
+                                                            </div>
+                                                        </MudCollapse>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="services-empty-state">
+                                        <MudIcon Icon="@Icons.Material.Filled.Build" Size="Size.Large" />
+                                        <p>Aún no tienes servicios configurados</p>
+                                        <span>Agrega servicios para que tus clientes puedan reservar o solicitar cotización</span>
+                                    </div>
+                                }
+                            </div>
+                        </MudCollapse>
+                    </section>
+                }
+
+                @* ─────────────────────────────────────────────────────────
                    SAVE BUTTON - PREMIUM CTA
                    ───────────────────────────────────────────────────────── *@
                 <div class="save-section">
@@ -881,7 +987,8 @@ else
                                         }
                                         else
                                         {
-                                            <div class="phone-avatar phone-avatar-initials avatar-size-@_cardStyle.AvatarSize.ToLower() @(_cardStyle.AvatarGlow ? "avatar-glow" : "")">
+                                            <div class="phone-avatar phone-avatar-initials avatar-size-@_cardStyle.AvatarSize.ToLower() @(_cardStyle.AvatarGlow ? "avatar-glow" : "")"
+                                                 style="background: @_themeTokens.AccentPrimary; color: @_themeTokens.TextOnAccent;">
                                                 <span>@GetInitials(_card.FullName)</span>
                                             </div>
                                         }
@@ -889,7 +996,7 @@ else
 
                                     @* Identity Info *@
                                     <h3 class="phone-name">@(string.IsNullOrEmpty(_card.FullName) ? "Tu Nombre" : _card.FullName)</h3>
-                                    <p class="phone-title">@(string.IsNullOrEmpty(_card.Title) ? "—" : _card.Title)</p>
+                                    <p class="phone-title" style="color: @_themeTokens.AccentPrimary;">@(string.IsNullOrEmpty(_card.Title) ? "—" : _card.Title)</p>
                                     <p class="phone-company">@GetDisplayCompanyName()</p>
 
                                     @* Bio *@
@@ -979,123 +1086,225 @@ else
                                         </div>
                                     }
 
-                                    @* Status Chips *@
-                                    <div class="phone-status-chips">
-                                        <span class="phone-chip">
-                                            <span class="chip-dot"></span> Disponible
-                                        </span>
-                                        <span class="phone-chip">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                            Responde &lt; 1h
-                                        </span>
-                                        <span class="phone-chip">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                                            El Salvador
-                                        </span>
-                                    </div>
+                                    @* Status Chips and CTA Buttons - Only for Default/Portfolio templates *@
+                                    @if (!_isServicesTemplate)
+                                    {
+                                        @* Status Chips *@
+                                        <div class="phone-status-chips">
+                                            <span class="phone-chip">
+                                                <span class="chip-dot"></span> Disponible
+                                            </span>
+                                            <span class="phone-chip">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                Responde &lt; 1h
+                                            </span>
+                                            <span class="phone-chip">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                                El Salvador
+                                            </span>
+                                        </div>
 
-                                    @* CTA Buttons - Matching Public Card *@
-                                    <div class="phone-cta-container btn-shape-@_cardStyle.ButtonShape btn-style-@_cardStyle.ButtonStyle">
-                                        @* Primary CTA: Guardar Contacto (Full Width) *@
-                                        @if (_card.ShowSaveContact)
-                                        {
-                                            <button class="phone-cta-primary">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                                    <circle cx="8.5" cy="7" r="4"/>
-                                                    <line x1="20" y1="8" x2="20" y2="14"/>
-                                                    <line x1="23" y1="11" x2="17" y2="11"/>
-                                                </svg>
-                                                <span>Guardar Contacto</span>
-                                            </button>
-                                        }
-
-                                        @* Secondary Row: WhatsApp, Llamar, Email - Outline Style *@
-                                        <div class="phone-cta-secondary-row">
-                                            @if (_card.ShowWhatsApp && !string.IsNullOrEmpty(_card.WhatsAppNumber))
+                                        @* CTA Buttons - Matching Public Card *@
+                                        <div class="phone-cta-container btn-shape-@_cardStyle.ButtonShape btn-style-@_cardStyle.ButtonStyle">
+                                            @* Primary CTA: Guardar Contacto (Full Width) *@
+                                            @if (_card.ShowSaveContact)
                                             {
-                                                <button class="phone-cta-outline cta-whatsapp-outline">
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                                <button class="phone-cta-primary"
+                                                        style="background: @_themeTokens.ButtonPrimaryBg; color: @_themeTokens.ButtonPrimaryText; box-shadow: 0 4px 16px @(_themeTokens.AccentSoft); border-radius: @GetButtonRadius();">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                                        <circle cx="8.5" cy="7" r="4"/>
+                                                        <line x1="20" y1="8" x2="20" y2="14"/>
+                                                        <line x1="23" y1="11" x2="17" y2="11"/>
                                                     </svg>
-                                                    WhatsApp
+                                                    <span>Guardar Contacto</span>
                                                 </button>
                                             }
-                                            @if (_card.ShowCall && !string.IsNullOrEmpty(_card.Phone))
-                                            {
-                                                <button class="phone-cta-outline cta-llamar-outline">
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+
+                                            @* Secondary Row: WhatsApp, Llamar, Email - Outline Style *@
+                                            <div class="phone-cta-secondary-row">
+                                                @if (_card.ShowWhatsApp && !string.IsNullOrEmpty(_card.WhatsAppNumber))
+                                                {
+                                                    <button class="phone-cta-outline cta-whatsapp-outline"
+                                                            style="border-radius: @GetButtonRadius();">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                                        </svg>
+                                                        WhatsApp
+                                                    </button>
+                                                }
+                                                @if (_card.ShowCall && !string.IsNullOrEmpty(_card.Phone))
+                                                {
+                                                    <button class="phone-cta-outline cta-llamar-outline"
+                                                            style="border-radius: @GetButtonRadius();">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                                                     </svg>
                                                     Llamar
                                                 </button>
-                                            }
-                                            @if (_card.ShowEmail && !string.IsNullOrEmpty(_card.Email))
-                                            {
-                                                <button class="phone-cta-outline cta-email-outline">
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                                                        <polyline points="22,6 12,13 2,6"/>
-                                                    </svg>
-                                                    Email
-                                                </button>
-                                            }
+                                                }
+                                                @if (_card.ShowEmail && !string.IsNullOrEmpty(_card.Email))
+                                                {
+                                                    <button class="phone-cta-outline cta-email-outline"
+                                                            style="border-radius: @GetButtonRadius();">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                                            <polyline points="22,6 12,13 2,6"/>
+                                                        </svg>
+                                                        Email
+                                                    </button>
+                                                }
+                                            </div>
                                         </div>
-                                    </div>
-
-                                    @* Lead Form Preview Section *@
-                                    <div class="phone-lead-form-section">
-                                        <div class="phone-lead-header">
-                                            <h4 class="phone-lead-title">¿Quieres que te contacte?</h4>
-                                            <p class="phone-lead-subtitle">Déjame tus datos y te respondo pronto</p>
-                                        </div>
-                                        
-                                        <div class="phone-lead-form">
-                                            @* Nombre *@
-                                            <div class="phone-form-field">
-                                                <label class="phone-field-label">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
-                                                    Nombre completo <span class="required-mark">*</span>
-                                                </label>
-                                                <div class="phone-input-mock">Juan Pérez</div>
+                                    }
+                                    @* TEMPLATE-SPECIFIC CONTENT *@
+                                    @if (_isServicesTemplate)
+                                    {
+                                        @* Services Template Preview Section *@
+                                        <div class="phone-services-section">
+                                            <h4 class="phone-services-title">MIS SERVICIOS</h4>
+                                            <div class="phone-services-list">
+                                                @if (_services.Any())
+                                                {
+                                                    @foreach (var service in _services.Take(3))
+                                                    {
+                                                        <div class="phone-service-card" style="border-color: @_themeTokens.AccentSoft;">
+                                                            <div class="phone-service-icon" style="background: @_themeTokens.AccentSoft;">
+                                                                <span>@GetServiceEmoji(service.Name)</span>
+                                                            </div>
+                                                            <div class="phone-service-info">
+                                                                <span class="phone-service-name">@service.Name</span>
+                                                                <span class="phone-service-meta" style="color: @_themeTokens.AccentPrimary;">
+                                                                    @service.DurationMinutes min · Desde $@service.PriceFrom
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <div class="phone-service-card" style="border-color: @_themeTokens.AccentSoft;">
+                                                        <div class="phone-service-icon" style="background: @_themeTokens.AccentSoft;">💼</div>
+                                                        <div class="phone-service-info">
+                                                            <span class="phone-service-name">Consultoría Empresarial</span>
+                                                            <span class="phone-service-meta" style="color: @_themeTokens.AccentPrimary;">60 min · Desde $50</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="phone-service-card" style="border-color: @_themeTokens.AccentSoft;">
+                                                        <div class="phone-service-icon" style="background: @_themeTokens.AccentSoft;">📊</div>
+                                                        <div class="phone-service-info">
+                                                            <span class="phone-service-name">Análisis de Proyectos</span>
+                                                            <span class="phone-service-meta" style="color: @_themeTokens.AccentPrimary;">90 min · Desde $75</span>
+                                                        </div>
+                                                    </div>
+                                                }
                                             </div>
                                             
-                                            @* Email *@
-                                            <div class="phone-form-field">
-                                                <label class="phone-field-label">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
-                                                    Correo electrónico <span class="required-mark">*</span>
-                                                </label>
-                                                <div class="phone-input-mock">tu@email.com</div>
+                                            @* Booking CTAs - Smart display based on GetEffectivePrimaryGoal *@
+                                            <div class="phone-booking-ctas">
+                                                @{
+                                                    var effectiveGoal = GetEffectivePrimaryGoal();
+                                                    var hasBooking = HasBookingServices();
+                                                    var hasQuote = HasQuoteServices();
+                                                }
+                                                @if (effectiveGoal == "booking" && hasBooking)
+                                                {
+                                                    <button class="phone-cta-booking" style="background: @_themeTokens.AccentPrimary; border-radius: @GetButtonRadius();">
+                                                        📅 Reservar Cita
+                                                    </button>
+                                                    @if (hasQuote)
+                                                    {
+                                                        <span class="phone-cta-secondary">o solicitar cotización</span>
+                                                    }
+                                                }
+                                                else if (effectiveGoal == "quote" && hasQuote)
+                                                {
+                                                    <button class="phone-cta-booking" style="background: @_themeTokens.AccentPrimary; border-radius: @GetButtonRadius();">
+                                                        📝 Solicitar Cotización
+                                                    </button>
+                                                    @if (hasBooking)
+                                                    {
+                                                        <span class="phone-cta-secondary">o reservar cita</span>
+                                                    }
+                                                }
+                                                else if (hasBooking)
+                                                {
+                                                    <button class="phone-cta-booking" style="background: @_themeTokens.AccentPrimary; border-radius: @GetButtonRadius();">
+                                                        📅 Reservar Cita
+                                                    </button>
+                                                }
+                                                else if (hasQuote)
+                                                {
+                                                    <button class="phone-cta-booking" style="background: @_themeTokens.AccentPrimary; border-radius: @GetButtonRadius();">
+                                                        📝 Solicitar Cotización
+                                                    </button>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @* Lead Form Preview Section (Default/Professional template) *@
+                                        <div class="phone-lead-form-section">
+                                            <div class="phone-lead-header">
+                                                <h4 class="phone-lead-title">¿Quieres que te contacte?</h4>
+                                                <p class="phone-lead-subtitle">Déjame tus datos y te respondo pronto</p>
                                             </div>
                                             
-                                            @* Teléfono *@
-                                            <div class="phone-form-field">
-                                                <label class="phone-field-label">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
-                                                    Teléfono <span class="required-mark">*</span>
-                                                </label>
-                                                <div class="phone-input-row">
-                                                    <div class="phone-country-mock">🇸🇻 +503</div>
-                                                    <div class="phone-input-mock phone-input-number">7000 0000</div>
+                                            <div class="phone-lead-form">
+                                                @* Nombre *@
+                                                <div class="phone-form-field">
+                                                    <label class="phone-field-label">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                                                        Nombre completo <span class="required-mark">*</span>
+                                                    </label>
+                                                    <div class="phone-input-mock"
+                                                         style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">Juan Pérez</div>
                                                 </div>
-                                            </div>
-                                            
-                                            @* Mensaje *@
-                                            <div class="phone-form-field">
-                                                <label class="phone-field-label">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Small" />
-                                                    Mensaje <span class="optional-mark">(opcional)</span>
-                                                </label>
-                                                <div class="phone-textarea-mock">¿En qué puedo ayudarte?</div>
-                                            </div>
-                                            
-                                            @* Submit Button *@
-                                            <button class="phone-submit-btn">
-                                                <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Small" />
+                                                
+                                                @* Email *@
+                                                <div class="phone-form-field">
+                                                    <label class="phone-field-label">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
+                                                        Correo electrónico <span class="required-mark">*</span>
+                                                    </label>
+                                                    <div class="phone-input-mock"
+                                                         style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">tu@email.com</div>
+                                                </div>
+                                                
+                                                @* Teléfono *@
+                                                <div class="phone-form-field">
+                                                    <label class="phone-field-label">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
+                                                        Teléfono <span class="required-mark">*</span>
+                                                    </label>
+                                                    <div class="phone-input-row">
+                                                        <div class="phone-country-mock"
+                                                             style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">🇸🇻 +503</div>
+                                                        <div class="phone-input-mock phone-input-number"
+                                                             style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">7000 0000</div>
+                                                    </div>
+                                                </div>
+                                                
+                                                @* Mensaje *@
+                                                <div class="phone-form-field">
+                                                    <label class="phone-field-label">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Small" />
+                                                        Mensaje <span class="optional-mark">(opcional)</span>
+                                                    </label>
+                                                    <div class="phone-textarea-mock"
+                                                         style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">¿En qué puedo ayudarte?</div>
+                                                </div>
+                                                
+                                                @* Submit Button *@
+                                                <button class="phone-submit-btn"
+                                                        style="background: @_themeTokens.ButtonPrimaryBg; box-shadow: 0 3px 12px @(_themeTokens.AccentSoft); border-radius: @GetButtonRadius();">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Small" />
+                                                    <span>Enviar mensaje</span>
                                                 </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -1793,6 +2002,72 @@ else
         justify-content: center;
         color: white;
     }
+    
+    .preset-check.light {
+        background: #475569;
+    }
+    
+    /* Preset Categories */
+    .appearance-presets-block {
+        gap: 20px;
+    }
+    
+    .preset-category {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .preset-category-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--dt-text-muted, #6B7280);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .preset-category-label .mud-icon-root {
+        font-size: 1rem;
+    }
+    
+    /* Accent Dot on Preview */
+    .preset-preview {
+        position: relative;
+    }
+    
+    .preset-accent-dot {
+        position: absolute;
+        bottom: 6px;
+        right: 6px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid rgba(0, 0, 0, 0.3);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Light Theme Preset Cards */
+    .appearance-preset-card.light {
+        background: var(--dt-surface-light, #F1F5F9);
+        border-color: rgba(0, 0, 0, 0.1);
+    }
+    
+    .appearance-preset-card.light:hover {
+        background: var(--dt-surface-light-hover, #E2E8F0);
+        border-color: rgba(71, 85, 105, 0.3);
+    }
+    
+    .appearance-preset-card.light.selected {
+        border-color: #475569;
+        background: rgba(71, 85, 105, 0.1);
+    }
+    
+    .appearance-preset-card.light .preset-name {
+        color: #374151;
+    }
 
     /* Options Row */
     .appearance-options-row {
@@ -1800,10 +2075,43 @@ else
         grid-template-columns: 1fr 1fr;
         gap: 24px;
     }
+    
+    /* Simplified Options (Single centered block) */
+    .appearance-options-simple {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .appearance-block-full {
+        width: 100%;
+        max-width: 320px;
+    }
+    
+    .segment-selector-centered {
+        justify-content: center;
+    }
+    
+    .segment-selector-centered .segment-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    .image-upload-section {
+        margin-top: 12px;
+        display: flex;
+        justify-content: center;
+    }
 
     @@media (max-width: 640px) {
         .appearance-options-row {
             grid-template-columns: 1fr;
+        }
+        
+        .appearance-block-full {
+            max-width: 100%;
         }
     }
 
@@ -3119,6 +3427,7 @@ else
         --surface-chip-bg: rgba(255, 255, 255, 0.1);
         --surface-chip-text: rgba(255, 255, 255, 0.8);
         --surface-chip-border: rgba(255, 255, 255, 0.15);
+        --surface-label-text: rgba(255, 255, 255, 0.85);
     }
     
     /* === MODO CLARO (texto oscuro sobre fondo claro) === */
@@ -3134,6 +3443,7 @@ else
         --surface-chip-bg: rgba(0, 0, 0, 0.08);
         --surface-chip-text: rgba(26, 26, 46, 0.8);
         --surface-chip-border: rgba(0, 0, 0, 0.15);
+        --surface-label-text: rgba(26, 26, 46, 0.85);
     }
     
     /* Apply contrast variables to phone preview elements */
@@ -3197,6 +3507,602 @@ else
     .phone-card-content.contrast-light .phone-gallery-title {
         color: var(--surface-text-primary) !important;
     }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       LEAD FORM SECTION - Contrast-aware styling for light/dark themes
+       ═══════════════════════════════════════════════════════════════ */
+    
+    /* Form titles */
+    .phone-card-content.contrast-dark .phone-lead-title,
+    .phone-card-content.contrast-light .phone-lead-title {
+        color: var(--surface-text-primary) !important;
+    }
+    
+    .phone-card-content.contrast-dark .phone-lead-subtitle,
+    .phone-card-content.contrast-light .phone-lead-subtitle {
+        color: var(--surface-text-muted) !important;
+    }
+    
+    /* Form field labels */
+    .phone-card-content.contrast-dark .phone-field-label,
+    .phone-card-content.contrast-light .phone-field-label {
+        color: var(--surface-label-text) !important;
+    }
+    
+    .phone-card-content.contrast-dark .phone-field-label .mud-icon-root,
+    .phone-card-content.contrast-light .phone-field-label .mud-icon-root {
+        color: var(--surface-text-muted) !important;
+    }
+    
+    /* Optional mark in form */
+    .phone-card-content.contrast-dark .optional-mark,
+    .phone-card-content.contrast-light .optional-mark {
+        color: var(--surface-text-muted) !important;
+    }
+    
+    /* Form inputs - mock elements */
+    .phone-card-content.contrast-dark .phone-input-mock,
+    .phone-card-content.contrast-light .phone-input-mock {
+        background: var(--surface-input-bg) !important;
+        border-color: var(--surface-input-border) !important;
+        color: var(--surface-input-text) !important;
+    }
+    
+    .phone-card-content.contrast-dark .phone-country-mock,
+    .phone-card-content.contrast-light .phone-country-mock {
+        background: var(--surface-input-bg) !important;
+        border-color: var(--surface-input-border) !important;
+        color: var(--surface-input-text) !important;
+    }
+    
+    .phone-card-content.contrast-dark .phone-textarea-mock,
+    .phone-card-content.contrast-light .phone-textarea-mock {
+        background: var(--surface-input-bg) !important;
+        border-color: var(--surface-input-border) !important;
+        color: var(--surface-input-text) !important;
+    }
+    
+    /* Submit button text */
+    .phone-card-content.contrast-light .phone-submit-btn span {
+        color: var(--surface-text-primary) !important;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       SERVICES TEMPLATE PREVIEW - Services List and Booking CTAs
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .phone-services-section {
+        margin-top: 16px;
+        padding: 0 12px;
+    }
+    
+    .phone-services-title {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        color: rgba(255, 255, 255, 0.5);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+    
+    .phone-services-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .phone-service-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 10px;
+        transition: all 150ms ease;
+    }
+    
+    .phone-service-card:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(99, 102, 241, 0.35);
+    }
+    
+    .phone-service-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+    }
+    
+    .phone-service-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .phone-service-name {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .phone-service-meta {
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+    
+    .phone-booking-ctas {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 16px;
+    }
+    
+    .phone-cta-booking {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 12px 16px;
+        border: none;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: white;
+        cursor: pointer;
+        transition: all 150ms ease;
+    }
+    
+    .phone-cta-booking:hover {
+        filter: brightness(1.1);
+        transform: translateY(-1px);
+    }
+    
+    .phone-cta-quote {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 16px;
+        background: transparent;
+        border: 1px solid;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 150ms ease;
+    }
+    
+    .phone-cta-quote:hover {
+        background: rgba(99, 102, 241, 0.1);
+    }
+    
+    /* Contrast-aware Services styles */
+    .phone-card-content.contrast-light .phone-services-title {
+        color: rgba(26, 26, 46, 0.6);
+    }
+    
+    .phone-card-content.contrast-light .phone-service-card {
+        background: rgba(0, 0, 0, 0.03);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+    
+    .phone-card-content.contrast-light .phone-service-name {
+        color: rgba(26, 26, 46, 0.9);
+    }
+    
+    .phone-card-content.contrast-light .phone-cta-booking {
+        color: white;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       SERVICES MODULE PREMIUM STYLES
+       ═══════════════════════════════════════════════════════════════ */
+    
+    /* Goal Selector */
+    .section-goal .icon-goal { background: linear-gradient(135deg, #F59E0B, #D97706); }
+    
+    .goal-selector {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .goal-option {
+        flex: 1;
+        min-width: 200px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: var(--mud-palette-surface);
+        border: 2px solid var(--mud-palette-lines-default);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .goal-option:hover {
+        border-color: var(--mud-palette-primary);
+        background: var(--mud-palette-background-gray);
+    }
+    
+    .goal-option.goal-active {
+        border-color: var(--mud-palette-primary);
+        background: rgba(var(--mud-palette-primary-rgb), 0.1);
+    }
+    
+    .goal-icon {
+        font-size: 1.75rem;
+        flex-shrink: 0;
+    }
+    
+    .goal-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .goal-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--mud-palette-text-primary);
+    }
+    
+    .goal-desc {
+        font-size: 0.8rem;
+        color: var(--mud-palette-text-secondary);
+    }
+    
+    .goal-check {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+    
+    .goal-hint {
+        margin-top: 0.75rem;
+        font-size: 0.8rem;
+        color: var(--mud-palette-text-secondary);
+        text-align: center;
+    }
+    
+    /* Auto-config Banner */
+    .auto-config-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: rgba(var(--mud-palette-primary-rgb), 0.1);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .auto-config-icon {
+        font-size: 1rem;
+    }
+    
+    .auto-config-text {
+        font-size: 0.85rem;
+        color: var(--mud-palette-text-primary);
+    }
+    
+    .auto-config-hint {
+        color: var(--mud-palette-text-secondary);
+        font-size: 0.8rem;
+    }
+    
+    /* ═══════════════════════════════════════════════════════════════
+       COMPACT CTA STATUS BAR
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .cta-status-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: rgba(var(--mud-palette-primary-rgb), 0.08);
+        border-bottom: 1px solid rgba(var(--mud-palette-primary-rgb), 0.15);
+    }
+    
+    .cta-status-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .cta-label {
+        font-size: 0.8rem;
+        color: var(--mud-palette-text-secondary);
+        font-weight: 500;
+    }
+    
+    .cta-selector-compact {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .cta-chip {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.4rem 0.75rem;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        color: var(--mud-palette-text-secondary);
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .cta-chip:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: var(--mud-palette-primary);
+    }
+    
+    .cta-chip.cta-chip-active {
+        background: var(--mud-palette-primary);
+        border-color: var(--mud-palette-primary);
+        color: white;
+    }
+    
+    .cta-auto-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.75rem;
+        background: rgba(var(--mud-palette-primary-rgb), 0.15);
+        border-radius: 20px;
+        color: var(--mud-palette-text-primary);
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .cta-auto-tag {
+        padding: 0.15rem 0.4rem;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--mud-palette-text-secondary);
+    }
+    
+    /* Phone CTA Secondary Link */
+    .phone-cta-secondary {
+        font-size: 0.75rem;
+        color: var(--mud-palette-text-secondary);
+        text-align: center;
+        margin-top: 0.5rem;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    
+    /* Services Count */
+    .services-add-area {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+    
+    .services-count {
+        font-size: 0.85rem;
+        color: var(--mud-palette-text-secondary);
+    }
+    
+    /* Service Card Premium */
+    .service-editor-card {
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .service-editor-card.service-inactive {
+        opacity: 0.6;
+        background: var(--mud-palette-background-gray);
+    }
+    
+    .service-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--mud-palette-lines-default);
+    }
+    
+    .service-header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .service-drag-handle {
+        cursor: grab;
+        color: var(--mud-palette-text-secondary);
+        font-size: 1.25rem;
+        padding: 0.25rem;
+    }
+    
+    .service-number {
+        font-weight: 600;
+        color: var(--mud-palette-primary);
+        font-size: 0.9rem;
+    }
+    
+    .service-name-preview {
+        color: var(--mud-palette-text-primary);
+        font-weight: 500;
+        font-size: 0.9rem;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .service-header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    /* Conversion Type Selector */
+    .service-conversion-type {
+        margin-bottom: 1rem;
+    }
+    
+    .conversion-label {
+        display: block;
+        font-size: 0.85rem;
+        color: var(--mud-palette-text-secondary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .conversion-options {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .conversion-option {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.6rem 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: var(--mud-palette-text-secondary);
+    }
+    
+    .conversion-option:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: var(--mud-palette-primary);
+        color: var(--mud-palette-text-primary);
+    }
+    
+    .conversion-option.conversion-active {
+        background: var(--mud-palette-primary);
+        border-color: var(--mud-palette-primary);
+        color: white;
+    }
+    
+    .conversion-icon {
+        font-size: 0.9rem;
+    }
+    
+    .conversion-text {
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    /* Service Basic Fields */
+    .service-basic-fields {
+        margin-bottom: 0.5rem;
+    }
+    
+    .service-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin: 0.5rem 0;
+    }
+    
+    /* Config Panels */
+    .service-config-panel {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        margin-top: 0.75rem;
+        overflow: hidden;
+    }
+    
+    .config-panel-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        background: rgba(255, 255, 255, 0.03);
+    }
+    
+    .config-panel-header:hover {
+        background: rgba(255, 255, 255, 0.06);
+    }
+    
+    .config-panel-icon {
+        font-size: 1rem;
+    }
+    
+    .config-panel-title {
+        flex: 1;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--mud-palette-text-primary);
+    }
+    
+    .config-panel-content {
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.15);
+    }
+    
+    .config-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .config-sublabel {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--mud-palette-text-secondary);
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Quote Fields List */
+    .quote-fields-list {
+        margin-bottom: 1rem;
+    }
+    
+    .quote-fields-list .mud-checkbox {
+        margin: 0.25rem 0;
+    }
+    
+    /* Services Empty State */
+    .services-empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--mud-palette-text-secondary);
+    }
+    
+    .services-empty-state p {
+        margin: 0.75rem 0 0.25rem;
+        font-weight: 500;
+    }
+    
+    .services-empty-state span {
+        font-size: 0.85rem;
+    }
 </style>
 
 @code {
@@ -3212,13 +4118,19 @@ else
     // Appearance Section
     private bool _appearanceSectionExpanded = false;
     private bool _advancedModeExpanded = false;
-    private CardStyleModel _cardStyle = new();
+    private CardStyleModel _cardStyle = new() { ButtonShape = PresetRegistry.Default.Tokens.ButtonShape };
+    private ThemeTokens _themeTokens = PresetRegistry.Default.Tokens;
     private string _selectedPreset = "premium-dark";
     
     // Portfolio Gallery
     private bool _isPortfolioTemplate = false;
     private List<GalleryImageModel> _galleryImages = new();
     private bool _isUploadingGallery = false;
+    
+    // Services Template
+    private bool _isServicesTemplate = false;
+    private List<DataTouch.Domain.Entities.Service> _services = new();
+    private bool _servicesSectionExpanded = true;
     
     // ViewModels for JSON fields
     private SocialLinksModel _socialLinks = new();
@@ -3248,6 +4160,9 @@ else
                 
                 // Expand social section if has any links
                 _socialSectionExpanded = HasAnySocialLink();
+                
+                // Load services if services template
+                await LoadServicesAsync();
             }
         }
         _isLoading = false;
@@ -3291,15 +4206,53 @@ else
             try
             {
                 _cardStyle = JsonSerializer.Deserialize<CardStyleModel>(_card.AppearanceStyleJson) ?? new();
+                // Sync selected preset from stored PresetId
+                if (!string.IsNullOrEmpty(_cardStyle.PresetId))
+                {
+                    _selectedPreset = _cardStyle.PresetId;
+                }
             }
             catch { _cardStyle = new(); }
         }
         
-        // Check template type from query parameter or card template
+        // Check template type: query param takes priority, else read from saved card
         var uri = new Uri(Navigation.Uri);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var templateParam = query["template"];
-        _isPortfolioTemplate = templateParam == "portfolio-creative";
+        
+        // Determine effective template: query param > card.TemplateType > "default"
+        string effectiveTemplate;
+        if (!string.IsNullOrEmpty(templateParam))
+        {
+            // Query param takes priority - use it immediately AND persist
+            effectiveTemplate = templateParam;
+            if (_card != null && _card.TemplateType != templateParam)
+            {
+                _card.TemplateType = templateParam;
+                _card.UpdatedAt = DateTime.UtcNow;
+                _ = DbContext.SaveChangesAsync(); // Persist for next load
+            }
+        }
+        else
+        {
+            // No query param - read from saved card
+            effectiveTemplate = !string.IsNullOrEmpty(_card?.TemplateType) ? _card.TemplateType : "default";
+        }
+        
+        // Set template flags based on effective template
+        _isPortfolioTemplate = effectiveTemplate == "portfolio-creative";
+        _isServicesTemplate = effectiveTemplate == "services-quotes";
+        
+        // Apply Emerald Night theme for Services template
+        if (_isServicesTemplate)
+        {
+            var emeraldPreset = PresetRegistry.GetById("emerald-night");
+            if (emeraldPreset != null)
+            {
+                _themeTokens = emeraldPreset.Tokens;
+                _selectedPreset = "emerald-night";
+            }
+        }
         
         // Clear gallery images when switching away from portfolio template
         if (!_isPortfolioTemplate && _galleryImages.Any())
@@ -3309,7 +4262,6 @@ else
             {
                 _card.GalleryImagesJson = null;
                 _card.UpdatedAt = DateTime.UtcNow;
-                // Save immediately to ensure gallery is cleared in database
                 _ = DbContext.SaveChangesAsync();
             }
         }
@@ -3357,6 +4309,13 @@ else
             
             // Serialize Appearance Style
             _card.AppearanceStyleJson = JsonSerializer.Serialize(_cardStyle);
+            
+            // Save TemplateType based on current state
+            if (_isServicesTemplate)
+                _card.TemplateType = "services-quotes";
+            else if (_isPortfolioTemplate)
+                _card.TemplateType = "portfolio-creative";
+            // Otherwise keep current value (could be default or other)
 
             _card.UpdatedAt = DateTime.UtcNow;
             await DbContext.SaveChangesAsync();
@@ -3446,6 +4405,7 @@ else
         if (preset == null) return;
         
         _selectedPreset = presetId;
+        _cardStyle.PresetId = presetId;
         _cardStyle.BackgroundType = preset.BackgroundType;
         _cardStyle.BackgroundValue = preset.BackgroundValue;
         _cardStyle.CardContainerStyle = preset.CardStyle;
@@ -3453,6 +4413,17 @@ else
         _cardStyle.ButtonStyle = preset.ButtonStyle;
         _cardStyle.BackgroundIsDark = preset.BackgroundIsDark;
         _cardStyle.CardIsDark = preset.CardIsDark;
+        _cardStyle.AccentColor = preset.AccentColor;
+        
+        // Load ThemeTokens from PresetRegistry for consistent styling
+        var registryPreset = PresetRegistry.GetById(presetId);
+        if (registryPreset != null)
+        {
+            _themeTokens = registryPreset.Tokens;
+            // Sync ButtonShape from ThemeTokens to ensure GetButtonRadius() uses correct value
+            _cardStyle.ButtonShape = _themeTokens.ButtonShape;
+        }
+        
         MarkUnsaved();
     }
 
@@ -3489,10 +4460,24 @@ else
 
     private string GetPreviewBackgroundStyle()
     {
-        if (_cardStyle.BackgroundType == "image" && !string.IsNullOrEmpty(_cardStyle.BackgroundImageUrl))
-            return $"background: url('{_cardStyle.BackgroundImageUrl}') center/cover no-repeat";
-        return $"background: {_cardStyle.BackgroundValue}";
+        // Use ThemeTokens for consistent preview styling
+        return $"background: {_themeTokens.BgValue}";
     }
+    
+    // Border-radius helpers for button shape consistency
+    private string GetButtonRadius() => _cardStyle.ButtonShape switch
+    {
+        "pill" => "50px",
+        "square" => "6px",
+        _ => "14px" // rounded (default)
+    };
+    
+    private string GetInputRadius() => _cardStyle.ButtonShape switch
+    {
+        "pill" => "20px",
+        "square" => "4px",
+        _ => "8px" // rounded
+    };
     
     // Get card/container background style when independent
     private string GetCardBackgroundStyle()
@@ -3511,6 +4496,24 @@ else
     private void SetBackgroundGradient() { _cardStyle.BackgroundType = "gradient"; MarkUnsaved(); }
     private void SetBackgroundSolid() { _cardStyle.BackgroundType = "solid"; MarkUnsaved(); }
     private void SetBackgroundImage() { _cardStyle.BackgroundType = "image"; MarkUnsaved(); }
+    
+    // Colores = restores the preset's default background type (gradient or solid)
+    private void SetBackgroundColores() 
+    { 
+        // Get the current preset and restore its background type
+        var preset = PresetRegistry.GetById(_selectedPreset);
+        if (preset != null)
+        {
+            _cardStyle.BackgroundType = preset.Tokens.BgType;
+            _cardStyle.BackgroundValue = preset.Tokens.BgValue;
+        }
+        else
+        {
+            // Fallback to gradient if no preset found
+            _cardStyle.BackgroundType = "gradient";
+        }
+        MarkUnsaved(); 
+    }
     
     // Card Style
     private void SetCardStyleGlass() { _cardStyle.CardContainerStyle = "glass"; MarkUnsaved(); }
@@ -3711,7 +4714,7 @@ else
         public bool AvatarGlow { get; set; } = true;
         
         // Avanzado - Botones
-        public string ButtonShape { get; set; } = "rounded"; // pill, rounded, square
+        public string ButtonShape { get; set; } = "pill"; // pill, rounded, square
         public string ButtonStyle { get; set; } = "filled"; // filled, outline
         
         // Contraste automático
@@ -3719,19 +4722,98 @@ else
         public bool BackgroundIsDark { get; set; } = true;
         public bool CardIsDark { get; set; } = true;
         public bool CardIsDarkOverride { get; set; } = true; // Para tarjeta independiente
+        
+        // Preset tracking
+        public string? PresetId { get; set; } = "premium-dark";
+        public string? AccentColor { get; set; } = "#7C3AED";
     }
 
-    private record AppearancePreset(string Id, string Name, string BackgroundType, string BackgroundValue, 
-        string CardStyle, string ButtonShape, string ButtonStyle, bool BackgroundIsDark, bool CardIsDark);
+    private record AppearancePreset(
+        string Id, 
+        string Name, 
+        string Category, // "dark" or "light"
+        string Personality, // Target audience description
+        string BackgroundType, 
+        string BackgroundValue, 
+        string CardStyle, 
+        string ButtonShape, 
+        string ButtonStyle, 
+        bool BackgroundIsDark, 
+        bool CardIsDark,
+        string AccentColor // Primary accent for this preset
+    );
     
     private static readonly List<AppearancePreset> _presets = new()
     {
-        new("premium-dark", "Premium Dark", "gradient", "linear-gradient(135deg, #0F0A1E 0%, #1E1B4B 50%, #0F0A1E 100%)", "glass", "rounded", "filled", true, true),
-        new("soft-gradient", "Soft Gradient", "gradient", "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", "glass", "pill", "filled", true, true),
-        new("glass-clean", "Glass Clean", "gradient", "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", "glass", "rounded", "outline", true, true),
-        new("high-contrast", "High Contrast", "solid", "#000000", "solid", "square", "filled", true, true),
-        new("minimal-white", "Minimal White", "solid", "#F8FAFC", "elevated", "rounded", "outline", false, false),
-        new("ocean-wave", "Ocean Wave", "gradient", "linear-gradient(135deg, #0077b6 0%, #00b4d8 50%, #90e0ef 100%)", "glass", "pill", "filled", true, true)
+        // ═══════════════════════════════════════════════════════════════
+        // DARK PRESETS (8)
+        // ═══════════════════════════════════════════════════════════════
+        new("premium-dark", "Premium Dark", "dark", "Ejecutivos, consultores",
+            "gradient", "linear-gradient(135deg, #0F0A1E 0%, #1E1B4B 50%, #0F0A1E 100%)", 
+            "glass", "pill", "filled", true, true, "#7C3AED"),
+        
+        new("midnight-blue", "Midnight Blue", "dark", "Tech, startups",
+            "gradient", "linear-gradient(135deg, #0c1445 0%, #1a237e 50%, #0d1b3e 100%)", 
+            "glass", "pill", "filled", true, true, "#00B4D8"),
+        
+        new("charcoal-gold", "Charcoal Gold", "dark", "Lujo, finanzas",
+            "solid", "#1C1C1C", 
+            "solid", "pill", "filled", true, true, "#D4AF37"),
+        
+        new("emerald-night", "Emerald Night", "dark", "Eco, wellness",
+            "gradient", "linear-gradient(135deg, #0D1F17 0%, #134E3A 50%, #0D1F17 100%)", 
+            "glass", "pill", "filled", true, true, "#10B981"),
+        
+        new("rose-noir", "Rose Noir", "dark", "Creative, beauty",
+            "gradient", "linear-gradient(135deg, #1A0A14 0%, #3D1A2A 50%, #1A0A14 100%)", 
+            "glass", "pill", "filled", true, true, "#F472B6"),
+        
+        new("high-contrast", "High Contrast", "dark", "Accesibilidad",
+            "solid", "#000000", 
+            "solid", "pill", "filled", true, true, "#FFFFFF"),
+        
+        new("obsidian", "Obsidian", "dark", "Minimal, tech",
+            "solid", "#0A0A0A", 
+            "glass", "pill", "outline", true, true, "#64748B"),
+        
+        new("aurora", "Aurora", "dark", "Creative, events",
+            "gradient", "linear-gradient(135deg, #0F172A 0%, #1E3A5F 25%, #3B1E5F 50%, #5F1E3A 75%, #0F172A 100%)", 
+            "glass", "pill", "filled", true, true, "#EC4899"),
+        
+        // ═══════════════════════════════════════════════════════════════
+        // LIGHT PRESETS (8)
+        // ═══════════════════════════════════════════════════════════════
+        new("minimal-white", "Minimal White", "light", "Clean, corporate",
+            "solid", "#F8FAFC", 
+            "elevated", "pill", "outline", false, false, "#475569"),
+        
+        new("soft-cream", "Soft Cream", "light", "Warmth, hospitality",
+            "solid", "#FFFBEB", 
+            "elevated", "pill", "filled", false, false, "#D97706"),
+        
+        new("sky-light", "Sky Light", "light", "Fresh, modern",
+            "gradient", "linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 50%, #E0F2FE 100%)", 
+            "elevated", "pill", "filled", false, false, "#0284C7"),
+        
+        new("mint-breeze", "Mint Breeze", "light", "Health, wellness",
+            "solid", "#ECFDF5", 
+            "elevated", "pill", "filled", false, false, "#059669"),
+        
+        new("pearl-gray", "Pearl Gray", "light", "Elegant, professional",
+            "solid", "#F1F5F9", 
+            "elevated", "pill", "filled", false, false, "#64748B"),
+        
+        new("rose-blush", "Rose Blush", "light", "Gentle, welcoming",
+            "solid", "#FFF1F2", 
+            "elevated", "pill", "filled", false, false, "#E11D48"),
+        
+        new("ocean-mist", "Ocean Mist", "light", "Calm, trustworthy",
+            "gradient", "linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 50%, #F0FDFA 100%)", 
+            "elevated", "pill", "filled", false, false, "#14B8A6"),
+        
+        new("lavender-cloud", "Lavender Cloud", "light", "Creative, serene",
+            "solid", "#FAF5FF", 
+            "elevated", "pill", "filled", false, false, "#9333EA")
     };
 
     // ═══════════════════════════════════════════════════════════════
@@ -3929,6 +5011,230 @@ else
         StateHasChanged();
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // SERVICES MANAGEMENT (for services template)
+    // ═══════════════════════════════════════════════════════════════
+    private async Task LoadServicesAsync()
+    {
+        if (_card == null) return;
+        _services = await DbContext.Services
+            .Where(s => s.CardId == _card.Id)
+            .OrderBy(s => s.DisplayOrder)
+            .ToListAsync();
+    }
+
+    private void AddNewService()
+    {
+        if (_card == null || _services.Count >= 10) return;
+        
+        var newService = new DataTouch.Domain.Entities.Service
+        {
+            Id = Guid.NewGuid(),
+            CardId = _card.Id,
+            OrganizationId = _card.OrganizationId,
+            Name = "Nuevo servicio",
+            DurationMinutes = 60,
+            DisplayOrder = _services.Count,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        
+        _services.Add(newService);
+        DbContext.Services.Add(newService);
+        MarkUnsaved();
+        StateHasChanged();
+    }
+
+    private void RemoveService(DataTouch.Domain.Entities.Service service)
+    {
+        _services.Remove(service);
+        DbContext.Services.Remove(service);
+        
+        // Reorder remaining services
+        var ordered = _services.OrderBy(s => s.DisplayOrder).ToList();
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            ordered[i].DisplayOrder = i;
+        }
+        
+        MarkUnsaved();
+        StateHasChanged();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SERVICES MODULE HELPER METHODS
+    // ═══════════════════════════════════════════════════════════════
+    
+    private void SetPrimaryGoal(string goal)
+    {
+        if (_card != null)
+        {
+            _card.PrimaryCardGoal = goal;
+            MarkUnsaved();
+            StateHasChanged();
+        }
+    }
+    
+    /// <summary>
+    /// Determines if Goal selector should be visible.
+    /// Only shows when there's a real mix of conversion types.
+    /// </summary>
+    private bool IsGoalSelectorVisible => HasMixedTypes();
+    
+    /// <summary>
+    /// Checks if services have mixed conversion types (booking + quote).
+    /// Returns true if selector should be shown.
+    /// </summary>
+    private bool HasMixedTypes()
+    {
+        var activeServices = _services.Where(s => s.IsActive).ToList();
+        if (!activeServices.Any()) return false;
+        
+        var types = activeServices.Select(s => s.ConversionType ?? "booking").Distinct().ToList();
+        
+        // If any service is "both", we have mixed types
+        if (types.Contains("both")) return true;
+        
+        // If we have both "booking" and "quote", it's mixed
+        return types.Contains("booking") && types.Contains("quote");
+    }
+    
+    /// <summary>
+    /// Gets the effective primary goal, auto-detecting when all services are same type.
+    /// Falls back to user-defined PrimaryCardGoal when mixed.
+    /// </summary>
+    private string GetEffectivePrimaryGoal()
+    {
+        var activeServices = _services.Where(s => s.IsActive).ToList();
+        
+        // No services = default to booking
+        if (!activeServices.Any()) return "booking";
+        
+        var types = activeServices.Select(s => s.ConversionType ?? "booking").Distinct().ToList();
+        
+        // All same type = auto-detect
+        if (types.Count == 1 && types[0] != "both")
+        {
+            return types[0]; // "booking" or "quote"
+        }
+        
+        // Mixed types = use user preference, default to booking
+        return _card?.PrimaryCardGoal ?? "booking";
+    }
+    
+    /// <summary>
+    /// Checks if any active service supports booking (Cita).
+    /// </summary>
+    private bool HasBookingServices()
+    {
+        return _services.Any(s => s.IsActive && (s.ConversionType == "booking" || s.ConversionType == "both"));
+    }
+    
+    /// <summary>
+    /// Checks if any active service supports quotes (Cotización).
+    /// </summary>
+    private bool HasQuoteServices()
+    {
+        return _services.Any(s => s.IsActive && (s.ConversionType == "quote" || s.ConversionType == "both"));
+    }
+    
+    private void DuplicateService(DataTouch.Domain.Entities.Service originalService)
+    {
+        if (_services.Count >= 10) return;
+        
+        var newService = new DataTouch.Domain.Entities.Service
+        {
+            Id = Guid.NewGuid(),
+            CardId = _card!.Id,
+            OrganizationId = _card.OrganizationId,
+            Name = $"{originalService.Name} (copia)",
+            Description = originalService.Description,
+            DurationMinutes = originalService.DurationMinutes,
+            PriceFrom = originalService.PriceFrom,
+            ConversionType = originalService.ConversionType,
+            Modality = originalService.Modality,
+            BufferBeforeMinutes = originalService.BufferBeforeMinutes,
+            BufferAfterMinutes = originalService.BufferAfterMinutes,
+            MinNoticeMinutes = originalService.MinNoticeMinutes,
+            MaxBookingsPerDay = originalService.MaxBookingsPerDay,
+            QuoteFormConfigJson = originalService.QuoteFormConfigJson,
+            DisplayOrder = _services.Count,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        
+        _services.Add(newService);
+        DbContext.Services.Add(newService);
+        MarkUnsaved();
+        Snackbar.Add("Servicio duplicado", Severity.Success);
+        StateHasChanged();
+    }
+    
+    private void SetServiceConversionType(DataTouch.Domain.Entities.Service service, string conversionType)
+    {
+        service.ConversionType = conversionType;
+        MarkUnsaved();
+        StateHasChanged();
+    }
+    
+    // Service config panel expansion state
+    private HashSet<Guid> _expandedBookingConfigs = new();
+    private HashSet<Guid> _expandedQuoteConfigs = new();
+    
+    private void ToggleServiceBookingConfig(Guid serviceId)
+    {
+        if (_expandedBookingConfigs.Contains(serviceId))
+            _expandedBookingConfigs.Remove(serviceId);
+        else
+            _expandedBookingConfigs.Add(serviceId);
+    }
+    
+    private bool IsServiceBookingConfigExpanded(Guid serviceId) => _expandedBookingConfigs.Contains(serviceId);
+    
+    private void ToggleServiceQuoteConfig(Guid serviceId)
+    {
+        if (_expandedQuoteConfigs.Contains(serviceId))
+            _expandedQuoteConfigs.Remove(serviceId);
+        else
+            _expandedQuoteConfigs.Add(serviceId);
+    }
+    
+    private bool IsServiceQuoteConfigExpanded(Guid serviceId) => _expandedQuoteConfigs.Contains(serviceId);
+    
+    // QuoteFormConfig helpers
+    private Dictionary<Guid, QuoteFormConfig> _quoteConfigCache = new();
+    
+    private QuoteFormConfig GetQuoteConfig(DataTouch.Domain.Entities.Service service)
+    {
+        if (_quoteConfigCache.TryGetValue(service.Id, out var cached))
+            return cached;
+        
+        QuoteFormConfig config;
+        if (!string.IsNullOrEmpty(service.QuoteFormConfigJson))
+        {
+            try
+            {
+                config = System.Text.Json.JsonSerializer.Deserialize<QuoteFormConfig>(service.QuoteFormConfigJson) ?? new();
+            }
+            catch { config = new(); }
+        }
+        else
+        {
+            config = new();
+        }
+        
+        _quoteConfigCache[service.Id] = config;
+        return config;
+    }
+    
+    private void UpdateQuoteConfig(DataTouch.Domain.Entities.Service service, QuoteFormConfig config)
+    {
+        _quoteConfigCache[service.Id] = config;
+        service.QuoteFormConfigJson = System.Text.Json.JsonSerializer.Serialize(config);
+        MarkUnsaved();
+    }
+
+
     private async Task CopyPublicUrl()
     {
         try
@@ -3940,5 +5246,29 @@ else
         {
             Snackbar.Add("No se pudo copiar la URL", Severity.Error);
         }
+    }
+
+    // Helper to get emoji for service preview
+    private string GetServiceEmoji(string serviceName)
+    {
+        var name = serviceName?.ToLower() ?? "";
+        return name switch
+        {
+            var n when n.Contains("consult") => "💼",
+            var n when n.Contains("análisis") || n.Contains("analisis") => "📊",
+            var n when n.Contains("planific") || n.Contains("estrateg") => "🎯",
+            var n when n.Contains("diseño") || n.Contains("design") => "🎨",
+            var n when n.Contains("desarrollo") || n.Contains("dev") => "💻",
+            var n when n.Contains("market") => "📈",
+            var n when n.Contains("foto") || n.Contains("photo") => "📷",
+            var n when n.Contains("video") => "🎬",
+            var n when n.Contains("web") => "🌐",
+            var n when n.Contains("social") => "📱",
+            var n when n.Contains("capacit") || n.Contains("train") => "📚",
+            var n when n.Contains("audit") => "🔍",
+            var n when n.Contains("legal") => "⚖️",
+            var n when n.Contains("contab") || n.Contains("financ") => "💰",
+            _ => "✨"
+        };
     }
 }

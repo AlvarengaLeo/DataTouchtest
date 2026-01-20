@@ -1,0 +1,545 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+   APPOINTMENT DETAILS DRAWER - PREMIUM COMPONENT
+   Professional drawer with glass styling, safe actions, and Spanish formatting
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+
+@using DataTouch.Domain.Entities
+@using System.Globalization
+@inject ISnackbar Snackbar
+
+<MudDrawer @bind-Open="IsOpen" Anchor="Anchor.End" Elevation="0" 
+           Width="420px" Variant="DrawerVariant.Temporary" 
+           Class="appointment-drawer">
+    @if (Appointment != null)
+    {
+        @* ═══════════════ STICKY HEADER ═══════════════ *@
+        <div class="drawer-header">
+            <div class="d-flex justify-space-between align-center">
+                <MudText Typo="Typo.subtitle1" Class="drawer-title">Detalle de Cita</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" 
+                               OnClick="@(() => IsOpen = false)" Class="close-btn" />
+            </div>
+            
+            @* Status Badge *@
+            <MudChip T="string" Color="@GetStatusColor(Appointment.Status)" 
+                     Size="Size.Small" Variant="Variant.Filled" Class="status-chip">
+                @GetStatusLabel(Appointment.Status)
+            </MudChip>
+        </div>
+        
+        @* ═══════════════ HERO SUMMARY ═══════════════ *@
+        <div class="drawer-hero">
+            <MudText Typo="Typo.h5" Class="hero-name">@Appointment.CustomerName</MudText>
+            <MudText Typo="Typo.body2" Class="hero-service">
+                @(Appointment.Service?.Name ?? "Sin servicio asignado")
+            </MudText>
+            <div class="hero-datetime">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" />
+                <span>@FormatDateSpanish(Appointment.StartDateTime)</span>
+            </div>
+        </div>
+        
+        @* ═══════════════ SCROLLABLE CONTENT ═══════════════ *@
+        <div class="drawer-content">
+            
+            @* CARD: Información de la Cita *@
+            <div class="drawer-card">
+                <div class="card-header">
+                    <MudIcon Icon="@Icons.Material.Filled.Event" Size="Size.Small" />
+                    <span>Información de la Cita</span>
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Fecha</span>
+                        <span class="info-value">@Appointment.StartDateTime.ToString("dd/MM/yyyy")</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Hora</span>
+                        <span class="info-value">@Appointment.StartDateTime.ToString("h:mm tt") - @Appointment.EndDateTime.ToString("h:mm tt")</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Duración</span>
+                        <span class="info-value">@((Appointment.EndDateTime - Appointment.StartDateTime).TotalMinutes) minutos</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Servicio</span>
+                        <span class="info-value">@(Appointment.Service?.Name ?? "—")</span>
+                    </div>
+                </div>
+            </div>
+            
+            @* CARD: Contacto *@
+            <div class="drawer-card">
+                <div class="card-header">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                    <span>Contacto</span>
+                </div>
+                
+                <div class="contact-row">
+                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Class="contact-icon" />
+                    <span class="contact-value">@Appointment.CustomerEmail</span>
+                </div>
+                
+                @if (!string.IsNullOrEmpty(Appointment.CustomerPhone))
+                {
+                    <div class="contact-row">
+                        <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" Class="contact-icon" />
+                        <span class="contact-value">@Appointment.CustomerPhone</span>
+                    </div>
+                }
+                
+                <div class="contact-actions">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Class="contact-btn"
+                               StartIcon="@Icons.Material.Filled.ContentCopy"
+                               OnClick="@(() => CopyEmail())">
+                        Copiar email
+                    </MudButton>
+                    
+                    @if (!string.IsNullOrEmpty(Appointment.CustomerPhone))
+                    {
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Class="contact-btn"
+                                   StartIcon="@Icons.Material.Filled.Call"
+                                   Href="@($"tel:{Appointment.CustomerPhone}")">
+                            Llamar
+                        </MudButton>
+                        
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Class="contact-btn whatsapp-btn"
+                                   StartIcon="@Icons.Material.Filled.Chat"
+                                   Href="@($"https://wa.me/{CleanPhoneNumber(Appointment.CustomerPhone)}")"
+                                   Target="_blank">
+                            WhatsApp
+                        </MudButton>
+                    }
+                </div>
+            </div>
+            
+            @* CARD: Notas del Cliente *@
+            <div class="drawer-card">
+                <div class="card-header">
+                    <MudIcon Icon="@Icons.Material.Filled.Notes" Size="Size.Small" />
+                    <span>Notas del Cliente</span>
+                </div>
+                
+                @if (!string.IsNullOrEmpty(Appointment.CustomerNotes))
+                {
+                    <p class="notes-text">"@Appointment.CustomerNotes"</p>
+                }
+                else
+                {
+                    <p class="notes-empty">Sin notas del cliente</p>
+                }
+            </div>
+            
+            @* CARD: Motivo de Cancelación (solo si cancelada) *@
+            @if (Appointment.Status == AppointmentStatus.Cancelled && !string.IsNullOrEmpty(Appointment.CancelReason))
+            {
+                <div class="drawer-card cancel-card">
+                    <div class="card-header cancel-header">
+                        <MudIcon Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" />
+                        <span>Motivo de Cancelación</span>
+                    </div>
+                    <p class="cancel-reason">@Appointment.CancelReason</p>
+                    @if (Appointment.CancelledAt.HasValue)
+                    {
+                        <span class="cancel-date">Cancelada el @Appointment.CancelledAt.Value.ToString("dd/MM/yyyy h:mm tt")</span>
+                    }
+                </div>
+            }
+        </div>
+        
+        @* ═══════════════ STICKY FOOTER ═══════════════ *@
+        <div class="drawer-footer">
+            @if (Appointment.Status == AppointmentStatus.Pending)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.CheckCircle" Class="primary-action"
+                           OnClick="@(() => OnConfirm.InvokeAsync())">
+                    Confirmar cita
+                </MudButton>
+                <div class="secondary-actions">
+                    <MudButton Variant="Variant.Outlined" Class="secondary-btn"
+                               StartIcon="@Icons.Material.Filled.Schedule"
+                               OnClick="@(() => OnReschedule.InvokeAsync())">
+                        Reprogramar
+                    </MudButton>
+                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.TopCenter" 
+                             TransformOrigin="Origin.BottomCenter" Class="more-menu">
+                        <MudMenuItem Icon="@Icons.Material.Filled.Cancel" IconColor="Color.Error"
+                                     OnClick="@(() => OnCancel.InvokeAsync())">
+                            Cancelar cita
+                        </MudMenuItem>
+                    </MudMenu>
+                </div>
+            }
+            else if (Appointment.Status == AppointmentStatus.Confirmed)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Done" Class="primary-action"
+                           OnClick="@(() => OnComplete.InvokeAsync())">
+                    Marcar completada
+                </MudButton>
+                <div class="secondary-actions">
+                    <MudButton Variant="Variant.Outlined" Class="secondary-btn"
+                               StartIcon="@Icons.Material.Filled.Schedule"
+                               OnClick="@(() => OnReschedule.InvokeAsync())">
+                        Reprogramar
+                    </MudButton>
+                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.TopCenter" 
+                             TransformOrigin="Origin.BottomCenter" Class="more-menu">
+                        <MudMenuItem Icon="@Icons.Material.Filled.Cancel" IconColor="Color.Error"
+                                     OnClick="@(() => OnCancel.InvokeAsync())">
+                            Cancelar cita
+                        </MudMenuItem>
+                    </MudMenu>
+                </div>
+            }
+            else if (Appointment.Status == AppointmentStatus.Cancelled)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Restore" Class="primary-action"
+                           OnClick="@(() => OnRestore.InvokeAsync())">
+                    Restaurar cita
+                </MudButton>
+                <MudButton Variant="Variant.Text" FullWidth="true" Class="close-action"
+                           OnClick="@(() => IsOpen = false)">
+                    Cerrar
+                </MudButton>
+            }
+            else if (Appointment.Status == AppointmentStatus.Completed)
+            {
+                <div class="completed-badge">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                    <span>Esta cita ha sido completada</span>
+                </div>
+                <MudButton Variant="Variant.Text" FullWidth="true" Class="close-action"
+                           OnClick="@(() => IsOpen = false)">
+                    Cerrar
+                </MudButton>
+            }
+        </div>
+    }
+</MudDrawer>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public Appointment? Appointment { get; set; }
+    
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnComplete { get; set; }
+    [Parameter] public EventCallback OnReschedule { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback OnRestore { get; set; }
+    
+    private static readonly CultureInfo SpanishCulture = new("es-SV");
+    
+    private string FormatDateSpanish(DateTime date)
+    {
+        var dayName = date.ToString("dddd", SpanishCulture);
+        dayName = char.ToUpper(dayName[0]) + dayName.Substring(1);
+        var day = date.Day;
+        var month = date.ToString("MMM", SpanishCulture);
+        month = char.ToUpper(month[0]) + month.Substring(1).TrimEnd('.');
+        var time = date.ToString("h:mm tt");
+        
+        return $"{dayName}, {day} {month} · {time}";
+    }
+    
+    private string CleanPhoneNumber(string? phone)
+    {
+        if (string.IsNullOrEmpty(phone)) return "";
+        return phone.Replace(" ", "").Replace("-", "").Replace("(", "").Replace(")", "");
+    }
+    
+    private void CopyEmail()
+    {
+        Snackbar.Add("Email copiado al portapapeles", Severity.Info);
+    }
+    
+    private Color GetStatusColor(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Pending => Color.Warning,
+        AppointmentStatus.Confirmed => Color.Info,
+        AppointmentStatus.Completed => Color.Success,
+        AppointmentStatus.Cancelled => Color.Default,
+        AppointmentStatus.NoShow => Color.Error,
+        _ => Color.Default
+    };
+    
+    private string GetStatusLabel(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Pending => "Pendiente",
+        AppointmentStatus.Confirmed => "Confirmada",
+        AppointmentStatus.Completed => "Completada",
+        AppointmentStatus.Cancelled => "Cancelada",
+        AppointmentStatus.NoShow => "No asistió",
+        _ => status.ToString()
+    };
+}
+
+<style>
+    /* ═══════════════ DRAWER BASE ═══════════════ */
+    .appointment-drawer {
+        background: rgba(15, 23, 30, 0.95) !important;
+        backdrop-filter: blur(20px);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    
+    /* ═══════════════ HEADER ═══════════════ */
+    .drawer-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(15, 23, 30, 0.98);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 16px 20px;
+    }
+    
+    .drawer-title {
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+        letter-spacing: 0.3px;
+    }
+    
+    .close-btn {
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+    .close-btn:hover {
+        opacity: 1;
+    }
+    
+    .status-chip {
+        margin-top: 12px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+    }
+    
+    /* ═══════════════ HERO SUMMARY ═══════════════ */
+    .drawer-hero {
+        padding: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    
+    .hero-name {
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 4px;
+        line-height: 1.2;
+    }
+    
+    .hero-service {
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 12px;
+    }
+    
+    .hero-datetime {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.95rem;
+    }
+    
+    .hero-datetime .mud-icon-root {
+        opacity: 0.7;
+    }
+    
+    /* ═══════════════ CONTENT AREA ═══════════════ */
+    .drawer-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 20px 100px 20px;
+    }
+    
+    /* ═══════════════ GLASS CARDS ═══════════════ */
+    .drawer-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+    }
+    
+    .card-header .mud-icon-root {
+        color: var(--mud-palette-primary);
+        opacity: 0.9;
+    }
+    
+    /* ═══════════════ INFO GRID ═══════════════ */
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .info-value {
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+    
+    /* ═══════════════ CONTACT ═══════════════ */
+    .contact-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+    }
+    
+    .contact-icon {
+        color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .contact-value {
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.9rem;
+    }
+    
+    .contact-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    
+    .contact-btn {
+        min-height: 44px;
+        font-size: 0.8rem;
+        text-transform: none;
+    }
+    
+    .whatsapp-btn {
+        color: #25D366 !important;
+        border-color: rgba(37, 211, 102, 0.4) !important;
+    }
+    
+    /* ═══════════════ NOTES ═══════════════ */
+    .notes-text {
+        color: rgba(255, 255, 255, 0.75);
+        font-style: italic;
+        line-height: 1.6;
+        margin: 0;
+    }
+    
+    .notes-empty {
+        color: rgba(255, 255, 255, 0.35);
+        font-style: italic;
+        margin: 0;
+    }
+    
+    /* ═══════════════ CANCEL CARD ═══════════════ */
+    .cancel-card {
+        background: rgba(244, 67, 54, 0.08);
+        border-color: rgba(244, 67, 54, 0.3);
+    }
+    
+    .cancel-header {
+        color: var(--mud-palette-error) !important;
+    }
+    
+    .cancel-header .mud-icon-root {
+        color: var(--mud-palette-error) !important;
+    }
+    
+    .cancel-reason {
+        color: rgba(255, 255, 255, 0.8);
+        margin: 0 0 8px 0;
+    }
+    
+    .cancel-date {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.4);
+    }
+    
+    /* ═══════════════ FOOTER ═══════════════ */
+    .drawer-footer {
+        position: sticky;
+        bottom: 0;
+        background: rgba(15, 23, 30, 0.98);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 16px 20px;
+    }
+    
+    .primary-action {
+        font-weight: 600;
+        margin-bottom: 10px;
+        min-height: 48px;
+    }
+    
+    .secondary-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .secondary-btn {
+        flex: 1;
+        min-height: 44px;
+        text-transform: none;
+    }
+    
+    .more-menu {
+        min-width: 44px;
+    }
+    
+    .close-action {
+        margin-top: 8px;
+        color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .completed-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px;
+        background: rgba(76, 175, 80, 0.15);
+        border-radius: 8px;
+        color: var(--mud-palette-success);
+        margin-bottom: 8px;
+    }
+    
+    /* ═══════════════ RESPONSIVE ═══════════════ */
+    @@media (max-width: 480px) {
+        .appointment-drawer {
+            width: 100% !important;
+        }
+        
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .contact-actions {
+            flex-direction: column;
+        }
+        
+        .contact-btn {
+            width: 100%;
+        }
+    }
+</style>

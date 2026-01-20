@@ -106,7 +106,10 @@ else
                 query = query.Where(l => l.CreatedAt >= _dateFrom.Value);
 
             if (_dateTo.HasValue)
-                query = query.Where(l => l.CreatedAt <= _dateTo.Value.AddDays(1));
+            {
+                var endDate = _dateTo.Value.AddDays(1);
+                query = query.Where(l => l.CreatedAt <= endDate);
+            }
 
             if (!string.IsNullOrEmpty(_statusFilter))
                 query = query.Where(l => l.Status == _statusFilter);

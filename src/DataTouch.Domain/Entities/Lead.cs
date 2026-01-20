@@ -17,6 +17,7 @@ public class Lead
     public DateTime CreatedAt { get; set; }
     public string? InternalNotes { get; set; }
     public DateTime? NotesUpdatedAt { get; set; }
+    public DateTime? LastActivityAt { get; set; }
 
     public Organization Organization { get; set; } = default!;
     public Card Card { get; set; } = default!;

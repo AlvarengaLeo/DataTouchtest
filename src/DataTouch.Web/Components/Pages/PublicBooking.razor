@@ -1,0 +1,873 @@
+@page "/p/{OrgSlug}/{CardSlug}/book"
+@layout EmptyLayout
+@inject DataTouchDbContext DbContext
+@inject AppointmentService AppointmentService
+@inject AvailabilityService AvailabilityService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@using DataTouch.Web.Services
+@using DataTouch.Domain.Entities
+
+<MudThemeProvider Theme="_theme" IsDarkMode="true" />
+<MudSnackbarProvider />
+
+<PageTitle>Reservar Cita - @(_card?.FullName ?? "DataTouch")</PageTitle>
+
+@if (_isLoading)
+{
+    <div class="loading-container">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+    </div>
+}
+else if (_card == null || _organization == null)
+{
+    <div class="error-container">
+        <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Large" Color="Color.Error" />
+        <MudText Typo="Typo.h5" Class="mt-4 text-white">Tarjeta no encontrada</MudText>
+    </div>
+}
+else if (_showSuccess)
+{
+    <div class="booking-wrapper">
+        <div class="booking-success-card">
+            <div class="success-icon-container">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Class="success-icon" />
+            </div>
+            <h2 class="success-title">Cita Reservada!</h2>
+            <p class="success-message">Tu cita ha sido agendada exitosamente</p>
+            
+            <div class="success-details">
+                <div class="detail-row">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" />
+                    <span>@_selectedDate?.ToString("dddd, d MMMM yyyy", new System.Globalization.CultureInfo("es-ES"))</span>
+                </div>
+                <div class="detail-row">
+                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                    <span>@_selectedSlot?.DisplayTime</span>
+                </div>
+                @if (_selectedService != null)
+                {
+                    <div class="detail-row">
+                        <MudIcon Icon="@Icons.Material.Filled.Handyman" Size="Size.Small" />
+                        <span>@_selectedService.Name</span>
+                    </div>
+                }
+            </div>
+            
+            <p class="success-note">Recibiras un correo de confirmacion pronto</p>
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                       OnClick="GoBackToCard">
+                Volver a la tarjeta
+            </MudButton>
+        </div>
+    </div>
+}
+else
+{
+    <div class="booking-wrapper">
+        <div class="booking-header">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
+                           OnClick="GoBackToCard"
+                           Class="back-btn" />
+            <div class="header-info">
+                <h1 class="header-title">Reservar Cita</h1>
+                <p class="header-subtitle">con @_card.FullName</p>
+            </div>
+        </div>
+
+        <div class="booking-steps">
+            <div class="step-indicator">
+                <div class="step @GetStepClass(1)">
+                    <span class="step-number">1</span>
+                    <span class="step-label">Servicio</span>
+                </div>
+                <div class="step-line @GetStepLineClass(2)"></div>
+                <div class="step @GetStepClass(2)">
+                    <span class="step-number">2</span>
+                    <span class="step-label">Fecha y Hora</span>
+                </div>
+                <div class="step-line @GetStepLineClass(3)"></div>
+                <div class="step @GetStepClass(3)">
+                    <span class="step-number">3</span>
+                    <span class="step-label">Confirmar</span>
+                </div>
+            </div>
+
+            @if (_currentStep == 1)
+            {
+                <div class="step-content">
+                    <h2 class="step-title">Selecciona un servicio</h2>
+                    
+                    @if (_services.Any())
+                    {
+                        <div class="services-grid">
+                            @foreach (var svc in _services)
+                            {
+                                <div class="service-option @GetServiceClass(svc)" @onclick="() => SelectService(svc)">
+                                    <div class="service-header">
+                                        <span class="service-name">@svc.Name</span>
+                                        @if (svc.PriceFrom.HasValue)
+                                        {
+                                            <span class="service-price">$@svc.PriceFrom.Value.ToString("N2")</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(svc.Description))
+                                    {
+                                        <p class="service-desc">@svc.Description</p>
+                                    }
+                                    <div class="service-duration">
+                                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                                        <span>@svc.DurationMinutes min</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="no-services">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Large" />
+                            <p>No hay servicios disponibles</p>
+                        </div>
+                    }
+                    
+                    <div class="step-actions">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   Disabled="@(_selectedService == null)"
+                                   OnClick="GoToStep2">
+                            Continuar
+                        </MudButton>
+                    </div>
+                </div>
+            }
+
+            @if (_currentStep == 2)
+            {
+                <div class="step-content">
+                    <h2 class="step-title">Selecciona fecha y hora</h2>
+                    
+                    <div class="date-picker-section">
+                        <h3 class="section-subtitle">Fecha</h3>
+                        <MudDatePicker Date="_selectedDateNullable" 
+                                       Label="Selecciona una fecha"
+                                       MinDate="DateTime.Today"
+                                       MaxDate="DateTime.Today.AddMonths(2)"
+                                       DateChanged="OnDateChanged"
+                                       Variant="Variant.Outlined"
+                                       Class="date-picker" />
+                    </div>
+                    
+                    @if (_selectedDate.HasValue)
+                    {
+                        <div class="time-slots-section">
+                            <h3 class="section-subtitle">Horarios disponibles</h3>
+                            
+                            @if (_isLoadingSlots)
+                            {
+                                <div class="loading-slots">
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                    <span>Cargando horarios...</span>
+                                </div>
+                            }
+                            else if (_availableSlots.Any())
+                            {
+                                <div class="slots-grid">
+                                    @foreach (var slot in _availableSlots)
+                                    {
+                                        <div class="time-slot @GetSlotClass(slot)" @onclick="() => SelectSlot(slot)">
+                                            @slot.DisplayTime
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="no-slots">
+                                    <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Medium" />
+                                    <p>No hay horarios disponibles para esta fecha</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                    
+                    <div class="step-actions">
+                        <MudButton Variant="Variant.Text" OnClick="GoToStep1">
+                            Atras
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   Disabled="@(_selectedSlot == null)"
+                                   OnClick="GoToStep3">
+                            Continuar
+                        </MudButton>
+                    </div>
+                </div>
+            }
+
+            @if (_currentStep == 3)
+            {
+                <div class="step-content confirm-step">
+                    @* Enhanced Header with Subtitle *@
+                    <div class="confirm-header">
+                        <h2 class="step-title">Confirma tu reserva</h2>
+                        <p class="step-hint">Revisa los detalles antes de confirmar</p>
+                        <span class="step-progress">Paso 3 de 3</span>
+                    </div>
+                    
+                    @* Summary Cards with Icons *@
+                    <div class="summary-cards">
+                        @* Service Card *@
+                        <div class="summary-card">
+                            <div class="summary-card-icon service-icon">
+                                <MudIcon Icon="@Icons.Material.Filled.WorkOutline" />
+                            </div>
+                            <div class="summary-card-content">
+                                <span class="summary-card-label">Servicio</span>
+                                <span class="summary-card-value">@_selectedService?.Name</span>
+                                @if (_selectedService?.PriceFrom.HasValue == true)
+                                {
+                                    <span class="summary-card-price">Desde $@_selectedService.PriceFrom.Value.ToString("N0")</span>
+                                }
+                            </div>
+                            <button class="change-link" @onclick="GoToStep1">Cambiar</button>
+                        </div>
+                        
+                        @* Date & Time Card *@
+                        <div class="summary-card">
+                            <div class="summary-card-icon datetime-icon">
+                                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" />
+                            </div>
+                            <div class="summary-card-content">
+                                <span class="summary-card-label">Fecha y hora</span>
+                                <span class="summary-card-value">@_selectedDate?.ToString("dddd, d MMMM", new System.Globalization.CultureInfo("es-ES"))</span>
+                                <span class="summary-card-time">@_selectedSlot?.DisplayTime</span>
+                            </div>
+                            <button class="change-link" @onclick="GoToStep2">Cambiar</button>
+                        </div>
+
+                        @* Duration Card (No change action) *@
+                        <div class="summary-card summary-card-small">
+                            <div class="summary-card-icon duration-icon">
+                                <MudIcon Icon="@Icons.Material.Filled.Schedule" />
+                            </div>
+                            <div class="summary-card-content">
+                                <span class="summary-card-label">Duración</span>
+                                <span class="summary-card-value">@_selectedService?.DurationMinutes minutos</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    @* Contact Info Section with Edit Mode *@
+                    <div class="contact-section">
+                        <div class="contact-section-header">
+                            <h3 class="section-subtitle">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="section-icon" />
+                                Tus datos de contacto
+                            </h3>
+                            @if (!_isEditingContact)
+                            {
+                                <button class="edit-contact-btn" @onclick="EnableContactEdit">
+                                    <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
+                                    Editar
+                                </button>
+                            }
+                        </div>
+                        
+                        @if (_isEditingContact)
+                        {
+                            @* Editable Mode *@
+                            <div class="contact-form editing-mode">
+                                <MudTextField @bind-Value="_customerName" 
+                                              Label="Nombre completo" 
+                                              Required="true"
+                                              Variant="Variant.Outlined"
+                                              Class="form-field"
+                                              Immediate="true" />
+                                
+                                <MudTextField @bind-Value="_customerEmail" 
+                                              Label="Correo electrónico" 
+                                              Required="true"
+                                              InputType="InputType.Email"
+                                              Variant="Variant.Outlined"
+                                              Class="form-field"
+                                              Immediate="true" />
+                                
+                                <MudTextField @bind-Value="_customerPhone" 
+                                              Label="Teléfono (opcional)" 
+                                              Variant="Variant.Outlined"
+                                              Class="form-field" />
+                                
+                                <MudTextField @bind-Value="_customerNotes" 
+                                              Label="Notas adicionales (opcional)" 
+                                              Lines="2"
+                                              Variant="Variant.Outlined"
+                                              Class="form-field" />
+                                
+                                <div class="edit-actions">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" 
+                                               OnClick="CancelContactEdit">
+                                        Cancelar
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Filled" Size="Size.Small" 
+                                               Color="Color.Primary"
+                                               OnClick="SaveContactEdit">
+                                        Guardar cambios
+                                    </MudButton>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            @* Read-Only Mode *@
+                            <div class="contact-review">
+                                <div class="contact-row">
+                                    <span class="contact-label">Nombre</span>
+                                    <span class="contact-value">@(string.IsNullOrEmpty(_customerName) ? "—" : _customerName)</span>
+                                </div>
+                                <div class="contact-row">
+                                    <span class="contact-label">Correo</span>
+                                    <span class="contact-value">@(string.IsNullOrEmpty(_customerEmail) ? "—" : _customerEmail)</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(_customerPhone))
+                                {
+                                    <div class="contact-row">
+                                        <span class="contact-label">Teléfono</span>
+                                        <span class="contact-value">@_customerPhone</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(_customerNotes))
+                                {
+                                    <div class="contact-row">
+                                        <span class="contact-label">Notas</span>
+                                        <span class="contact-value notes">@_customerNotes</span>
+                                    </div>
+                                }
+                                
+                                @* Validation Warning if missing required fields *@
+                                @if (string.IsNullOrWhiteSpace(_customerName) || string.IsNullOrWhiteSpace(_customerEmail))
+                                {
+                                    <div class="validation-warning">
+                                        <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
+                                        <span>Completa tus datos de contacto para continuar</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    
+                    @* Action Buttons *@
+                    <div class="step-actions confirm-actions">
+                        <MudButton Variant="Variant.Text" OnClick="GoToStep2" Class="btn-back">
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" Class="mr-1" />
+                            Atrás
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   Disabled="@(!CanSubmit || _isSubmitting)"
+                                   OnClick="SubmitBooking"
+                                   Class="btn-confirm">
+                            @if (_isSubmitting)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                <span>Reservando...</span>
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="mr-2" />
+                                <span>Confirmar Reserva</span>
+                            }
+                        </MudButton>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .loading-container, .error-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, #0f171e 0%, #0d2528 50%, #134e4a 100%);
+        color: white;
+    }
+    
+    .booking-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(180deg, #0f171e 0%, #0d2528 50%, #134e4a 100%);
+        padding: 20px;
+    }
+    
+    .booking-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 0;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .back-btn { color: rgba(255,255,255,0.7); }
+    .header-info { flex: 1; }
+    .header-title { font-size: 1.5rem; font-weight: 700; color: white; margin: 0; }
+    .header-subtitle { font-size: 0.875rem; color: rgba(255,255,255,0.6); margin: 4px 0 0; }
+    
+    .step-indicator { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 24px 0; max-width: 400px; margin: 0 auto; }
+    .step { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .step-number { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-weight: 600; color: rgba(255,255,255,0.5); font-size: 0.875rem; }
+    .step.active .step-number { background: #14B8A6; border-color: #14B8A6; color: white; }
+    .step-label { font-size: 0.7rem; color: rgba(255,255,255,0.5); }
+    .step.active .step-label { color: #5EEAD4; }
+    .step-line { flex: 1; height: 2px; background: rgba(255,255,255,0.1); max-width: 40px; }
+    .step-line.active { background: #14B8A6; }
+    
+    .step-content { max-width: 600px; margin: 0 auto; padding: 20px; background: rgba(20, 20, 30, 0.6); border-radius: 16px; border: 1px solid rgba(20, 184, 166, 0.2); }
+    .step-title { font-size: 1.25rem; font-weight: 600; color: white; margin: 0 0 20px; text-align: center; }
+    .section-subtitle { font-size: 0.875rem; font-weight: 500; color: rgba(255,255,255,0.7); margin: 0 0 12px; }
+    
+    .services-grid { display: flex; flex-direction: column; gap: 12px; }
+    .service-option { padding: 16px; background: rgba(20, 184, 166, 0.05); border: 2px solid rgba(20, 184, 166, 0.2); border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+    .service-option:hover { border-color: rgba(20, 184, 166, 0.4); }
+    .service-option.selected { border-color: #14B8A6; background: rgba(20, 184, 166, 0.15); }
+    .service-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .service-name { font-weight: 600; color: white; }
+    .service-price { font-weight: 600; color: #5EEAD4; }
+    .service-desc { font-size: 0.8rem; color: rgba(255,255,255,0.6); margin: 0 0 8px; }
+    .service-duration { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+    
+    .date-picker-section { margin-bottom: 24px; }
+    .date-picker { width: 100%; }
+    .time-slots-section { margin-bottom: 20px; }
+    .slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+    .time-slot { padding: 12px 8px; text-align: center; background: rgba(20, 184, 166, 0.05); border: 2px solid rgba(20, 184, 166, 0.2); border-radius: 8px; cursor: pointer; font-size: 0.875rem; color: white; transition: all 0.2s; }
+    .time-slot:hover { border-color: rgba(20, 184, 166, 0.4); }
+    .time-slot.selected { border-color: #14B8A6; background: #14B8A6; }
+    .loading-slots, .no-slots, .no-services { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; color: rgba(255,255,255,0.5); }
+    
+    .booking-summary { background: rgba(20, 184, 166, 0.1); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+    .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-label { color: rgba(255,255,255,0.6); }
+    .summary-value { color: white; font-weight: 500; }
+    
+    .contact-form { margin-bottom: 24px; }
+    .form-field { margin-bottom: 16px; }
+    
+    .step-actions { display: flex; justify-content: space-between; gap: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .step-actions .mud-button-filled { flex: 1; }
+    
+    .booking-success-card { max-width: 400px; margin: 40px auto; padding: 32px; background: rgba(20, 20, 30, 0.8); border-radius: 20px; border: 1px solid rgba(20, 184, 166, 0.3); text-align: center; }
+    .success-icon-container { width: 80px; height: 80px; background: rgba(20, 184, 166, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+    .success-icon { color: #14B8A6; font-size: 2.5rem !important; }
+    .success-title { font-size: 1.5rem; font-weight: 700; color: white; margin: 0 0 8px; }
+    .success-message { color: rgba(255,255,255,0.7); margin: 0 0 24px; }
+    .success-details { background: rgba(20, 184, 166, 0.1); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+    .detail-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; color: white; }
+    .detail-row .mud-icon-root { color: #5EEAD4; }
+    .success-note { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin: 0 0 20px; }
+    
+    .mud-input-outlined .mud-input-outlined-border { border-color: rgba(20, 184, 166, 0.3) !important; }
+    .mud-input-outlined:hover .mud-input-outlined-border { border-color: rgba(20, 184, 166, 0.5) !important; }
+    .mud-input-slot, .mud-input > input { color: white !important; }
+    .mud-input-label { color: rgba(255,255,255,0.6) !important; }
+    
+    /* ═══════════════════════════════════════════════════════════════════════════
+       STEP 3: CONFIRMATION - Enhanced UI/UX
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    .confirm-step { padding: 24px 20px; }
+    
+    /* Confirm Header */
+    .confirm-header { text-align: center; margin-bottom: 24px; }
+    .confirm-header .step-title { margin: 0 0 6px; }
+    .step-hint { font-size: 0.875rem; color: rgba(255,255,255,0.5); margin: 0 0 8px; }
+    .step-progress { 
+        display: inline-block;
+        font-size: 0.7rem; 
+        font-weight: 600;
+        color: #5EEAD4; 
+        background: rgba(20,184,166,0.15);
+        padding: 4px 12px;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Summary Cards */
+    .summary-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+    
+    .summary-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px;
+        background: rgba(20,184,166,0.08);
+        border: 1px solid rgba(20,184,166,0.2);
+        border-radius: 14px;
+        transition: all 0.2s ease;
+    }
+    
+    .summary-card:hover { border-color: rgba(20,184,166,0.4); }
+    
+    .summary-card-small { padding: 12px 16px; }
+    
+    .summary-card-icon {
+        width: 46px;
+        height: 46px;
+        min-width: 46px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .summary-card-icon .mud-icon-root { font-size: 1.3rem; color: white; }
+    
+    .service-icon { background: linear-gradient(135deg, #EC4899, #F97316); }
+    .datetime-icon { background: linear-gradient(135deg, #3B82F6, #8B5CF6); }
+    .duration-icon { background: linear-gradient(135deg, #14B8A6, #10B981); }
+    
+    .summary-card-content { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .summary-card-label { font-size: 0.7rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; }
+    .summary-card-value { font-size: 1rem; font-weight: 600; color: white; }
+    .summary-card-price { font-size: 0.8rem; color: #5EEAD4; }
+    .summary-card-time { font-size: 0.95rem; font-weight: 700; color: #5EEAD4; }
+    
+    .change-link {
+        background: none;
+        border: none;
+        color: #5EEAD4;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 6px 12px;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+    
+    .change-link:hover { background: rgba(94,234,212,0.1); }
+    
+    /* Contact Section */
+    .contact-section {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+    
+    .contact-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    
+    .contact-section-header .section-subtitle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+    }
+    
+    .section-icon { color: rgba(255,255,255,0.5); }
+    
+    .edit-contact-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: none;
+        border: 1px solid rgba(255,255,255,0.15);
+        color: rgba(255,255,255,0.7);
+        font-size: 0.8rem;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .edit-contact-btn:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.3); color: white; }
+    .edit-contact-btn .mud-icon-root { font-size: 0.9rem !important; }
+    
+    /* Contact Review (Read-Only Mode) */
+    .contact-review { display: flex; flex-direction: column; gap: 12px; }
+    
+    .contact-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 10px 14px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 8px;
+    }
+    
+    .contact-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+    .contact-value { font-size: 0.95rem; color: white; font-weight: 500; text-align: right; max-width: 60%; }
+    .contact-value.notes { font-size: 0.85rem; font-weight: 400; color: rgba(255,255,255,0.7); }
+    
+    .validation-warning {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 12px;
+        background: rgba(245,158,11,0.1);
+        border: 1px solid rgba(245,158,11,0.3);
+        border-radius: 8px;
+        color: #FBBF24;
+        font-size: 0.85rem;
+    }
+    
+    .validation-warning .mud-icon-root { color: #FBBF24; }
+    
+    /* Contact Form (Edit Mode) */
+    .contact-form.editing-mode { 
+        background: rgba(255,255,255,0.02); 
+        border-radius: 10px; 
+        padding: 16px; 
+        border: 1px dashed rgba(20,184,166,0.3);
+    }
+    
+    .edit-actions { 
+        display: flex; 
+        justify-content: flex-end; 
+        gap: 8px; 
+        margin-top: 8px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    /* Confirm Actions */
+    .confirm-actions { align-items: center; }
+    
+    .btn-back { color: rgba(255,255,255,0.6); }
+    .btn-back:hover { color: white; }
+    .btn-back .mud-icon-root { font-size: 1.1rem !important; }
+    
+    .btn-confirm {
+        flex: 1;
+        padding: 14px 24px !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        border-radius: 12px !important;
+    }
+    
+    .btn-confirm .mud-icon-root { font-size: 1.1rem !important; }
+</style>
+
+@code {
+    [Parameter] public string OrgSlug { get; set; } = "";
+    [Parameter] public string CardSlug { get; set; } = "";
+    
+    private Card? _card;
+    private Organization? _organization;
+    private bool _isLoading = true;
+    private bool _showSuccess = false;
+    private bool _isSubmitting = false;
+    private bool _isLoadingSlots = false;
+    
+    private int _currentStep = 1;
+    
+    private List<Service> _services = new();
+    private Service? _selectedService;
+    
+    private DateTime? _selectedDateNullable;
+    private DateOnly? _selectedDate;
+    private List<TimeSlot> _availableSlots = new();
+    private TimeSlot? _selectedSlot;
+    
+    private string _customerName = "";
+    private string _customerEmail = "";
+    private string _customerPhone = "";
+    private string _customerNotes = "";
+    
+    // Contact edit mode state
+    private bool _isEditingContact = true; // Start in edit mode if no data
+    private string _backupName = "";
+    private string _backupEmail = "";
+    private string _backupPhone = "";
+    private string _backupNotes = "";
+    
+    private bool CanSubmit => !string.IsNullOrWhiteSpace(_customerName) && 
+                              !string.IsNullOrWhiteSpace(_customerEmail) &&
+                              _selectedService != null &&
+                              _selectedDate.HasValue &&
+                              _selectedSlot != null;
+
+    private MudTheme _theme = new()
+    {
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#14B8A6",
+            Secondary = "#5EEAD4",
+            Background = "#0f171e",
+            Surface = "#0d2528",
+            TextPrimary = "#FFFFFF",
+            TextSecondary = "#B3B3B3"
+        }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _organization = await DbContext.Organizations
+            .FirstOrDefaultAsync(o => o.Slug == OrgSlug && o.IsActive);
+
+        if (_organization != null)
+        {
+            _card = await DbContext.Cards
+                .FirstOrDefaultAsync(c => c.OrganizationId == _organization.Id && c.Slug == CardSlug && c.IsActive);
+            
+            if (_card != null)
+            {
+                _services = await AppointmentService.GetPublicServicesAsync(_card.Id);
+                if (_services.Count == 1)
+                {
+                    _selectedService = _services.First();
+                }
+            }
+        }
+        _isLoading = false;
+    }
+
+    private string GetStepClass(int step) => _currentStep >= step ? "active" : "";
+    private string GetStepLineClass(int step) => _currentStep >= step ? "active" : "";
+    private string GetServiceClass(Service svc) => _selectedService?.Id == svc.Id ? "selected" : "";
+    private string GetSlotClass(TimeSlot slot) => _selectedSlot?.StartTime == slot.StartTime ? "selected" : "";
+    
+    private void GoBackToCard() => Navigation.NavigateTo($"/p/{OrgSlug}/{CardSlug}");
+    private void GoToStep1() => _currentStep = 1;
+    private void GoToStep2() => _currentStep = 2;
+    private void GoToStep3() => _currentStep = 3;
+    
+    private async Task SelectService(Service svc)
+    {
+        _selectedService = svc;
+        _selectedSlot = null; // Clear selected slot when service changes
+        
+        // Refresh available slots if date is already selected (service duration affects slots)
+        if (_selectedDate.HasValue && _card != null)
+        {
+            await RefreshAvailableSlots();
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task OnDateChanged(DateTime? newDate)
+    {
+        if (newDate == null || _card == null) return;
+        
+        _selectedDateNullable = newDate;
+        _selectedDate = DateOnly.FromDateTime(newDate.Value);
+        _selectedSlot = null;
+        
+        await RefreshAvailableSlots();
+    }
+    
+    private async Task RefreshAvailableSlots()
+    {
+        if (_card == null || !_selectedDate.HasValue) return;
+        
+        _isLoadingSlots = true;
+        StateHasChanged();
+        
+        try
+        {
+            // CRITICAL: Pass the selected service ID for correct duration calculation
+            _availableSlots = await AppointmentService.GetAvailableSlotsAsync(
+                _card.Id, 
+                _selectedDate.Value, 
+                _selectedService?.Id
+            );
+        }
+        finally
+        {
+            _isLoadingSlots = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SelectSlot(TimeSlot slot)
+    {
+        _selectedSlot = slot;
+        StateHasChanged();
+    }
+
+    private async Task SubmitBooking()
+    {
+        if (!CanSubmit || _card == null || _selectedDate == null || _selectedSlot == null) return;
+        
+        _isSubmitting = true;
+        StateHasChanged();
+        
+        try
+        {
+            var dto = new CreateAppointmentDto
+            {
+                CardId = _card.Id,
+                ServiceId = _selectedService?.Id,
+                Date = _selectedDate.Value,
+                StartTime = _selectedSlot.StartTime,
+                CustomerName = _customerName.Trim(),
+                CustomerEmail = _customerEmail.Trim(),
+                CustomerPhone = _customerPhone?.Trim(),
+                CustomerNotes = _customerNotes?.Trim()
+            };
+            
+            var result = await AppointmentService.CreatePublicAppointmentAsync(dto);
+            
+            if (result.Success)
+            {
+                _showSuccess = true;
+            }
+            else
+            {
+                // Show error and refresh slots (handles 409 conflict - slot no longer available)
+                Snackbar.Add(result.Error ?? "Error al crear la cita", Severity.Error);
+                
+                // Clear selection and refresh available slots
+                _selectedSlot = null;
+                await RefreshAvailableSlots();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            _selectedSlot = null;
+            await RefreshAvailableSlots();
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+    
+    // Contact Edit Mode Methods
+    private void EnableContactEdit()
+    {
+        // Backup current values
+        _backupName = _customerName;
+        _backupEmail = _customerEmail;
+        _backupPhone = _customerPhone;
+        _backupNotes = _customerNotes;
+        _isEditingContact = true;
+    }
+    
+    private void CancelContactEdit()
+    {
+        // Restore backed up values
+        _customerName = _backupName;
+        _customerEmail = _backupEmail;
+        _customerPhone = _backupPhone;
+        _customerNotes = _backupNotes;
+        _isEditingContact = false;
+    }
+    
+    private void SaveContactEdit()
+    {
+        // Just exit edit mode (values are already bound)
+        _isEditingContact = false;
+    }
+}

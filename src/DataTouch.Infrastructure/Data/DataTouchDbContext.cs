@@ -20,6 +20,19 @@ public class DataTouchDbContext : DbContext
     public DbSet<CardStyle> CardStyles => Set<CardStyle>();
     public DbSet<CardComponent> CardComponents => Set<CardComponent>();
     public DbSet<CardAnalytics> CardAnalytics => Set<CardAnalytics>();
+    
+    // ═══════════════════════════════════════════════════════════════
+    // BOOKING SYSTEM
+    // ═══════════════════════════════════════════════════════════════
+    public DbSet<Service> Services => Set<Service>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<AvailabilityRule> AvailabilityRules => Set<AvailabilityRule>();
+    public DbSet<AvailabilityException> AvailabilityExceptions => Set<AvailabilityException>();
+    public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
+    public DbSet<BookingSettings> BookingSettings => Set<BookingSettings>();
+    
+    // CRM / Timeline
+    public DbSet<Activity> Activities => Set<Activity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -236,6 +249,133 @@ public class DataTouchDbContext : DbContext
             
             entity.HasOne(e => e.Card)
                 .WithMany(c => c.Analytics)
+                .HasForeignKey(e => e.CardId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // ═══════════════════════════════════════════════════════════════
+        // BOOKING SYSTEM ENTITIES
+        // ═══════════════════════════════════════════════════════════════
+        
+        // Service
+        modelBuilder.Entity<Service>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CategoryName).HasMaxLength(50);
+            entity.Property(e => e.PriceFrom).HasColumnType("decimal(10,2)");
+            entity.HasIndex(e => e.CardId);
+            entity.HasIndex(e => new { e.CardId, e.DisplayOrder });
+            
+            entity.HasOne(e => e.Card)
+                .WithMany(c => c.Services)
+                .HasForeignKey(e => e.CardId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // Appointment
+        modelBuilder.Entity<Appointment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.CustomerEmail).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.CustomerPhone).HasMaxLength(50);
+            entity.Property(e => e.CustomerPhoneCountryCode).HasMaxLength(10);
+            entity.Property(e => e.CustomerNotes).HasMaxLength(1000);
+            entity.Property(e => e.InternalNotes).HasMaxLength(2000);
+            entity.Property(e => e.Timezone).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Source).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(e => e.CardId);
+            entity.HasIndex(e => new { e.CardId, e.StartDateTime });
+            entity.HasIndex(e => e.Status);
+            
+            entity.HasOne(e => e.Card)
+                .WithMany(c => c.Appointments)
+                .HasForeignKey(e => e.CardId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Service)
+                .WithMany(s => s.Appointments)
+                .HasForeignKey(e => e.ServiceId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+        
+        // AvailabilityRule
+        modelBuilder.Entity<AvailabilityRule>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.CardId, e.DayOfWeek }).IsUnique();
+            
+            entity.HasOne(e => e.Card)
+                .WithMany(c => c.AvailabilityRules)
+                .HasForeignKey(e => e.CardId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // AvailabilityException
+        modelBuilder.Entity<AvailabilityException>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExceptionType).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(e => new { e.CardId, e.ExceptionDate });
+            
+            entity.HasOne(e => e.Card)
+                .WithMany(c => c.AvailabilityExceptions)
+                .HasForeignKey(e => e.CardId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // QuoteRequest
+        modelBuilder.Entity<QuoteRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.CustomerEmail).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.CustomerPhone).HasMaxLength(50);
+            entity.Property(e => e.CustomerPhoneCountryCode).HasMaxLength(10);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.InternalNotes).HasMaxLength(2000);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(e => e.CardId);
+            entity.HasIndex(e => e.Status);
+            
+            entity.HasOne(e => e.Card)
+                .WithMany(c => c.QuoteRequests)
+                .HasForeignKey(e => e.CardId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.ConvertedAppointment)
+                .WithMany()
+                .HasForeignKey(e => e.ConvertedAppointmentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+        
+        // BookingSettings
+        modelBuilder.Entity<BookingSettings>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TimeZoneId).IsRequired().HasMaxLength(100);
+            entity.HasIndex(e => e.CardId).IsUnique(); // One settings per card
+            
+            entity.HasOne(e => e.Card)
+                .WithMany()
                 .HasForeignKey(e => e.CardId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
