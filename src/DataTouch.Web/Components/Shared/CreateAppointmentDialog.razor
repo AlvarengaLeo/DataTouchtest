@@ -84,7 +84,7 @@
                            Required="true" RequiredError="Selecciona un servicio">
                     @foreach (var service in Services)
                     {
-                        <MudSelectItem T="Guid?" Value="@service.Id">
+                        <MudSelectItem T="Guid?" Value="@((Guid?)service.Id)">
                             @service.Name (@service.DurationMinutes min)
                         </MudSelectItem>
                     }

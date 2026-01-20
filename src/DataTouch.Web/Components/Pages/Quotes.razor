@@ -74,14 +74,14 @@
                               Class="filter-input" />
             </MudItem>
             <MudItem xs="6" sm="3">
-                <MudSelect @bind-Value="_selectedServiceId"
+                <MudSelect T="Guid?" @bind-Value="_selectedServiceId"
                            Label="Servicio"
                            Variant="Variant.Outlined"
                            Clearable="true"
                            Class="filter-input">
                     @foreach (var service in _services)
                     {
-                        <MudSelectItem Value="@service.Id">@service.Name</MudSelectItem>
+                        <MudSelectItem T="Guid?" Value="@((Guid?)service.Id)">@service.Name</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
