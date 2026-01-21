@@ -16,8 +16,10 @@ Una plataforma SaaS que convierte tarjetas NFC/QR en un punto de entrada digital
 
 | Documento | Descripción |
 |-----------|-------------|
-| [📖 SETUP.md](./SETUP.md) | Guía completa de instalación y configuración |
-| [🗄️ DATABASE.md](./DATABASE.md) | Esquema de base de datos y scripts SQL |
+| [📖 SETUP.md](./docs/SETUP.md) | Guía completa de instalación y configuración |
+| [🗄️ DATABASE.md](./docs/DATABASE.md) | Esquema de base de datos y scripts SQL |
+| [📋 HANDOFF.md](./docs/HANDOFF.md) | Documento de handoff del proyecto |
+| [🧠 CLAUDE.md](./CLAUDE.md) | Documentación técnica exhaustiva para IA |
 
 ---
 
@@ -148,7 +150,7 @@ El sistema maneja las siguientes entidades principales:
 | `CardTemplate` | Plantillas de diseño |
 | `CardStyle` | Estilos personalizados |
 
-Para más detalles, ver [DATABASE.md](./DATABASE.md).
+Para más detalles, ver [DATABASE.md](./docs/DATABASE.md).
 
 ---
 
