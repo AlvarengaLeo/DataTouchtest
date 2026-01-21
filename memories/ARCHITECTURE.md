@@ -1,0 +1,112 @@
+# 🏗️ ARCHITECTURE.md - Arquitectura del Sistema
+
+## Diagrama de Capas
+
+```mermaid
+graph TB
+    subgraph "Presentation Layer"
+        BZ[Blazor Server]
+        API[Minimal API]
+    end
+    
+    subgraph "Application Layer"
+        SVC[Services]
+        AUTH[AuthService]
+    end
+    
+    subgraph "Domain Layer"
+        ENT[Entities]
+        ENUM[Enums]
+    end
+    
+    subgraph "Infrastructure Layer"
+        DB[(DbContext)]
+        EXT[External Services]
+    end
+    
+    BZ --> SVC
+    API --> SVC
+    SVC --> ENT
+    SVC --> DB
+    AUTH --> DB
+```
+
+## Flujo de Autenticación
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant L as Login.razor
+    participant A as /api/auth/login
+    participant DB as DbContext
+    participant C as Cookie
+    
+    U->>L: Ingresa credenciales
+    L->>A: POST form data
+    A->>DB: Valida User
+    DB-->>A: User encontrado
+    A->>C: SignInAsync (cookie)
+    A-->>U: Redirect /
+```
+
+## Flujo de Booking
+
+```mermaid
+sequenceDiagram
+    participant V as Visitante
+    participant PC as PublicCard
+    participant PB as PublicBooking
+    participant AS as AppointmentService
+    participant AV as AvailabilityService
+    
+    V->>PC: Visita /p/{org}/{card}
+    PC->>V: Muestra tarjeta
+    V->>PB: Click "Reservar"
+    PB->>AV: GetAvailableSlotsAsync
+    AV-->>PB: Lista de slots
+    V->>PB: Selecciona slot
+    PB->>AS: CreatePublicAppointmentAsync
+    AS-->>V: Confirmación
+```
+
+## Machine State: Appointments
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: Nueva cita
+    Pending --> Confirmed: Confirmar
+    Pending --> Cancelled: Cancelar
+    Confirmed --> Completed: Completar
+    Confirmed --> NoShow: No asistió
+    Confirmed --> Cancelled: Cancelar
+    Cancelled --> Pending: Restaurar
+```
+
+## Machine State: Quotes
+
+```mermaid
+stateDiagram-v2
+    [*] --> New: Nueva cotización
+    New --> InReview: Revisar
+    InReview --> NeedsInfo: Pedir info
+    InReview --> Quoted: Enviar cotización
+    NeedsInfo --> Quoted: Info recibida
+    Quoted --> Negotiation: Negociar
+    Negotiation --> Won: Cliente acepta
+    Negotiation --> Lost: Cliente rechaza
+    Won --> [*]
+    Lost --> Archived: Archivar
+```
+
+## Decisiones Arquitectónicas
+
+| Decisión | Razón | Fecha |
+|----------|-------|-------|
+| InMemory para desarrollo | Evitar dependencia de MySQL | Dic 2025 |
+| Cookie Auth vs JWT | Blazor Server maneja sesión | Dic 2025 |
+| Services en Web, no Domain | Simplicidad para MVP | Ene 2026 |
+| Background Service para SLA | Alertas automáticas | Ene 2026 |
+
+---
+
+*Última actualización: Enero 2026*
