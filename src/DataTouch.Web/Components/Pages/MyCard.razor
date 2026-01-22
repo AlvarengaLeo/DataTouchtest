@@ -206,20 +206,88 @@ else
 
 
                 @* ─────────────────────────────────────────────────────────
-                   LEVEL 1 (DOMINANT): IDENTITY
+                   LEVEL 1: IDENTIDAD - Unified with Profile Photo (Collapsible)
                    ───────────────────────────────────────────────────────── *@
-                <section class="section-card section-level-1">
-                    <div class="section-header">
-                        <div class="section-icon icon-identity">
-                            <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Medium" />
+                <section class="section-card section-level-1 identity-unified">
+                    <div class="section-header identity-header-with-avatar section-header-collapsible" @onclick="() => _identitySectionExpanded = !_identitySectionExpanded">
+                        @* Left: Icon + Title *@
+                        <div class="section-header-left">
+                            <div class="section-icon icon-identity">
+                                <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Medium" />
+                            </div>
+                            <div class="section-header-text">
+                                <h2 class="section-title">Identidad</h2>
+                                <p class="section-description">Cómo te verán en tu tarjeta pública</p>
+                            </div>
                         </div>
-                        <div class="section-header-text">
-                            <h2 class="section-title">Identidad</h2>
-                            <p class="section-description">Cómo te verán en tu tarjeta pública</p>
+                        
+                        @* Right: Avatar with Change Photo Button *@
+                        <div class="identity-avatar-section" @onclick:stopPropagation="true">
+                            <div class="identity-avatar-container">
+                                <div class="identity-avatar-glow">
+                                    @if (!string.IsNullOrEmpty(_card.ProfileImageUrl))
+                                    {
+                                        <div class="identity-avatar identity-avatar-image">
+                                            <img src="@_card.ProfileImageUrl" alt="@_card.FullName" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="identity-avatar identity-avatar-initials">
+                                            <span>@GetInitials(_card.FullName)</span>
+                                        </div>
+                                    }
+                                </div>
+                                @* Camera Icon Overlay *@
+                                <MudFileUpload T="IBrowserFile" 
+                                               FilesChanged="UploadFiles" 
+                                               Accept="image/png,image/jpeg,image/webp"
+                                               Class="avatar-camera-overlay">
+                                    <ActivatorContent>
+                                        <button class="camera-btn" title="Cambiar foto">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                                <circle cx="12" cy="13" r="4"/>
+                                            </svg>
+                                        </button>
+                                    </ActivatorContent>
+                                </MudFileUpload>
+                            </div>
+                            
+                            @* Change/Upload Photo Button *@
+                            <MudFileUpload T="IBrowserFile" 
+                                           FilesChanged="UploadFiles" 
+                                           Accept="image/png,image/jpeg,image/webp"
+                                           Class="change-photo-upload">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Filled" 
+                                               Color="Color.Primary" 
+                                               StartIcon="@Icons.Material.Filled.CameraAlt"
+                                               Disabled="@_isUploading"
+                                               Class="change-photo-btn"
+                                               Size="Size.Small">
+                                        @if (_isUploading)
+                                        {
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Inherit" Class="mr-1" />
+                                            <span>Subiendo...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@(string.IsNullOrEmpty(_card.ProfileImageUrl) ? "Subir foto" : "Cambiar foto")</span>
+                                        }
+                                    </MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
                         </div>
+                        
+                        @* Collapse icon *@
+                        <MudIcon Icon="@(_identitySectionExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" 
+                                 Class="section-collapse-icon" />
                     </div>
-                    <div class="section-content">
-                        <div class="form-grid">
+                    
+                    <MudCollapse Expanded="_identitySectionExpanded">
+                        <div class="section-content">
+                        <div class="form-grid identity-form-grid">
                             <div class="form-row">
                                 <MudTextField @bind-Value="_card.FullName" 
                                               Label="Nombre completo" 
@@ -260,84 +328,15 @@ else
                                 </p>
                             </div>
                         </div>
-                    </div>
-                </section>
-
-
-                @* ─────────────────────────────────────────────────────────
-                   PROFILE PHOTO - PREMIUM REDESIGN (Matches Mockup)
-                   ───────────────────────────────────────────────────────── *@
-                <section class="profile-photo-card">
-                    <div class="profile-photo-layout">
-                        @* Left Column: Text + Button *@
-                        <div class="profile-photo-info">
-                            <h2 class="profile-photo-title">Foto de perfil</h2>
-                            <p class="profile-photo-subtitle">Se mostrará en tu tarjeta pública y en tu QR.</p>
-                            
-                            <MudFileUpload T="IBrowserFile" 
-                                           FilesChanged="UploadFiles" 
-                                           Accept="image/png,image/jpeg,image/webp"
-                                           Class="profile-upload-wrapper">
-                                <ActivatorContent>
-                                    <MudButton Variant="Variant.Filled" 
-                                               Color="Color.Primary" 
-                                               StartIcon="@Icons.Material.Filled.CloudUpload"
-                                               Disabled="@_isUploading"
-                                               Class="profile-upload-btn"
-                                               aria-label="Subir foto de perfil">
-                                        @if (_isUploading)
-                                        {
-                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Inherit" Class="mr-2" />
-                                            <span>Subiendo...</span>
-                                        }
-                                        else
-                                        {
-                                            <span>Subir foto</span>
-                                        }
-                                    </MudButton>
-                                </ActivatorContent>
-                            </MudFileUpload>
                         </div>
-
-                        @* Right Column: Avatar with Glow *@
-                        <div class="profile-photo-avatar-container">
-                            <div class="profile-avatar-glow">
-                                @if (!string.IsNullOrEmpty(_card.ProfileImageUrl))
-                                {
-                                    <div class="profile-avatar profile-avatar-image">
-                                        <img src="@_card.ProfileImageUrl" alt="@_card.FullName" />
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="profile-avatar profile-avatar-initials">
-                                        <span>@GetInitials(_card.FullName)</span>
-                                    </div>
-                                }
-                            </div>
-                            @if (!string.IsNullOrEmpty(_card.ProfileImageUrl))
-                            {
-                                <button class="delete-photo-btn" @onclick="RemovePhoto" title="Eliminar foto">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="3 6 5 6 21 6"/>
-                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                        <line x1="10" y1="11" x2="10" y2="17"/>
-                                        <line x1="14" y1="11" x2="14" y2="17"/>
-                                    </svg>
-                                </button>
-                            }
-                        </div>
-                    </div>
-
-                    @* Metadata Footer *@
-                    <p class="profile-photo-meta">JPG, PNG o WebP • Máx 5 MB • Recomendado 1:1</p>
+                    </MudCollapse>
                 </section>
 
                 @* ─────────────────────────────────────────────────────────
-                   LEVEL 2: CONTACT INFORMATION
+                   LEVEL 2: CONTACT INFORMATION (Collapsible)
                    ───────────────────────────────────────────────────────── *@
                 <section class="section-card section-level-2">
-                    <div class="section-header">
+                    <div class="section-header section-header-collapsible" @onclick="() => _contactSectionExpanded = !_contactSectionExpanded">
                         <div class="section-icon icon-contact">
                             <MudIcon Icon="@Icons.Material.Filled.ContactPhone" Size="Size.Medium" />
                         </div>
@@ -345,72 +344,76 @@ else
                             <h2 class="section-title">Información de contacto</h2>
                             <p class="section-description">Cómo te pueden contactar</p>
                         </div>
+                        <MudIcon Icon="@(_contactSectionExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" 
+                                 Class="section-collapse-icon" />
                     </div>
-                    <div class="section-content">
-                        <div class="form-grid">
-                            <div class="form-row form-row-full">
-                                <MudTextField @bind-Value="_card.Email" 
-                                              Label="Email" 
-                                              Variant="Variant.Outlined" 
-                                              InputType="InputType.Email"
-                                              @oninput="MarkUnsaved" />
-                            </div>
-                            
-                            @* Phone with Country Selector *@
-                            <div class="form-row phone-row">
-                                <MudSelect T="string" 
-                                           @bind-Value="_card.PhoneCountryCode" 
-                                           Label="País" 
-                                           Variant="Variant.Outlined" 
-                                           Class="country-select"
-                                           AnchorOrigin="Origin.BottomCenter">
-                                    @foreach (var country in _countries)
-                                    {
-                                        <MudSelectItem Value="@country.Code">
-                                            <div class="country-option">
-                                                <span class="country-flag">@country.Flag</span>
-                                                <span class="country-code">@country.Code</span>
-                                            </div>
-                                        </MudSelectItem>
-                                    }
-                                </MudSelect>
-                                <MudTextField @bind-Value="_card.Phone" 
-                                              Label="Teléfono (llamadas)" 
-                                              Variant="Variant.Outlined"
-                                              MaxLength="@GetPhoneMaxLength()"
-                                              Immediate="true"
-                                              Class="phone-input"
-                                              @oninput="MarkUnsaved" />
-                            </div>
+                    <MudCollapse Expanded="_contactSectionExpanded">
+                        <div class="section-content">
+                            <div class="form-grid">
+                                <div class="form-row form-row-full">
+                                    <MudTextField @bind-Value="_card.Email" 
+                                                  Label="Email" 
+                                                  Variant="Variant.Outlined" 
+                                                  InputType="InputType.Email"
+                                                  @oninput="MarkUnsaved" />
+                                </div>
+                                
+                                @* Phone with Country Selector *@
+                                <div class="form-row phone-row">
+                                    <MudSelect T="string" 
+                                               @bind-Value="_card.PhoneCountryCode" 
+                                               Label="País" 
+                                               Variant="Variant.Outlined" 
+                                               Class="country-select"
+                                               AnchorOrigin="Origin.BottomCenter">
+                                        @foreach (var country in _countries)
+                                        {
+                                            <MudSelectItem Value="@country.Code">
+                                                <div class="country-option">
+                                                    <span class="country-flag">@country.Flag</span>
+                                                    <span class="country-code">@country.Code</span>
+                                                </div>
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField @bind-Value="_card.Phone" 
+                                                  Label="Teléfono (llamadas)" 
+                                                  Variant="Variant.Outlined"
+                                                  MaxLength="@GetPhoneMaxLength()"
+                                                  Immediate="true"
+                                                  Class="phone-input"
+                                                  @oninput="MarkUnsaved" />
+                                </div>
 
-                            @* WhatsApp with Country Selector *@
-                            <div class="form-row phone-row">
-                                <MudSelect T="string" 
-                                           @bind-Value="_card.WhatsAppCountryCode" 
-                                           Label="País" 
-                                           Variant="Variant.Outlined" 
-                                           Class="country-select"
-                                           AnchorOrigin="Origin.BottomCenter">
-                                    @foreach (var country in _countries)
-                                    {
-                                        <MudSelectItem Value="@country.Code">
-                                            <div class="country-option">
-                                                <span class="country-flag">@country.Flag</span>
-                                                <span class="country-code">@country.Code</span>
-                                            </div>
-                                        </MudSelectItem>
-                                    }
-                                </MudSelect>
-                                <MudTextField @bind-Value="_card.WhatsAppNumber" 
-                                              Label="WhatsApp (mensajes)" 
-                                              Variant="Variant.Outlined"
-                                              MaxLength="@GetWhatsAppMaxLength()"
-                                              Immediate="true"
-                                              Class="phone-input"
-                                              @oninput="MarkUnsaved" />
+                                @* WhatsApp with Country Selector *@
+                                <div class="form-row phone-row">
+                                    <MudSelect T="string" 
+                                               @bind-Value="_card.WhatsAppCountryCode" 
+                                               Label="País" 
+                                               Variant="Variant.Outlined" 
+                                               Class="country-select"
+                                               AnchorOrigin="Origin.BottomCenter">
+                                        @foreach (var country in _countries)
+                                        {
+                                            <MudSelectItem Value="@country.Code">
+                                                <div class="country-option">
+                                                    <span class="country-flag">@country.Flag</span>
+                                                    <span class="country-code">@country.Code</span>
+                                                </div>
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField @bind-Value="_card.WhatsAppNumber" 
+                                                  Label="WhatsApp (mensajes)" 
+                                                  Variant="Variant.Outlined"
+                                                  MaxLength="@GetWhatsAppMaxLength()"
+                                                  Immediate="true"
+                                                  Class="phone-input"
+                                                  @oninput="MarkUnsaved" />
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </MudCollapse>
                 </section>
 
                 @* ─────────────────────────────────────────────────────────
@@ -861,41 +864,6 @@ else
                                                     </div>
                                                 }
 
-                                                @* Quote Config (Collapsible) - Only if quote or both *@
-                                                @if (service.ConversionType == "quote" || service.ConversionType == "both")
-                                                {
-                                                    <div class="service-config-panel">
-                                                        <div class="config-panel-header" @onclick="() => ToggleServiceQuoteConfig(service.Id)">
-                                                            <span class="config-panel-icon">📋</span>
-                                                            <span class="config-panel-title">Formulario de Cotización</span>
-                                                            <MudIcon Icon="@(IsServiceQuoteConfigExpanded(service.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
-                                                        </div>
-                                                        <MudCollapse Expanded="IsServiceQuoteConfigExpanded(service.Id)">
-                                                            <div class="config-panel-content">
-                                                                @{
-                                                                    var quoteConfig = GetQuoteConfig(service);
-                                                                }
-                                                                <div class="quote-fields-list">
-                                                                    <label class="config-sublabel">Campos del formulario:</label>
-                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireName" Label="Nombre (obligatorio)" Disabled="true" Dense="true" />
-                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireWhatsApp" Label="WhatsApp (obligatorio)" Disabled="true" Dense="true" />
-                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireEmail" Label="Email" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
-                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireCompany" Label="Empresa" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
-                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireBudget" Label="Presupuesto estimado" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
-                                                                    <MudCheckBox @bind-Value="quoteConfig.RequireDetails" Label="Detalle del proyecto" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
-                                                                    <MudCheckBox @bind-Value="quoteConfig.AllowAttachment" Label="Adjuntar archivo" Dense="true" @onclick="() => UpdateQuoteConfig(service, quoteConfig)" />
-                                                                </div>
-                                                                <MudTextField @bind-Value="quoteConfig.AutoResponseMessage" 
-                                                                              Label="Mensaje de respuesta automática" 
-                                                                              Variant="Variant.Outlined"
-                                                                              Lines="2"
-                                                                              Margin="Margin.Dense"
-                                                                              HelperText="Se envía al cliente al solicitar cotización"
-                                                                              @onblur="() => UpdateQuoteConfig(service, quoteConfig)" />
-                                                            </div>
-                                                        </MudCollapse>
-                                                    </div>
-                                                }
                                             </div>
                                         }
                                     </div>
@@ -1086,8 +1054,8 @@ else
                                         </div>
                                     }
 
-                                    @* Status Chips and CTA Buttons - Only for Default/Portfolio templates *@
-                                    @if (!_isServicesTemplate)
+                                    @* Status Chips and CTA Buttons - Show on ALL templates *@
+                                    @if (true)
                                     {
                                         @* Status Chips *@
                                         <div class="phone-status-chips">
@@ -1188,13 +1156,6 @@ else
                                                         <div class="phone-service-info">
                                                             <span class="phone-service-name">Consultoría Empresarial</span>
                                                             <span class="phone-service-meta" style="color: @_themeTokens.AccentPrimary;">60 min · Desde $50</span>
-                                                        </div>
-                                                    </div>
-                                                    <div class="phone-service-card" style="border-color: @_themeTokens.AccentSoft;">
-                                                        <div class="phone-service-icon" style="background: @_themeTokens.AccentSoft;">📊</div>
-                                                        <div class="phone-service-info">
-                                                            <span class="phone-service-name">Análisis de Proyectos</span>
-                                                            <span class="phone-service-meta" style="color: @_themeTokens.AccentPrimary;">90 min · Desde $75</span>
                                                         </div>
                                                     </div>
                                                 }
@@ -1503,6 +1464,105 @@ else
         align-items: center;
         gap: 16px;
         margin-bottom: 20px;
+    }
+    
+    /* Unified Identity Header with Avatar on Right */
+    .identity-header-with-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: nowrap;
+    }
+    
+    .section-header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .identity-avatar-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        margin-right: 12px;
+    }
+    
+    .identity-avatar-container {
+        position: relative;
+    }
+    
+    .identity-avatar-glow {
+        border-radius: 50%;
+        padding: 3px;
+        background: linear-gradient(135deg, var(--dt-primary-500, #8B5CF6), var(--dt-primary-400, #A78BFA));
+        box-shadow: 0 0 20px rgba(139, 92, 246, 0.35);
+    }
+    
+    .identity-avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    
+    .identity-avatar-image {
+        background: #1F2937;
+    }
+    
+    .identity-avatar-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .identity-avatar-initials {
+        background: linear-gradient(135deg, var(--dt-primary-500, #8B5CF6), var(--dt-primary-600, #7C3AED));
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .avatar-camera-overlay {
+        position: absolute;
+        bottom: -4px;
+        right: -4px;
+    }
+    
+    .camera-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(30, 41, 59, 0.95);
+        border: 2px solid var(--dt-primary-500, #8B5CF6);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 150ms ease;
+    }
+    
+    .camera-btn:hover {
+        background: var(--dt-primary-600, #7C3AED);
+        transform: scale(1.1);
+    }
+    
+    .change-photo-upload {
+        display: block;
+    }
+    
+    .change-photo-btn {
+        font-size: 0.75rem !important;
+        padding: 6px 12px !important;
+        border-radius: 16px !important;
     }
 
     .section-header-collapsible {
@@ -2668,11 +2728,11 @@ else
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     }
 
-    /* Phone Identity */
+    /* Phone Identity - Uses ThemeTokens CSS variables for light/dark theme support */
     .phone-name {
         font-size: 1.5rem;
         font-weight: 700;
-        color: #FFFFFF;
+        color: var(--dt-text-primary, #FFFFFF);
         margin: 0 0 4px 0;
         letter-spacing: -0.02em;
     }
@@ -2680,28 +2740,29 @@ else
     .phone-title {
         font-size: 0.9375rem;
         font-weight: 500;
-        color: #A78BFA;
+        color: var(--dt-accent-primary, #A78BFA);
         margin: 0 0 4px 0;
     }
 
     .phone-company {
         font-size: 0.8125rem;
-        color: #9CA3AF;
+        color: var(--dt-text-secondary, #9CA3AF);
         margin: 0 0 16px 0;
     }
 
     /* Phone Bio */
     .phone-bio {
         font-size: 0.8125rem;
-        color: #D1D5DB;
+        color: var(--dt-text-muted, #D1D5DB);
         line-height: 1.6;
         margin: 0 0 20px 0;
         text-align: left;
     }
 
     .phone-bio-placeholder {
-        color: #6B7280;
+        color: var(--dt-text-muted, #6B7280);
         font-style: italic;
+        opacity: 0.7;
     }
 
     /* ─────────────────────────────────────────────────────────
@@ -4111,8 +4172,10 @@ else
     private bool _isSaving = false;
     private bool _hasUnsavedChanges = false;
     private string _publicUrl = "";
+    private bool _identitySectionExpanded = true;  // Only this open by default
+    private bool _contactSectionExpanded = false;
     private bool _socialSectionExpanded = false;
-    private bool _actionButtonsSectionExpanded = true;
+    private bool _actionButtonsSectionExpanded = false;  // Closed by default
     private bool _isUploading = false;
     
     // Appearance Section
@@ -4130,7 +4193,7 @@ else
     // Services Template
     private bool _isServicesTemplate = false;
     private List<DataTouch.Domain.Entities.Service> _services = new();
-    private bool _servicesSectionExpanded = true;
+    private bool _servicesSectionExpanded = false;  // Collapsed by default
     
     // ViewModels for JSON fields
     private SocialLinksModel _socialLinks = new();
@@ -4460,8 +4523,9 @@ else
 
     private string GetPreviewBackgroundStyle()
     {
-        // Use ThemeTokens for consistent preview styling
-        return $"background: {_themeTokens.BgValue}";
+        // Include all theme CSS variables for consistent styling on light/dark themes
+        var cssVariables = ThemeHelper.GenerateCssVariables(_themeTokens);
+        return $"background: {_themeTokens.BgValue}; {cssVariables}";
     }
     
     // Border-radius helpers for button shape consistency

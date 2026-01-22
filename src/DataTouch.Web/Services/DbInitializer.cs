@@ -108,19 +108,6 @@ public static class DbInitializer
                 DisplayOrder = 0,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
-            },
-            new Service
-            {
-                Id = Guid.NewGuid(),
-                CardId = activeCard.Id,
-                OrganizationId = organization.Id,
-                Name = "Análisis de Proyectos",
-                Description = "Evaluación detallada de viabilidad",
-                DurationMinutes = 90,
-                PriceFrom = 75m,
-                DisplayOrder = 1,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
             }
         };
         context.Services.AddRange(services);
