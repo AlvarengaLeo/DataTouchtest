@@ -1,180 +1,306 @@
-# 🚀 DataTouch MVP 0.1
+# 🎴 DataTouch CRM
 
-<p align="center">
-  <img src="https://img.shields.io/badge/.NET-9.0-512BD4?style=for-the-badge&logo=dotnet" alt=".NET 9">
-  <img src="https://img.shields.io/badge/Blazor-Server-512BD4?style=for-the-badge&logo=blazor" alt="Blazor Server">
-  <img src="https://img.shields.io/badge/MudBlazor-8.15.0-594AE2?style=for-the-badge" alt="MudBlazor">
-  <img src="https://img.shields.io/badge/MySQL-8.x-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL">
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License">
-</p>
+**Plataforma SaaS de Tarjetas Digitales Profesionales con CRM Integrado**
 
-Una plataforma SaaS que convierte tarjetas NFC/QR en un punto de entrada digital para captura de leads.
+DataTouch convierte tarjetas NFC/QR en puntos de entrada digital para captura de leads, gestión de citas y cotizaciones. Diseñado para profesionales y empresas que buscan modernizar su networking y automatizar su proceso de ventas.
 
----
-
-## 📚 Documentación
-
-| Documento | Descripción |
-|-----------|-------------|
-| [📖 SETUP.md](./docs/SETUP.md) | Guía completa de instalación y configuración |
-| [🗄️ DATABASE.md](./docs/DATABASE.md) | Esquema de base de datos y scripts SQL |
-| [📋 HANDOFF.md](./docs/HANDOFF.md) | Documento de handoff del proyecto |
-| [🧠 CLAUDE.md](./CLAUDE.md) | Documentación técnica exhaustiva para IA |
+[![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![Blazor](https://img.shields.io/badge/Blazor-Server-512BD4?logo=blazor)](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor)
+[![MudBlazor](https://img.shields.io/badge/MudBlazor-8.15.0-594AE2)](https://mudblazor.com/)
+[![SQL Server](https://img.shields.io/badge/SQL_Server-2019+-CC2927?logo=microsoft-sql-server)](https://www.microsoft.com/sql-server)
 
 ---
 
-## 🚀 Inicio Rápido
+## 📋 Tabla de Contenidos
 
-### Prerrequisitos
+- [Características](#-características)
+- [Stack Tecnológico](#-stack-tecnológico)
+- [Requisitos del Sistema](#-requisitos-del-sistema)
+- [Instalación](#-instalación)
+- [Configuración](#-configuración)
+- [Ejecución](#-ejecución)
+- [Arquitectura](#-arquitectura)
+- [Base de Datos](#-base-de-datos)
+- [GitFlow](#-gitflow)
+- [Deployment](#-deployment)
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (opcional, para MySQL)
-- [Git](https://git-scm.com/downloads)
+---
 
-### Instalación
+## ✨ Características
+
+### 🎴 Tarjetas Digitales
+- **Editor Visual** con live preview en tiempo real
+- **Plantillas** por industria (Tecnología, Negocios, Creativos)
+- **Personalización completa** de colores, fuentes y estilos
+- **Componentes modulares** (galería, video, enlaces personalizados)
+- **QR Code dinámico** con branding personalizado
+- **Compatible con NFC** para tap-to-share
+
+### 📅 Sistema de Reservas (Booking)
+- **Calendario inteligente** con disponibilidad configurable
+- **Reservas públicas** desde la tarjeta digital
+- **Gestión de servicios** con duración y precios
+- **Zonas horarias** automáticas
+- **Estados de citas**: Pending, Confirmed, Completed, Cancelled, NoShow
+
+### 💼 Cotizaciones (Quotes)
+- **Solicitudes de cotización** desde tarjeta pública
+- **8 estados enterprise**: New → InReview → Quoted → Won/Lost
+- **Timeline de actividades** con auditoría completa
+- **Conversión automática** de cotizaciones a citas
+
+### 📊 Analytics & CRM
+- **Dashboard en tiempo real** con KPIs
+- **Geolocalización** de visitantes
+- **Tracking de eventos**: page views, QR scans, CTA clicks
+- **Gestión de leads** capturados desde formularios
+
+---
+
+## 🛠️ Stack Tecnológico
+
+| Capa | Tecnología | Versión |
+|------|------------|---------|
+| **Framework** | .NET | 9.0 |
+| **UI** | Blazor Server | 9.0 |
+| **Componentes** | MudBlazor | 8.15.0 |
+| **ORM** | Entity Framework Core | 9.0.0 |
+| **Base de Datos** | SQL Server | 2019+ |
+| **Autenticación** | Cookie Authentication | ASP.NET Core |
+
+---
+
+## 💻 Requisitos del Sistema
+
+| Software | Versión Mínima | Descarga |
+|----------|---------------|----------|
+| **.NET SDK** | 9.0+ | [Descargar](https://dotnet.microsoft.com/download/dotnet/9.0) |
+| **SQL Server** | 2019+ / Express / Developer | [Descargar](https://www.microsoft.com/sql-server/sql-server-downloads) |
+| **Git** | 2.40+ | [Descargar](https://git-scm.com/downloads) |
+
+---
+
+## 🚀 Instalación
+
+### 1. Clonar el Repositorio
 
 ```bash
-# 1. Clonar el repositorio
 git clone https://github.com/AlvarengaLeo/DataTouch.git
 cd DataTouch
-
-# 2. Restaurar dependencias
-dotnet restore
-
-# 3. Ejecutar la aplicación (usa base de datos en memoria)
-cd src/DataTouch.Web
-dotnet run
 ```
 
-### 🌐 URLs de Acceso
+### 2. Verificar .NET
 
-| Página | URL | Credenciales |
-|--------|-----|--------------|
-| **CRM Panel** | https://localhost:5001/login | `admin@demo.com` / `admin123` |
-| **Tarjeta Pública** | https://localhost:5001/p/demo-company/admin-demo | Acceso público |
+```bash
+dotnet --version
+# Debe mostrar: 9.0.x o superior
+```
+
+### 3. Configurar SQL Server
+
+**Crear Base de Datos:**
+
+```bash
+# Opción 1: Con SSMS (GUI)
+# 1. Abrir SQL Server Management Studio
+# 2. Ejecutar: sql/migrations/001_InitialCreate_SQLServer.sql
+# 3. Ejecutar: sql/migrations/002_SeedData_SQLServer.sql
+
+# Opción 2: Con sqlcmd (CLI)
+cd sql/migrations
+sqlcmd -S localhost -d master -i 001_InitialCreate_SQLServer.sql
+sqlcmd -S localhost -d DataTouch -i 002_SeedData_SQLServer.sql
+```
+
+### 4. Restaurar Dependencias
+
+```bash
+dotnet restore
+dotnet build
+```
 
 ---
 
-## 📁 Estructura del Proyecto
+## ⚙️ Configuración
+
+### Connection String
+
+Editar `src/DataTouch.Web/appsettings.json`:
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=DataTouch;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
+  }
+}
+```
+
+**Variantes:**
+
+```bash
+# Windows Authentication
+Server=localhost;Database=DataTouch;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true
+
+# SQL Server Authentication
+Server=localhost;Database=DataTouch;User Id=sa;Password=TuPassword;TrustServerCertificate=True;MultipleActiveResultSets=true
+
+# Named Instance (SQL Express)
+Server=localhost\SQLEXPRESS;Database=DataTouch;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true
+```
+
+---
+
+## 🏃 Ejecución
+
+```bash
+cd src/DataTouch.Web
+dotnet run
+# O con hot reload:
+dotnet watch run
+```
+
+**URLs:**
+- HTTPS: `https://localhost:5001`
+- HTTP: `http://localhost:5000`
+
+**Credenciales:**
+- Email: `admin@techcorp.com`
+- Password: `admin123`
+
+**Páginas:**
+- Dashboard: `/`
+- Mi Tarjeta: `/cards/mine`
+- Citas: `/appointments`
+- Cotizaciones: `/quotes`
+- Tarjeta Pública: `/p/techcorp/leonel-alvarenga`
+
+---
+
+## 🏗️ Arquitectura
 
 ```
 DataTouch/
-├── 📁 src/
-│   ├── DataTouch.Domain/        # 🎯 Entidades de dominio
-│   ├── DataTouch.Infrastructure/  # 🔧 EF Core, DbContext
-│   ├── DataTouch.Api/           # 🌐 API endpoints (Minimal API)
-│   └── DataTouch.Web/           # 🖥️ Blazor Server UI
-└── 📁 tests/
-    └── DataTouch.Tests/         # 🧪 Unit tests
+├── src/
+│   ├── DataTouch.Domain/              # Entidades (16 clases)
+│   ├── DataTouch.Infrastructure/      # DbContext, EF Core
+│   ├── DataTouch.Api/                 # API REST (futuro)
+│   └── DataTouch.Web/                 # Blazor Server
+│       ├── Components/Pages/          # 14 páginas
+│       ├── Components/Shared/         # Componentes
+│       └── Services/                  # 13 servicios
+├── sql/migrations/                    # Scripts SQL
+└── docs/                              # Documentación
 ```
 
 ---
 
-## 🎯 Funcionalidades MVP 0.1
+## 🗄️ Base de Datos
 
-### Dashboard
-- ✅ Panel de control con KPIs en tiempo real
-- ✅ Gráficos de interacciones (vistas, clics, leads)
-- ✅ Analytics geográficos y por dispositivo
-- ✅ Top enlaces más clickeados
+**16 Entidades:**
+- Core: `Organization`, `User`, `Card`, `Lead`
+- Templates: `CardTemplate`, `CardStyle`, `CardComponent`
+- Booking: `Service`, `Appointment`, `AvailabilityRule`, `QuoteRequest`
+- Analytics: `CardAnalytics`, `Activity`
 
-### CRM del Cliente (ARISTA 2)
-- ✅ Login con autenticación por cookies
-- ✅ Gestión de Leads (lista, detalle, edición de estado)
-- ✅ Edición de tarjeta personal
-- ✅ Biblioteca de plantillas por industria
+**Scripts:**
+- `sql/migrations/001_InitialCreate_SQLServer.sql` - Creación de tablas
+- `sql/migrations/002_SeedData_SQLServer.sql` - Datos de demostración
 
-### Landing Pública (ARISTA 3)
-- ✅ Vista de tarjeta pública `/p/{orgSlug}/{cardSlug}`
-- ✅ Botones de contacto (Llamar, WhatsApp, Email, Guardar Contacto)
-- ✅ Formulario de contacto que crea Leads
-- ✅ Tracking de analytics automático
+Ver [`docs/DATABASE.md`](docs/DATABASE.md) para más detalles.
 
 ---
 
-## 🔧 Stack Tecnológico
+## 🌿 GitFlow
 
-| Capa | Tecnología |
-|------|------------|
-| **Backend** | .NET 9, Minimal APIs |
-| **Frontend** | Blazor Server |
-| **UI Library** | MudBlazor 8.15.0 |
-| **ORM** | Entity Framework Core 9.0 |
-| **Base de datos** | MySQL 8 (producción) / InMemory (desarrollo) |
-| **Autenticación** | Cookie Authentication |
+### Branches
 
----
+- `main` - Producción (protegido)
+- `develop` - Desarrollo (protegido)
+- `feature/*` - Nuevas funcionalidades
+- `fix/*` - Correcciones de bugs
+- `refactor/*` - Refactorización
+- `hotfix/*` - Fixes urgentes a producción
+- `docs/*` - Documentación
 
-## 🐳 Ejecutar con MySQL (Producción)
+### Workflow
 
 ```bash
-# 1. Iniciar MySQL con Docker
-docker run --name datatouch-mysql \
-  -e MYSQL_ROOT_PASSWORD=datatouch123 \
-  -e MYSQL_DATABASE=datatouch \
-  -p 3306:3306 \
-  -d mysql:8
+# Crear feature branch desde develop
+git checkout develop
+git pull origin develop
+git checkout -b feature/nueva-funcionalidad
 
-# 2. Modificar Program.cs para usar MySQL (ver SETUP.md)
+# Commits
+git add .
+git commit -m "feat: agregar nueva funcionalidad"
 
-# 3. Ejecutar la aplicación
-cd src/DataTouch.Web
-dotnet run
+# Push y crear PR
+git push origin feature/nueva-funcionalidad
+# Crear Pull Request a develop (requiere 1 aprobador)
 ```
 
----
+### Reglas de Protección
 
-## 🧪 Ejecutar Tests
+**Branch `develop`:**
+- ❌ No commits directos
+- ✅ Solo via Pull Request
+- ✅ Requiere 1 aprobador
+- ✅ Solo acepta: `feature/*`, `fix/*`, `refactor/*`, `docs/*`
+
+**Branch `main`:**
+- ❌ No commits directos
+- ✅ Solo merge desde `develop` via PR
+- ✅ Requiere 1 aprobador
+
+### Convenciones de Commits
 
 ```bash
-# Ejecutar todos los tests
-dotnet test
-
-# Con cobertura
-dotnet test --collect:"XPlat Code Coverage"
+feat: Nueva funcionalidad
+fix: Corrección de bug
+refactor: Refactorización
+docs: Documentación
+test: Tests
+chore: Mantenimiento
 ```
 
 ---
 
-## 📊 Modelo de Datos
+## 🚀 Deployment
 
-El sistema maneja las siguientes entidades principales:
+### Plataformas Recomendadas
 
-| Entidad | Descripción |
-|---------|-------------|
-| `Organization` | Empresas/clientes (multi-tenant) |
-| `User` | Usuarios del CRM |
-| `Card` | Tarjetas digitales NFC/QR |
-| `Lead` | Leads capturados |
-| `CardAnalytics` | Eventos de interacción |
-| `CardTemplate` | Plantillas de diseño |
-| `CardStyle` | Estilos personalizados |
+| Plataforma | Costo | CLI | Recomendado Para |
+|------------|-------|-----|------------------|
+| **Railway.app** | $5-20/mes | ✅ | Startups |
+| **Render.com** | $7-25/mes | ✅ | Startups |
+| **Azure App Service** | $55+/mes | ✅ | Enterprise |
 
-Para más detalles, ver [DATABASE.md](./docs/DATABASE.md).
+### Railway.app (Recomendado)
 
----
+```bash
+npm i -g @railway/cli
+railway login
+railway init
+railway up
+```
 
-## 🤝 Contribuir
+### Dominio Personalizado
 
-1. Fork el repositorio
-2. Crear una rama feature (`git checkout -b feature/amazing-feature`)
-3. Commit los cambios (`git commit -m 'Add amazing feature'`)
-4. Push a la rama (`git push origin feature/amazing-feature`)
-5. Abrir un Pull Request
+Todas las plataformas soportan dominios custom con SSL gratis (Let's Encrypt).
 
 ---
 
-## 📝 Licencia
+## 📄 Licencia
 
-Este proyecto está bajo la licencia MIT. Ver el archivo `LICENSE` para más detalles.
-
----
-
-## 👨‍💻 Autor
-
-**Leonardo Alvarenga**
-- GitHub: [@AlvarengaLeo](https://github.com/AlvarengaLeo)
+Proyecto privado - TechCorp Solutions
 
 ---
 
-*DataTouch MVP 0.1 - Transformando conexiones en oportunidades* 🚀
+## 📞 Soporte
+
+- **Issues**: [GitHub Issues](https://github.com/AlvarengaLeo/DataTouch/issues)
+- **Docs**: Ver carpeta `/docs`
+
+---
+
+**Hecho con ❤️ por TechCorp Solutions**
