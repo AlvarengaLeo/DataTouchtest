@@ -1,0 +1,31 @@
+# Railway Configuration as Code
+# https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "dotnet DataTouch.Web.dll"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Production service (main branch)
+[[services]]
+name = "datatouch-production"
+source = "main"
+
+[services.env]
+ASPNETCORE_ENVIRONMENT = "Production"
+ASPNETCORE_URLS = "http://0.0.0.0:$PORT"
+
+# Staging service (develop branch)
+[[services]]
+name = "datatouch-staging"
+source = "develop"
+
+[services.env]
+ASPNETCORE_ENVIRONMENT = "Staging"
+ASPNETCORE_URLS = "http://0.0.0.0:$PORT"
