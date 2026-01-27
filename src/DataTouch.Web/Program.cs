@@ -121,6 +121,9 @@ app.MapGet("/api/auth/logout", async (HttpContext context) =>
     context.Response.Redirect("/login");
 });
 
+// Health check endpoint for Railway/Docker
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
