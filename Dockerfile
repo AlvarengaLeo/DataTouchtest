@@ -7,6 +7,8 @@ COPY *.sln ./
 COPY src/DataTouch.Domain/*.csproj ./src/DataTouch.Domain/
 COPY src/DataTouch.Infrastructure/*.csproj ./src/DataTouch.Infrastructure/
 COPY src/DataTouch.Web/*.csproj ./src/DataTouch.Web/
+COPY src/DataTouch.Api/*.csproj ./src/DataTouch.Api/
+COPY tests/DataTouch.Tests/*.csproj ./tests/DataTouch.Tests/
 
 # Restore dependencies
 RUN dotnet restore
