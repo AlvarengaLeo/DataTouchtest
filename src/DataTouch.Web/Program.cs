@@ -19,10 +19,14 @@ builder.Services.AddMudServices();
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 
-// Add DbContext - Use InMemory for development (no MySQL required)
-builder.Services.AddDbContext<DataTouchDbContext>(options =>
-    options.UseInMemoryDatabase("DataTouchDb")
-           .EnableSensitiveDataLogging());
+// Add DbContext - SQL Server with pooling for concurrent query support
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddPooledDbContextFactory<DataTouchDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// Also register DbContext directly for services that don't need factory pattern
+builder.Services.AddScoped<DataTouchDbContext>(sp =>
+    sp.GetRequiredService<IDbContextFactory<DataTouchDbContext>>().CreateDbContext());
 
 // Add Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -116,6 +120,9 @@ app.MapGet("/api/auth/logout", async (HttpContext context) =>
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     context.Response.Redirect("/login");
 });
+
+// Health check endpoint for Railway/Docker
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

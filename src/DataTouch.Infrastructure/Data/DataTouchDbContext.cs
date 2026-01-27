@@ -79,8 +79,8 @@ public class DataTouchDbContext : DbContext
             entity.Property(e => e.WhatsAppCountryCode).HasMaxLength(10);
             entity.Property(e => e.Email).HasMaxLength(255);
             entity.Property(e => e.ProfileImageUrl).HasMaxLength(500);
-            entity.Property(e => e.SocialLinksJson).HasColumnType("json");
-            entity.Property(e => e.WebsiteLinksJson).HasColumnType("json");
+            entity.Property(e => e.SocialLinksJson).HasColumnType("NVARCHAR(MAX)");
+            entity.Property(e => e.WebsiteLinksJson).HasColumnType("NVARCHAR(MAX)");
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
             entity.HasIndex(e => new { e.OrganizationId, e.Slug }).IsUnique();
             entity.HasIndex(e => e.OrganizationId);
@@ -127,7 +127,7 @@ public class DataTouchDbContext : DbContext
             entity.HasOne(e => e.Organization)
                 .WithMany()
                 .HasForeignKey(e => e.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(e => e.Card)
                 .WithMany(c => c.Leads)
@@ -171,8 +171,8 @@ public class DataTouchDbContext : DbContext
             entity.Property(e => e.Industry).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.ThumbnailUrl).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.DefaultStyleJson).HasColumnType("json");
-            entity.Property(e => e.DefaultComponentsJson).HasColumnType("json");
+            entity.Property(e => e.DefaultStyleJson).HasColumnType("NVARCHAR(MAX)");
+            entity.Property(e => e.DefaultComponentsJson).HasColumnType("NVARCHAR(MAX)");
             entity.HasIndex(e => e.Industry);
             entity.HasIndex(e => e.IsSystemTemplate);
             
@@ -219,8 +219,8 @@ public class DataTouchDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.ConfigJson).HasColumnType("json");
-            entity.Property(e => e.DataJson).HasColumnType("json");
+            entity.Property(e => e.ConfigJson).HasColumnType("NVARCHAR(MAX)");
+            entity.Property(e => e.DataJson).HasColumnType("NVARCHAR(MAX)");
             entity.HasIndex(e => e.CardId);
             entity.HasIndex(e => new { e.CardId, e.DisplayOrder });
             
@@ -241,7 +241,7 @@ public class DataTouchDbContext : DbContext
             entity.Property(e => e.Country).HasMaxLength(100);
             entity.Property(e => e.City).HasMaxLength(100);
             entity.Property(e => e.DeviceType).HasMaxLength(20);
-            entity.Property(e => e.MetadataJson).HasColumnType("json");
+            entity.Property(e => e.MetadataJson).HasColumnType("NVARCHAR(MAX)");
             entity.HasIndex(e => e.CardId);
             entity.HasIndex(e => e.Timestamp);
             entity.HasIndex(e => e.EventType);
@@ -304,7 +304,7 @@ public class DataTouchDbContext : DbContext
             entity.HasOne(e => e.Organization)
                 .WithMany()
                 .HasForeignKey(e => e.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
             
             entity.HasOne(e => e.Service)
                 .WithMany(s => s.Appointments)
@@ -359,7 +359,7 @@ public class DataTouchDbContext : DbContext
             entity.HasOne(e => e.Organization)
                 .WithMany()
                 .HasForeignKey(e => e.OrganizationId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
             
             entity.HasOne(e => e.ConvertedAppointment)
                 .WithMany()
