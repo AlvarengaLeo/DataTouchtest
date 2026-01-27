@@ -18,7 +18,7 @@ namespace DataTouch.Web.Services;
 /// </summary>
 public class DashboardService
 {
-    private readonly DataTouchDbContext _context;
+    private readonly IDbContextFactory<DataTouchDbContext> _contextFactory;
     
     // Event types considered as interactions
     private static readonly string[] InteractionEventTypes = 
@@ -28,9 +28,9 @@ public class DashboardService
     private static readonly string[] HighIntentEventTypes = { "contact_save", "form_submit" };
     private static readonly string[] HighIntentCtaButtons = { "whatsapp", "call", "calendar", "booking", "meeting" };
 
-    public DashboardService(DataTouchDbContext context)
+    public DashboardService(IDbContextFactory<DataTouchDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     #region Data Models
@@ -183,13 +183,14 @@ public class DashboardService
 
     private async Task<int> GetTotalInteractionsAsync(Guid organizationId, DateRangeFilter dateRange)
     {
-        var cardIds = await GetOrganizationCardIds(organizationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
         if (!cardIds.Any()) return 0;
         
         var endDate = dateRange.End.AddDays(1);
         var eventTypes = InteractionEventTypes.ToList();
 
-        return await _context.CardAnalytics
+        return await context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
             .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
             .Where(a => eventTypes.Contains(a.EventType))
@@ -198,8 +199,9 @@ public class DashboardService
 
     private async Task<int> GetLeadsCapturedAsync(Guid organizationId, DateRangeFilter dateRange)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         var endDate = dateRange.End.AddDays(1);
-        return await _context.Leads
+        return await context.Leads
             .Where(l => l.OrganizationId == organizationId)
             .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
             .CountAsync();
@@ -207,13 +209,14 @@ public class DashboardService
 
     private async Task<int> GetMeetingsBookedAsync(Guid organizationId, DateRangeFilter dateRange)
     {
-        var cardIds = await GetOrganizationCardIds(organizationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
         if (!cardIds.Any()) return 0;
         
         var endDate = dateRange.End.AddDays(1);
         
         // Count CTA clicks for calendar/booking/meeting actions
-        var meetingEvents = await _context.CardAnalytics
+        var meetingEvents = await context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
             .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
             .Where(a => a.EventType == "cta_click" && a.MetadataJson != null)
@@ -236,14 +239,15 @@ public class DashboardService
         DateRangeFilter dateRange, 
         ChartAggregation aggregation)
     {
-        var cardIds = await GetOrganizationCardIds(organizationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
 
         // Get all interactions in range (using same definition as KPIs)
         var endDate = dateRange.End.AddDays(1);
         var eventTypes = InteractionEventTypes.ToList();
 
         var interactions = cardIds.Any() 
-            ? await _context.CardAnalytics
+            ? await context.CardAnalytics
                 .Where(a => cardIds.Contains(a.CardId))
                 .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
                 .Where(a => eventTypes.Contains(a.EventType))
@@ -252,7 +256,7 @@ public class DashboardService
             : new List<DateTime>();
 
         // Get all leads in range (using same definition as KPIs)
-        var leads = await _context.Leads
+        var leads = await context.Leads
             .Where(l => l.OrganizationId == organizationId)
             .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
             .Select(l => l.CreatedAt)
@@ -320,7 +324,8 @@ public class DashboardService
         DateRangeFilter dateRange,
         LocationSortBy sortBy = LocationSortBy.Conversion)
     {
-        var cardIds = await GetOrganizationCardIds(organizationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
         var prevPeriod = dateRange.GetPreviousPeriod();
 
         if (!cardIds.Any())
@@ -332,7 +337,7 @@ public class DashboardService
         var endDate = dateRange.End.AddDays(1);
         var eventTypes = InteractionEventTypes.ToList();
 
-        var currentEvents = await _context.CardAnalytics
+        var currentEvents = await context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
             .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
             .Where(a => eventTypes.Contains(a.EventType))
@@ -344,7 +349,7 @@ public class DashboardService
         }
 
         // Get leads for conversion calculation
-        var leadsInRange = await _context.Leads
+        var leadsInRange = await context.Leads
             .Where(l => l.OrganizationId == organizationId)
             .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
             .ToListAsync();
@@ -425,7 +430,7 @@ public class DashboardService
             var prevEndDate = prevPeriod.End.AddDays(1);
             var prevEventTypes = InteractionEventTypes.ToList();
 
-            var prevEvents = await _context.CardAnalytics
+            var prevEvents = await context.CardAnalytics
                 .Where(a => cardIds.Contains(a.CardId))
                 .Where(a => a.Timestamp >= prevPeriod.Start && a.Timestamp < prevEndDate)
                 .Where(a => prevEventTypes.Contains(a.EventType))
@@ -581,7 +586,8 @@ public class DashboardService
 
     public async Task<List<LinkPerformance>> GetTopLinksAsync(Guid organizationId, DateRangeFilter dateRange)
     {
-        var cardIds = await GetOrganizationCardIds(organizationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
         if (!cardIds.Any()) return new List<LinkPerformance>();
         
         var prevPeriod = dateRange.GetPreviousPeriod();
@@ -589,7 +595,7 @@ public class DashboardService
         // Get all CTA clicks in current period
         var endDate = dateRange.End.AddDays(1);
         
-        var currentClicks = await _context.CardAnalytics
+        var currentClicks = await context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
             .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
             .Where(a => a.EventType == "cta_click")
@@ -600,7 +606,7 @@ public class DashboardService
         // Get previous period clicks for trend
         var prevEndDate = prevPeriod.End.AddDays(1);
 
-        var prevClicks = await _context.CardAnalytics
+        var prevClicks = await context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
             .Where(a => a.Timestamp >= prevPeriod.Start && a.Timestamp < prevEndDate)
             .Where(a => a.EventType == "cta_click")
@@ -610,7 +616,7 @@ public class DashboardService
         var startWindow = dateRange.Start.AddDays(-1);
         var endWindow = dateRange.End.AddDays(2);
 
-        var leads = await _context.Leads
+        var leads = await context.Leads
             .Where(l => l.OrganizationId == organizationId)
             .Where(l => l.CreatedAt >= startWindow && l.CreatedAt < endWindow)
             .ToListAsync();
@@ -719,7 +725,8 @@ public class DashboardService
 
     public async Task<InsightsData> GetInsightsAsync(Guid organizationId, DateRangeFilter dateRange)
     {
-        var cardIds = await GetOrganizationCardIds(organizationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
         var prevPeriod = dateRange.GetPreviousPeriod();
 
         // Top CTA calculation
@@ -750,14 +757,14 @@ public class DashboardService
             : 0;
 
         // Inactive Cards
-        var totalCards = await _context.Cards
+        var totalCards = await context.Cards
             .Where(c => c.OrganizationId == organizationId && c.IsActive)
             .CountAsync();
 
         var endDate = dateRange.End.AddDays(1);
 
         var activeCardIds = cardIds.Any() 
-            ? await _context.CardAnalytics
+            ? await context.CardAnalytics
                 .Where(a => cardIds.Contains(a.CardId))
                 .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
                 .Select(a => a.CardId)
@@ -772,7 +779,7 @@ public class DashboardService
         var potentialLossEndDate = dateRange.End.AddDays(1);
 
         var totalInteractions = cardIds.Any() 
-            ? await _context.CardAnalytics
+            ? await context.CardAnalytics
                 .Where(a => activeCardIds.Contains(a.CardId))
                 .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < potentialLossEndDate)
                 .CountAsync()
@@ -801,13 +808,14 @@ public class DashboardService
 
     private async Task<(int median, bool hasData)> CalculateMedianTimeToLeadAsync(Guid organizationId, DateRangeFilter dateRange)
     {
-        var cardIds = await GetOrganizationCardIds(organizationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
         if (!cardIds.Any()) return (0, false);
 
         // Get leads in range
         var endDate = dateRange.End.AddDays(1);
 
-        var leads = await _context.Leads
+        var leads = await context.Leads
             .Where(l => l.OrganizationId == organizationId)
             .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
             .ToListAsync();
@@ -820,7 +828,7 @@ public class DashboardService
         {
             // Find first interaction for this card before lead creation
             var eventTypes = InteractionEventTypes.ToList();
-            var firstInteraction = await _context.CardAnalytics
+            var firstInteraction = await context.CardAnalytics
                 .Where(a => a.CardId == lead.CardId)
                 .Where(a => a.Timestamp <= lead.CreatedAt)
                 .Where(a => eventTypes.Contains(a.EventType))
@@ -855,7 +863,8 @@ public class DashboardService
 
     public async Task<HighIntentData> GetHighIntentDataAsync(Guid organizationId, DateRangeFilter dateRange)
     {
-        var cardIds = await GetOrganizationCardIds(organizationId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
         if (!cardIds.Any())
         {
             return new HighIntentData(0, 0, 0, 0, 0, 0, new List<RecentActivity>());
@@ -865,7 +874,7 @@ public class DashboardService
         var endDate = dateRange.End.AddDays(1);
         var highIntentInfos = HighIntentEventTypes.ToList();
 
-        var allEvents = await _context.CardAnalytics
+        var allEvents = await context.CardAnalytics
             .Where(a => cardIds.Contains(a.CardId))
             .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
             .Where(a => highIntentInfos.Contains(a.EventType) || a.EventType == "cta_click")
@@ -900,7 +909,7 @@ public class DashboardService
             .ToList();
 
         // Get lead names for matching
-        var recentLeads = await _context.Leads
+        var recentLeads = await context.Leads
             .Where(l => l.OrganizationId == organizationId)
             .OrderByDescending(l => l.CreatedAt)
             .Take(20)
@@ -983,9 +992,9 @@ public class DashboardService
 
     #region Helpers
 
-    private async Task<List<Guid>> GetOrganizationCardIds(Guid organizationId)
+    private static async Task<List<Guid>> GetOrganizationCardIdsInternal(DataTouchDbContext context, Guid organizationId)
     {
-        return await _context.Cards
+        return await context.Cards
             .Where(c => c.OrganizationId == organizationId)
             .Select(c => c.Id)
             .ToListAsync();
