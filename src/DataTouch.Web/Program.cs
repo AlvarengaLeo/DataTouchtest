@@ -20,7 +20,19 @@ builder.Services.AddMudServices();
 builder.Services.AddHttpContextAccessor();
 
 // Add DbContext - SQL Server with pooling for concurrent query support
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// Priority: 1. DB_CONNECTION env var, 2. ConnectionStrings__DefaultConnection, 3. appsettings.json
+var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION") 
+    ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Validate connection string
+if (string.IsNullOrWhiteSpace(connectionString) || connectionString.StartsWith("${"))
+{
+    throw new InvalidOperationException(
+        "Database connection string is not configured. " +
+        "Set the DB_CONNECTION environment variable with a valid SQL Server connection string.");
+}
+
 builder.Services.AddPooledDbContextFactory<DataTouchDbContext>(options =>
     options.UseSqlServer(connectionString));
 
