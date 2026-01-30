@@ -12,6 +12,19 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   MOBILE-ONLY ELEMENTS - Hidden on desktop
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.mobile-header,
+.mobile-hero-card,
+.mobile-bottom-nav,
+.mobile-chart-toggle,
+.locations-section-header {
+    display: none;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
    HEADER
    ══════════════════════════════════════════════════════════════════════════════ */
 
@@ -1470,14 +1483,750 @@
 }
 
 @media (max-width: 600px) {
-    .kpi-row {
-        grid-template-columns: 1fr;
+    /* ═══════════════════════════════════════════════════════════════════════
+       MOBILE FINTECH REDESIGN - App Shell Structure
+       ═══════════════════════════════════════════════════════════════════════ */
+
+    /* Hide desktop elements on mobile */
+    .desktop-only,
+    .dashboard-header.desktop-only {
+        display: none !important;
     }
 
-    .dashboard-header {
-        flex-direction: column;
-        align-items: flex-start;
+    /* Dashboard page adjustments for mobile app feel */
+    .dashboard-page {
+        padding: 0;
+        padding-bottom: 80px;
+        /* Space for bottom nav */
+        background: linear-gradient(180deg, #0B0F14 0%, #111827 50%, #0B0F14 100%);
+        min-height: 100vh;
+        overflow-x: hidden !important;
+    }
+
+    /* Main Row - Stack widgets vertically on mobile */
+    .main-row {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+        width: 100% !important;
+        padding: 0 16px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       MOBILE HEADER - Fintech Style
+       ═══════════════════════════════════════════════════════════════════════ */
+    .mobile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: rgba(11, 15, 20, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .mobile-user {
+        display: flex;
+        align-items: center;
         gap: 12px;
+    }
+
+    .mobile-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+    }
+
+    .mobile-user-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .mobile-user-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #E5E7EB;
+    }
+
+    .mobile-user-role {
+        font-size: 11px;
+        color: #6B7280;
+    }
+
+    .mobile-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .mobile-action-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: rgba(22, 34, 52, 0.6);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .mobile-action-btn svg {
+        width: 20px;
+        height: 20px;
+        color: #9CA3AF;
+    }
+
+    .mobile-action-btn:active {
+        background: rgba(99, 102, 241, 0.2);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       HERO CARD - Main KPI with Glow
+       ═══════════════════════════════════════════════════════════════════════ */
+    .mobile-hero-card {
+        margin: 16px;
+        padding: 24px 20px;
+        background: rgba(22, 34, 52, 0.6);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 24px;
+        box-shadow:
+            0 0 60px rgba(99, 102, 241, 0.15),
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .hero-kpi {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 20px;
+    }
+
+    .hero-value {
+        font-size: 48px;
+        font-weight: 700;
+        color: #FFFFFF;
+        line-height: 1;
+        text-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+    }
+
+    .hero-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #9CA3AF;
+    }
+
+    .hero-delta {
+        font-size: 14px;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 20px;
+        margin-top: 4px;
+    }
+
+    .hero-delta.positive {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10B981;
+    }
+
+    .hero-delta.negative {
+        background: rgba(239, 68, 68, 0.15);
+        color: #EF4444;
+    }
+
+    .hero-date-chips {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .date-chip {
+        padding: 8px 16px;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        background: transparent;
+        color: #9CA3AF;
+        font-size: 13px;
+        font-weight: 500;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .date-chip.active {
+        background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .date-chip:active {
+        transform: scale(0.95);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       KPI ROW - Horizontal Mini-cards Carousel
+       ═══════════════════════════════════════════════════════════════════════ */
+    .kpi-row {
+        display: flex;
+        gap: 12px;
+        padding: 0 16px;
+        margin-bottom: 20px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .kpi-row::-webkit-scrollbar {
+        display: none;
+    }
+
+    .kpi-card {
+        flex: 0 0 140px;
+        scroll-snap-align: start;
+        padding: 16px;
+        background: rgba(22, 34, 52, 0.5);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(99, 102, 241, 0.12);
+        border-radius: 16px;
+    }
+
+    .kpi-card .kpi-icon {
+        width: 32px;
+        height: 32px;
+        margin-bottom: 8px;
+    }
+
+    .kpi-card .kpi-icon svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .kpi-card .kpi-value {
+        font-size: 22px;
+        line-height: 1.2;
+    }
+
+    .kpi-card .kpi-label {
+        font-size: 11px;
+        line-height: 1.3;
+    }
+
+    .kpi-card .kpi-delta {
+        font-size: 10px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       MAIN ROW - Stack vertically
+       ═══════════════════════════════════════════════════════════════════════ */
+    .main-row {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 0 8px;
+        margin-bottom: 12px;
+    }
+
+    /* Chart Panel Mobile */
+    .chart-panel {
+        padding: 16px !important;
+        border-radius: 16px !important;
+        background: rgba(22, 34, 52, 0.6) !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(99, 102, 241, 0.15) !important;
+        overflow: visible !important;
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 420px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Header: Title and subtitle only, toggles hidden here */
+    .chart-header {
+        flex-direction: column !important;
+        gap: 4px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .chart-header-left {
+        width: 100% !important;
+    }
+
+    .chart-title {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+        margin-bottom: 2px !important;
+    }
+
+    .chart-subtitle {
+        font-size: 12px !important;
+        color: #9CA3AF !important;
+    }
+
+    /* Hide toggle in header - will show it after KPIs */
+    .chart-header .chart-toggle {
+        display: none !important;
+    }
+
+    /* KPI Bar - VERTICAL STACK - Each KPI as full-width card */
+    .chart-kpi-bar {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 0 !important;
+        margin-bottom: 12px !important;
+        background: transparent !important;
+        border: none !important;
+        overflow: visible !important;
+    }
+
+    .chart-kpi {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        padding: 12px 14px !important;
+        background: rgba(14, 20, 27, 0.6) !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(99, 102, 241, 0.1) !important;
+        gap: 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Hide 3rd KPI (Conversión) on mobile - it's the 5th child (after 2 KPIs and 2 dividers) */
+    .chart-kpi-bar>.chart-kpi:nth-of-type(3) {
+        display: none !important;
+    }
+
+    /* Hide ALL dividers on mobile */
+    .kpi-divider {
+        display: none !important;
+    }
+
+    .chart-kpi .kpi-label {
+        font-size: 13px !important;
+        color: #9CA3AF !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+
+    .chart-kpi .kpi-value {
+        font-size: 20px !important;
+        font-weight: 700 !important;
+        color: #FFFFFF !important;
+        white-space: nowrap !important;
+        margin-left: auto !important;
+    }
+
+    .chart-kpi .kpi-delta {
+        font-size: 12px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+
+    .chart-kpi .kpi-delta.positive {
+        color: #22C55E !important;
+    }
+
+    .chart-kpi .kpi-delta.negative {
+        color: #EF4444 !important;
+    }
+
+    /* Toggle buttons - Create a separate row after KPI bar via ::after pseudo or JavaScript */
+    /* Since we can't move DOM, we need to add a mobile toggle in HTML or use different approach */
+
+    /* Chart container - Fixed height for stable layout */
+    .chart-container {
+        height: 160px !important;
+        min-height: 160px !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        position: relative !important;
+    }
+
+    .chart-svg {
+        width: 100% !important;
+        height: 160px !important;
+        max-height: 160px !important;
+    }
+
+    .chart-footer {
+        flex-direction: row !important;
+        justify-content: flex-start !important;
+        gap: 16px !important;
+        margin-top: 8px !important;
+    }
+
+    .chart-legend {
+        font-size: 12px !important;
+    }
+
+    .legend-dot {
+        width: 8px !important;
+        height: 8px !important;
+    }
+
+    /* Mobile Chart Toggle - Centered pill buttons */
+    .mobile-chart-toggle {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 0 !important;
+        margin-bottom: 16px !important;
+        background: rgba(14, 20, 27, 0.6) !important;
+        border-radius: 999px !important;
+        padding: 4px !important;
+        width: fit-content !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    .mobile-chart-toggle .toggle-btn {
+        padding: 8px 16px !important;
+        border: none !important;
+        background: transparent !important;
+        color: #9CA3AF !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        border-radius: 999px !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .mobile-chart-toggle .toggle-btn:hover {
+        color: #E5E7EB !important;
+    }
+
+    .mobile-chart-toggle .toggle-btn.active {
+        background: #14B8A6 !important;
+        color: #FFFFFF !important;
+    }
+
+    /* Locations Panel Mobile */
+    .locations-panel {
+        padding: 16px !important;
+        border-radius: 16px !important;
+        background: rgba(22, 34, 52, 0.6) !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(99, 102, 241, 0.15) !important;
+        overflow: visible !important;
+        min-height: 400px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .locations-panel .panel-header {
+        margin-bottom: 8px !important;
+    }
+
+    .locations-panel .panel-title {
+        font-size: 16px !important;
+    }
+
+    /* Location Highlight */
+    .location-highlight {
+        margin-bottom: 12px !important;
+    }
+
+    .location-name {
+        font-size: 22px !important;
+        font-weight: 700 !important;
+    }
+
+    .location-delta {
+        font-size: 12px !important;
+    }
+
+    /* Map Container */
+    .map-container {
+        width: 100% !important;
+        height: 160px !important;
+        min-height: 160px !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        margin-bottom: 8px !important;
+        position: relative !important;
+    }
+
+    .map-container.expanded {
+        height: 280px !important;
+    }
+
+    .map-top-pill {
+        font-size: 11px !important;
+        padding: 6px 12px !important;
+    }
+
+    /* Map toggle button - centered pill below map */
+    .map-toggle {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 6px !important;
+        width: fit-content !important;
+        margin: 0 auto 16px !important;
+        padding: 10px 24px !important;
+        background: rgba(14, 20, 27, 0.6) !important;
+        border: 1px solid rgba(99, 102, 241, 0.2) !important;
+        border-radius: 999px !important;
+        color: #E5E7EB !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+    }
+
+    .map-toggle svg {
+        width: 16px !important;
+        height: 16px !important;
+    }
+
+    /* Section Header - Top ubicaciones + Ver todo */
+    .locations-section-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        margin-bottom: 12px !important;
+    }
+
+    .locations-section-header .section-title {
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        color: #E5E7EB !important;
+    }
+
+    .view-all-link {
+        font-size: 12px !important;
+        color: #9CA3AF !important;
+        text-decoration: none !important;
+    }
+
+    .view-all-link:hover {
+        color: #818CF8 !important;
+    }
+
+    /* Location Table - Grid Layout with visible headers */
+    .location-table {
+        font-size: 12px !important;
+        overflow: hidden !important;
+    }
+
+    .table-header-row {
+        display: grid !important;
+        grid-template-columns: 1.5fr 1fr 0.8fr !important;
+        gap: 8px !important;
+        padding: 8px 0 !important;
+        margin-bottom: 4px !important;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.1) !important;
+    }
+
+    .table-header-row span {
+        font-size: 10px !important;
+        font-weight: 500 !important;
+        color: #6B7280 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    /* Hide conversion header - merge with Leads */
+    .table-header-row span:nth-child(4) {
+        display: none !important;
+    }
+
+    .table-row {
+        display: grid !important;
+        grid-template-columns: 1.5fr 1fr 0.8fr !important;
+        gap: 8px !important;
+        padding: 10px 0 !important;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.06) !important;
+        align-items: center !important;
+    }
+
+    .table-row:last-child {
+        border-bottom: none !important;
+    }
+
+    .col-location {
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #E5E7EB !important;
+    }
+
+    .col-stat {
+        font-size: 13px !important;
+        color: #9CA3AF !important;
+        text-align: center !important;
+    }
+
+    /* Conversion in green, shown in Leads column area */
+    .col-stat.conversion {
+        color: #22C55E !important;
+        font-weight: 500 !important;
+    }
+
+    /* Sort Controls - Visible with pill buttons */
+    .sort-controls {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        margin-top: 12px !important;
+        padding-top: 12px !important;
+        border-top: 1px solid rgba(99, 102, 241, 0.08) !important;
+        flex-wrap: wrap !important;
+    }
+
+    .sort-label {
+        font-size: 12px !important;
+        color: #6B7280 !important;
+    }
+
+    .sort-btn {
+        padding: 6px 12px !important;
+        font-size: 11px !important;
+        border-radius: 999px !important;
+        background: transparent !important;
+        border: 1px solid rgba(99, 102, 241, 0.2) !important;
+        color: #9CA3AF !important;
+    }
+
+    .sort-btn.active {
+        background: #14B8A6 !important;
+        border-color: #14B8A6 !important;
+        color: #FFFFFF !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       INSIGHTS ROW - Stack vertically
+       ═══════════════════════════════════════════════════════════════════════ */
+    .insights-row {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 0 8px 16px;
+    }
+
+    .panel {
+        padding: 12px;
+        border-radius: 16px;
+        background: rgba(22, 34, 52, 0.5);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(99, 102, 241, 0.12);
+        overflow: hidden;
+        max-width: 100%;
+    }
+
+    .panel-title {
+        font-size: 15px;
+    }
+
+    .insight-item {
+        padding: 10px;
+    }
+
+    .insight-icon,
+    .insight-icon-wrapper {
+        width: 36px;
+        height: 36px;
+    }
+
+    .insight-label {
+        font-size: 13px;
+    }
+
+    .insight-value {
+        font-size: 16px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       LINKS PANEL - Convert Table to Card List
+       ═══════════════════════════════════════════════════════════════════════ */
+    .links-panel {
+        padding: 12px;
+        overflow: hidden;
+    }
+
+    .links-header {
+        display: none !important;
+    }
+
+    .link-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 12px;
+        margin-bottom: 8px;
+        background: rgba(14, 20, 27, 0.4);
+        border-radius: 12px;
+        border: 1px solid rgba(99, 102, 241, 0.08);
+    }
+
+    .link-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .link-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .link-icon-badge {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+    }
+
+    .link-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #E5E7EB;
+        flex: 1;
+    }
+
+    .link-stats {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: #9CA3AF;
+        padding-left: 42px;
+    }
+
+    .link-clicks,
+    .link-conversion {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .link-trend {
+        margin-left: auto;
+        font-size: 11px;
+    }
+
+    .trend-badge {
+        font-size: 11px;
+        padding: 2px 6px;
     }
 
     .links-actions {
@@ -1487,6 +2236,96 @@
     .action-btn {
         width: 100%;
         justify-content: center;
+    }
+
+    /* High-Intent Panel Mobile */
+    .hi-value {
+        font-size: 36px;
+    }
+
+    .hi-item {
+        font-size: 12px;
+    }
+
+    .hi-icon-badge {
+        width: 24px;
+        height: 24px;
+    }
+
+    .activity-item {
+        padding: 8px;
+    }
+
+    .activity-icon-wrapper {
+        width: 28px;
+        height: 28px;
+    }
+
+    .activity-name {
+        font-size: 12px;
+    }
+
+    .activity-action,
+    .activity-time {
+        font-size: 10px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       BOTTOM NAVIGATION - Fixed App Nav
+       ═══════════════════════════════════════════════════════════════════════ */
+    .mobile-bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        height: 64px;
+        background: rgba(11, 15, 20, 0.98);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-top: 1px solid rgba(99, 102, 241, 0.15);
+        padding-bottom: env(safe-area-inset-bottom);
+        z-index: 1000;
+    }
+
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 12px;
+        text-decoration: none;
+        color: #6B7280;
+        font-size: 10px;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+    .nav-item svg {
+        width: 22px;
+        height: 22px;
+        stroke-width: 1.5;
+    }
+
+    .nav-item.active {
+        color: #818CF8;
+    }
+
+    .nav-item.active svg {
+        filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.5));
+    }
+
+    .nav-item:active {
+        transform: scale(0.95);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       LOADING OVERLAY Mobile
+       ═══════════════════════════════════════════════════════════════════════ */
+    .loading-overlay {
+        border-radius: 0;
     }
 }
 
