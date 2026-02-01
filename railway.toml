@@ -6,7 +6,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "dotnet DataTouch.Web.dll"
+
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
@@ -19,7 +19,7 @@ source = "main"
 
 [services.env]
 ASPNETCORE_ENVIRONMENT = "Production"
-ASPNETCORE_URLS = "http://0.0.0.0:$PORT"
+
 
 # Staging service (develop branch)
 [[services]]
@@ -28,4 +28,4 @@ source = "develop"
 
 [services.env]
 ASPNETCORE_ENVIRONMENT = "Staging"
-ASPNETCORE_URLS = "http://0.0.0.0:$PORT"
+
