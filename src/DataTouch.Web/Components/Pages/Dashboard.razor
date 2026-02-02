@@ -184,144 +184,136 @@
        ROW 2: CHART + TOP LOCATIONS
        ═══════════════════════════════════════════════════════════════ *@
     <div class="main-row">
-        @* Interactions vs Leads Chart - Premium Redesign *@
-        <div class="panel chart-panel">
-            @* Header Row *@
-            <div class="chart-header">
-                <div class="chart-header-left">
-                    <h2 class="chart-title">Interacciones vs. Leads</h2>
-                    <span class="chart-subtitle">@GetChartSubtitle() · Actualizado @GetLastUpdateTime()</span>
+        @* Interactions vs Leads Chart - Bar Chart Premium Redesign *@
+        <div class="panel chart-panel bar-chart-widget">
+            @* Header with Pill Tabs *@
+            <div class="bar-chart-header">
+                <div class="bar-chart-header-left">
+                    <h2 class="bar-chart-title">Interacciones vs. Leads</h2>
+                    <span class="bar-chart-subtitle">@GetChartSubtitle() · Actualizado @GetLastUpdateTime()</span>
                 </div>
-                <div class="chart-toggle">
-                    <button class="toggle-btn @(_chartAggregation == ChartAggregation.Day ? "active" : "")" 
+                <div class="bar-chart-tabs">
+                    <button class="bar-tab @(_chartAggregation == ChartAggregation.Day ? "active" : "")" 
                             @onclick="() => SetChartAggregation(ChartAggregation.Day)">Día</button>
-                    <button class="toggle-btn @(_chartAggregation == ChartAggregation.Week ? "active" : "")" 
+                    <button class="bar-tab @(_chartAggregation == ChartAggregation.Week ? "active" : "")" 
                             @onclick="() => SetChartAggregation(ChartAggregation.Week)">Semana</button>
-                    <button class="toggle-btn @(_chartAggregation == ChartAggregation.Month ? "active" : "")" 
+                    <button class="bar-tab @(_chartAggregation == ChartAggregation.Month ? "active" : "")" 
                             @onclick="() => SetChartAggregation(ChartAggregation.Month)">Mes</button>
                 </div>
             </div>
 
-            @* KPI Bar *@
-            <div class="chart-kpi-bar">
-                <div class="chart-kpi">
-                    <span class="kpi-label">Interacciones:</span>
-                    <span class="kpi-value">@GetTotalInteractions()</span>
-                    <span class="kpi-delta @(GetInteractionsDelta() >= 0 ? "positive" : "negative")">
+            @* KPI Cards Row *@
+            <div class="bar-chart-kpis">
+                <div class="bar-kpi-card">
+                    <span class="bar-kpi-label">Interacciones</span>
+                    <span class="bar-kpi-value">@FormatNumber(GetTotalInteractions())</span>
+                    <span class="bar-kpi-delta @(GetInteractionsDelta() >= 0 ? "positive" : "negative")">
                         @(GetInteractionsDelta() >= 0 ? "↑" : "↓")@Math.Abs(GetInteractionsDelta()).ToString("0.#")%
                     </span>
                 </div>
-                <span class="kpi-divider">|</span>
-                <div class="chart-kpi">
-                    <span class="kpi-label">Leads:</span>
-                    <span class="kpi-value">@GetTotalLeads()</span>
-                    <span class="kpi-delta @(GetLeadsDelta() >= 0 ? "positive" : "negative")">
+                <div class="bar-kpi-card">
+                    <span class="bar-kpi-label">Leads</span>
+                    <span class="bar-kpi-value">@FormatNumber(GetTotalLeads())</span>
+                    <span class="bar-kpi-delta @(GetLeadsDelta() >= 0 ? "positive" : "negative")">
                         @(GetLeadsDelta() >= 0 ? "↑" : "↓")@Math.Abs(GetLeadsDelta()).ToString("0.#")%
                     </span>
                 </div>
-                <span class="kpi-divider">|</span>
-                <div class="chart-kpi">
-                    <span class="kpi-label">Conversión:</span>
-                    <span class="kpi-value">@GetConversionRate().ToString("0.#")%</span>
-                    <span class="kpi-delta @(GetConversionDelta() >= 0 ? "positive" : "negative")">
+                <div class="bar-kpi-card">
+                    <span class="bar-kpi-label">Conversión</span>
+                    <span class="bar-kpi-value">@GetConversionRate().ToString("0.#")%</span>
+                    <span class="bar-kpi-delta @(GetConversionDelta() >= 0 ? "positive" : "negative")">
                         @(GetConversionDelta() >= 0 ? "↑" : "↓")@Math.Abs(GetConversionDelta()).ToString("0.#")%
                     </span>
                 </div>
             </div>
 
-            @* Mobile Toggle (only visible on mobile, below KPIs) *@
-            <div class="mobile-chart-toggle">
-                <button class="toggle-btn @(_chartAggregation == ChartAggregation.Day ? "active" : "")" 
+            @* Mobile Tabs (visible only on mobile) *@
+            <div class="bar-chart-mobile-tabs">
+                <button class="bar-tab @(_chartAggregation == ChartAggregation.Day ? "active" : "")" 
                         @onclick="() => SetChartAggregation(ChartAggregation.Day)">Día</button>
-                <button class="toggle-btn @(_chartAggregation == ChartAggregation.Week ? "active" : "")" 
+                <button class="bar-tab @(_chartAggregation == ChartAggregation.Week ? "active" : "")" 
                         @onclick="() => SetChartAggregation(ChartAggregation.Week)">Semana</button>
-                <button class="toggle-btn @(_chartAggregation == ChartAggregation.Month ? "active" : "")" 
+                <button class="bar-tab @(_chartAggregation == ChartAggregation.Month ? "active" : "")" 
                         @onclick="() => SetChartAggregation(ChartAggregation.Month)">Mes</button>
             </div>
 
-
-            @* Chart Container with Tooltip *@
-            <div class="chart-container" @onmouseleave="() => _hoveredPointIndex = -1">
-                <svg viewBox="0 0 800 260" class="chart-svg" preserveAspectRatio="xMidYMid meet">
-                    @* Gradient definitions *@
+            @* Bar Chart Container *@
+            <div class="bar-chart-container" @onmouseleave="() => _hoveredPointIndex = -1">
+                <svg viewBox="0 0 800 220" class="bar-chart-svg" preserveAspectRatio="xMidYMid meet">
+                    @* Gradient definitions for bars *@
                     <defs>
-                        <linearGradient id="interactionsGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.4" />
-                            <stop offset="100%" stop-color="#7C3AED" stop-opacity="0.02" />
+                        <linearGradient id="barInteractionsGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#8B5CF6" />
+                            <stop offset="100%" stop-color="#7C3AED" />
                         </linearGradient>
-                        <linearGradient id="leadsGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.25" />
-                            <stop offset="100%" stop-color="#14B8A6" stop-opacity="0.02" />
+                        <linearGradient id="barLeadsGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#2DD4BF" />
+                            <stop offset="100%" stop-color="#14B8A6" />
                         </linearGradient>
                     </defs>
 
-                    @* Subtle grid lines *@
+                    @* Subtle horizontal grid lines *@
                     @for (int i = 0; i <= 4; i++)
                     {
-                        var y = 200 - i * 45;
-                        <line x1="50" y1="@y" x2="750" y2="@y" class="grid-line" />
+                        var y = 180 - i * 40;
+                        <line x1="50" y1="@y" x2="750" y2="@y" class="bar-grid-line" />
                     }
 
-                    @* Left Y-axis labels (Interactions) *@
+                    @* Y-axis labels (unified scale based on max value) *@
                     @for (int i = 0; i <= 4; i++)
                     {
-                        var y = 205 - i * 45;
-                        var value = (int)(GetMaxInteractions() / 4.0 * i);
-                        <g><text x="40" y="@y" class="axis-label y-label-left">@value</text></g>
+                        var y = 185 - i * 40;
+                        var value = (int)(GetBarChartMaxValue() / 4.0 * i);
+                        <g><text x="40" y="@y" class="bar-axis-label bar-y-label">@value</text></g>
                     }
 
-                    @* Right Y-axis labels (Leads) *@
-                    @for (int i = 0; i <= 4; i++)
-                    {
-                        var y = 205 - i * 45;
-                        var value = (int)(GetMaxLeads() / 4.0 * i);
-                        <g><text x="760" y="@y" class="axis-label y-label-right">@value</text></g>
-                    }
-
-                    @* Areas *@
-                    <path d="@GetInteractionsAreaPath()" fill="url(#interactionsGradient)" />
-                    <path d="@GetLeadsAreaPath()" fill="url(#leadsGradient)" />
-
-                    @* Lines *@
-                    <polyline points="@GetInteractionsLinePath()" fill="none" class="chart-line interactions" stroke-width="2.5" 
-                              stroke-linejoin="round" stroke-linecap="round" />
-                    <polyline points="@GetLeadsLinePath()" fill="none" class="chart-line leads" stroke-width="2" 
-                              stroke-linejoin="round" stroke-linecap="round" />
-
-                    @* Interactive hover zones + data points *@
+                    @* Grouped Bars *@
                     @for (int i = 0; i < _chartData.Count; i++)
                     {
                         var index = i;
-                        var x = GetChartX(i);
                         var point = _chartData[i];
-                        var interactionY = GetChartYInteractions(point.Interactions);
-                        var leadY = GetChartYLeads(point.Leads);
-
-                        @* Hover zone *@
-                        <rect x="@(x - 35)" y="20" width="70" height="185" fill="transparent" 
-                              @onmouseenter="() => _hoveredPointIndex = index" class="hover-zone" />
-
-                        @* Data points - show on hover or last point *@
-                        @if (_hoveredPointIndex == i || (i == _chartData.Count - 1 && _hoveredPointIndex == -1))
-                        {
-                            <circle cx="@x" cy="@interactionY" r="6" class="data-point interactions-point" />
-                            <circle cx="@x" cy="@leadY" r="5" class="data-point leads-point" />
-                        }
+                        var groupX = GetBarGroupX(i);
+                        var barWidth = GetBarWidth();
+                        var barGap = 4;
+                        
+                        var interactionHeight = GetBarHeight(point.Interactions);
+                        var leadsHeight = GetBarHeight(point.Leads);
+                        
+                        var interactionY = 180 - interactionHeight;
+                        var leadsY = 180 - leadsHeight;
+                        
+                        @* Hover zone for the group *@
+                        <rect x="@(groupX - barWidth - 5)" y="20" width="@(barWidth * 2 + barGap + 10)" height="170" 
+                              fill="transparent" @onmouseenter="() => _hoveredPointIndex = index" class="bar-hover-zone" />
+                        
+                        @* Interactions Bar (left) *@
+                        <rect x="@groupX" y="@interactionY" width="@barWidth" height="@Math.Max(4, interactionHeight)" 
+                              fill="url(#barInteractionsGradient)" rx="4" ry="4" 
+                              class="bar-rect @(_hoveredPointIndex == i ? "hovered" : "")" />
+                        
+                        @* Leads Bar (right) *@
+                        <rect x="@(groupX + barWidth + barGap)" y="@leadsY" width="@barWidth" height="@Math.Max(4, leadsHeight)" 
+                              fill="url(#barLeadsGradient)" rx="4" ry="4" 
+                              class="bar-rect @(_hoveredPointIndex == i ? "hovered" : "")" />
                     }
 
                     @* X-axis labels *@
                     @for (int i = 0; i < _chartData.Count; i++)
                     {
-                        var x = GetChartX(i);
+                        var groupX = GetBarGroupX(i);
+                        var barWidth = GetBarWidth();
+                        var labelX = groupX + barWidth + 2;
                         var date = _chartData[i].Date;
-                        <g><text x="@x.ToString("F0")" y="228" class="axis-label x-label">@GetXAxisLabel(date)</text></g>
+                        <g><text x="@labelX.ToString("F0")" y="200" class="bar-axis-label bar-x-label">@GetBarXAxisLabel(date)</text></g>
                     }
 
-                    @* Vertical line on hover *@
+                    @* Highlight effect on hover *@
                     @if (_hoveredPointIndex >= 0 && _hoveredPointIndex < _chartData.Count)
                     {
-                        var x = GetChartX(_hoveredPointIndex);
-                        <line x1="@x" y1="20" x2="@x" y2="200" stroke="#3B4F6B" stroke-width="1" stroke-dasharray="4,4" opacity="0.6" />
+                        var groupX = GetBarGroupX(_hoveredPointIndex);
+                        var barWidth = GetBarWidth();
+                        <line x1="@(groupX + barWidth + 2)" y1="15" x2="@(groupX + barWidth + 2)" y2="180" 
+                              stroke="#3B4F6B" stroke-width="1" stroke-dasharray="3,3" opacity="0.5" />
                     }
                 </svg>
 
@@ -330,38 +322,38 @@
                 {
                     var point = _chartData[_hoveredPointIndex];
                     var conversion = point.Interactions > 0 ? (decimal)point.Leads / point.Interactions * 100 : 0;
-                    <div class="chart-tooltip" style="left: @(GetTooltipLeft(_hoveredPointIndex))px;">
-                        <div class="tooltip-date">@GetTooltipDate(point.Date)</div>
-                        <div class="tooltip-row">
-                            <span class="tooltip-dot interactions"></span>
-                            <span class="tooltip-label">Interacciones:</span>
-                            <span class="tooltip-value">@point.Interactions</span>
+                    <div class="bar-chart-tooltip" style="left: @(GetBarTooltipLeft(_hoveredPointIndex))px;">
+                        <div class="bar-tooltip-date">@GetTooltipDate(point.Date)</div>
+                        <div class="bar-tooltip-row">
+                            <span class="bar-tooltip-dot interactions"></span>
+                            <span class="bar-tooltip-label">Interacciones:</span>
+                            <span class="bar-tooltip-value">@point.Interactions</span>
                         </div>
-                        <div class="tooltip-row">
-                            <span class="tooltip-dot leads"></span>
-                            <span class="tooltip-label">Leads:</span>
-                            <span class="tooltip-value">@point.Leads</span>
+                        <div class="bar-tooltip-row">
+                            <span class="bar-tooltip-dot leads"></span>
+                            <span class="bar-tooltip-label">Leads:</span>
+                            <span class="bar-tooltip-value">@point.Leads</span>
                         </div>
-                        <div class="tooltip-conversion">
+                        <div class="bar-tooltip-conversion">
                             Conversión: <strong>@conversion.ToString("0.#")%</strong>
                         </div>
                     </div>
                 }
             </div>
 
-            @* Legend + Micro-insights *@
-            <div class="chart-footer">
-                <div class="chart-legend">
-                    <div class="legend-item">
-                        <span class="legend-dot interactions"></span>
+            @* Legend + Insights Footer *@
+            <div class="bar-chart-footer">
+                <div class="bar-chart-legend">
+                    <div class="bar-legend-item">
+                        <span class="bar-legend-dot interactions"></span>
                         <span>Interacciones</span>
                     </div>
-                    <div class="legend-item">
-                        <span class="legend-dot leads"></span>
+                    <div class="bar-legend-item">
+                        <span class="bar-legend-dot leads"></span>
                         <span>Leads</span>
                     </div>
                 </div>
-                <div class="chart-insights">
+                <div class="bar-chart-insights">
                     Pico: <strong>@GetPeakDay()</strong> · Mínimo: <strong>@GetLowestDay()</strong>
                 </div>
             </div>
@@ -1078,6 +1070,62 @@
         return lowest.Date.ToString("ddd dd");
     }
 
+    // Bar Chart specific helpers
+    private int GetBarChartMaxValue()
+    {
+        if (!_chartData.Any()) return 40;
+        var maxInteractions = _chartData.Max(d => d.Interactions);
+        var maxLeads = _chartData.Max(d => d.Leads);
+        var max = Math.Max(maxInteractions, maxLeads);
+        return Math.Max(10, (int)Math.Ceiling(max * 1.15 / 10) * 10);
+    }
+
+    private double GetBarGroupX(int index)
+    {
+        if (_chartData.Count == 0) return 400;
+        var chartWidth = 680.0;
+        var groupWidth = chartWidth / _chartData.Count;
+        var barWidth = GetBarWidth();
+        var totalBarWidth = barWidth * 2 + 4; // 2 bars + gap
+        return 60 + (index * groupWidth) + (groupWidth - totalBarWidth) / 2;
+    }
+
+    private double GetBarWidth()
+    {
+        if (_chartData.Count == 0) return 16;
+        var baseWidth = 680.0 / _chartData.Count / 3;
+        return Math.Min(20, Math.Max(8, baseWidth));
+    }
+
+    private double GetBarHeight(int value)
+    {
+        var max = GetBarChartMaxValue();
+        if (max == 0) return 0;
+        return (value * 160.0 / max);
+    }
+
+    private string GetBarXAxisLabel(DateTime date)
+    {
+        return _chartAggregation switch
+        {
+            ChartAggregation.Week => $"W{GetIsoWeekNumber(date)}",
+            ChartAggregation.Month => date.ToString("MMM"),
+            _ => date.ToString("ddd")
+        };
+    }
+
+    private int GetBarTooltipLeft(int index)
+    {
+        var groupX = GetBarGroupX(index);
+        var barWidth = GetBarWidth();
+        var centerX = (int)(groupX + barWidth + 2);
+        
+        // Adjust for edges
+        if (index < _chartData.Count / 3) return centerX + 20;
+        if (index > _chartData.Count * 2 / 3) return centerX - 140;
+        return centerX - 60;
+    }
+
     #endregion
 
     #region Formatting Helpers
@@ -1085,6 +1133,11 @@
     private string FormatNumber(decimal value)
     {
         return value >= 1000 ? $"{value / 1000:F1}K" : ((int)value).ToString();
+    }
+
+    private string FormatNumber(int value)
+    {
+        return value >= 1000 ? $"{value / 1000.0:F1}K" : value.ToString();
     }
 
     private string FormatDelta(decimal delta)
