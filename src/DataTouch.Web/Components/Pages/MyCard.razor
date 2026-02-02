@@ -4231,6 +4231,59 @@ else
         _isLoading = false;
     }
 
+    protected override async Task OnParametersSetAsync()
+    {
+        // Handle query parameter changes (e.g., from TemplateLibrary navigation)
+        await HandleTemplateQueryParam();
+    }
+
+    private async Task HandleTemplateQueryParam()
+    {
+        if (_card == null) return;
+        
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var templateParam = query["template"];
+        
+        if (!string.IsNullOrEmpty(templateParam) && _card.TemplateType != templateParam)
+        {
+            // Apply new template
+            _card.TemplateType = templateParam;
+            _card.UpdatedAt = DateTime.UtcNow;
+            
+            // Update flags
+            _isPortfolioTemplate = templateParam == "portfolio-creative";
+            _isServicesTemplate = templateParam == "services-quotes";
+            
+            // Apply theme for services
+            if (_isServicesTemplate)
+            {
+                var emeraldPreset = PresetRegistry.GetById("emerald-night");
+                if (emeraldPreset != null)
+                {
+                    _themeTokens = emeraldPreset.Tokens;
+                    _selectedPreset = "emerald-night";
+                }
+            }
+            
+            // Persist change
+            await DbContext.SaveChangesAsync();
+            
+            // Reload services if needed
+            await LoadServicesAsync();
+            
+            // Clear gallery if switching away from portfolio
+            if (!_isPortfolioTemplate && _galleryImages.Any())
+            {
+                _galleryImages.Clear();
+                _card.GalleryImagesJson = null;
+                await DbContext.SaveChangesAsync();
+            }
+            
+            StateHasChanged();
+        }
+    }
+
     private void DeserializeJsonFields()
     {
         // Social Links
