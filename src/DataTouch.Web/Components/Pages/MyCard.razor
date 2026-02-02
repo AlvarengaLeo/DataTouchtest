@@ -4209,6 +4209,12 @@ else
                 .Include(c => c.Organization)
                 .FirstOrDefaultAsync(c => c.Email == email);
 
+            // Auto-create card for users who don't have one
+            if (_card == null)
+            {
+                _card = await CreateCardForUserAsync(email);
+            }
+
             if (_card != null)
             {
                 var baseUrl = Navigation.BaseUri.TrimEnd('/');
@@ -4229,6 +4235,94 @@ else
             }
         }
         _isLoading = false;
+    }
+
+    /// <summary>
+    /// Auto-creates a card for a user who doesn't have one yet.
+    /// </summary>
+    private async Task<Card?> CreateCardForUserAsync(string email)
+    {
+        try
+        {
+            // Get the current user from the database
+            var user = await DbContext.Users
+                .Include(u => u.Organization)
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null || user.Organization == null)
+            {
+                return null;
+            }
+
+            // Generate a unique slug from the user's name
+            var baseSlug = GenerateSlug(user.FullName);
+            var slug = baseSlug;
+            var counter = 1;
+            while (await DbContext.Cards.AnyAsync(c => c.Slug == slug && c.OrganizationId == user.OrganizationId))
+            {
+                slug = $"{baseSlug}-{counter}";
+                counter++;
+            }
+
+            // Create the new card with default values
+            var newCard = new Card
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = user.OrganizationId,
+                UserId = user.Id,
+                Slug = slug,
+                FullName = user.FullName,
+                Email = email,
+                PhoneCountryCode = "+503",
+                WhatsAppCountryCode = "+503",
+                ShowSaveContact = true,
+                ShowWhatsApp = true,
+                ShowCall = true,
+                ShowEmail = true,
+                TemplateType = "default",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Set organization reference for immediate use
+            newCard.Organization = user.Organization;
+
+            DbContext.Cards.Add(newCard);
+            await DbContext.SaveChangesAsync();
+
+            Snackbar.Add("¡Tu tarjeta ha sido creada! Personalízala ahora.", Severity.Success);
+            return newCard;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating card for user: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Generates a URL-friendly slug from a name.
+    /// </summary>
+    private string GenerateSlug(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return "user";
+        
+        // Normalize and convert to lowercase
+        var slug = name.ToLowerInvariant()
+            .Normalize(System.Text.NormalizationForm.FormD);
+        
+        // Remove diacritics (accents)
+        var chars = slug.Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) 
+            != System.Globalization.UnicodeCategory.NonSpacingMark);
+        slug = new string(chars.ToArray());
+        
+        // Replace spaces and non-alphanumeric with hyphens
+        slug = System.Text.RegularExpressions.Regex.Replace(slug, @"[^a-z0-9]+", "-");
+        
+        // Trim hyphens from start/end
+        slug = slug.Trim('-');
+        
+        return string.IsNullOrEmpty(slug) ? "user" : slug;
     }
 
     private void DeserializeJsonFields()
