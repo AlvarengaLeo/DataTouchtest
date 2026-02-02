@@ -710,11 +710,14 @@ else
         text-align: center;
     }
 
-    /* Avatar with Glow Ring - HERO SIZE */
+    /* Avatar with Glow Ring - HERO SIZE - RESPONSIVE MOBILE/TABLET */
     .avatar-container {
         margin-top: 0;
         margin-bottom: 24px;
         position: relative;
+        display: flex;
+        justify-content: center;
+        overflow: visible;
     }
 
     .profile-avatar {
@@ -2014,6 +2017,96 @@ else
     
     .services-contact-footer .contact-item:hover {
         color: #14B8A6;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RESPONSIVE MOBILE/TABLET - AVATAR PREMIUM LAYOUT
+       Rango: 320px - 768px (Mobile First Approach)
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Avatar responsive con clamp() para escalado suave */
+    @@media (max-width: 768px) {
+        .card-content {
+            padding-top: clamp(18px, 3vw, 22px);
+        }
+        
+        .avatar-container {
+            margin-top: clamp(8px, 2vw, 16px);
+            margin-bottom: clamp(12px, 2.5vw, 16px);
+        }
+        
+        .profile-avatar {
+            width: clamp(92px, 20vw, 120px) !important;
+            height: clamp(92px, 20vw, 120px) !important;
+            font-size: clamp(2rem, 5vw, 2.75rem) !important;
+            border-width: clamp(4px, 1.2vw, 6px) !important;
+            box-shadow: 0 0 0 clamp(4px, 1vw, 6px) var(--dt-accent-soft),
+                        0 0 clamp(30px, 6vw, 45px) var(--dt-accent-soft),
+                        0 6px 20px rgba(0, 0, 0, 0.3) !important;
+        }
+        
+        .profile-name {
+            font-size: clamp(1.25rem, 4vw, 1.5rem) !important;
+            margin-bottom: 4px !important;
+        }
+        
+        .profile-title {
+            font-size: clamp(0.875rem, 2.5vw, 1rem) !important;
+            margin-bottom: 6px !important;
+        }
+        
+        .profile-bio {
+            font-size: clamp(0.8125rem, 2.2vw, 0.9375rem) !important;
+            margin-bottom: clamp(12px, 2.5vw, 16px) !important;
+            /* Clamp lines for mobile */
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .status-chips {
+            margin-bottom: clamp(14px, 3vw, 18px);
+        }
+    }
+    
+    /* XS: 320px - 374px (móvil más angosto) */
+    @@media (max-width: 374px) {
+        .card-content {
+            padding: 18px 14px 20px;
+        }
+        
+        .profile-bio {
+            -webkit-line-clamp: 2;
+        }
+        
+        .status-chip {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+        }
+    }
+    
+    /* SM: 375px - 479px (móvil estándar) */
+    @@media (min-width: 375px) and (max-width: 479px) {
+        .card-content {
+            padding: 20px 18px 24px;
+        }
+        
+        .profile-bio {
+            -webkit-line-clamp: 2;
+        }
+    }
+    
+    /* MD/TABLET: 480px - 768px */
+    @@media (min-width: 480px) and (max-width: 768px) {
+        .card-content {
+            padding: 22px 24px 28px;
+        }
+        
+        .profile-bio {
+            -webkit-line-clamp: 3;
+            max-width: 380px;
+        }
     }
 </style>
 
