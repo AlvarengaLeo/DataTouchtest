@@ -68,13 +68,13 @@ else
                     <span>@GetDisplayCompanyName()</span>
                 </div>
 
-                @if (!string.IsNullOrEmpty(_card.Bio) && !_isServicesTemplate)
+                @if (!string.IsNullOrEmpty(_card.Bio))
                 {
                     <MudText Typo="Typo.body2" Class="profile-bio">@_card.Bio</MudText>
                 }
 
-                @* Links y Redes Sociales - Hide for services template *@
-                @if (_socialLinks != null && _socialLinks.HasAnyLink() && !_isServicesTemplate)
+                @* Links y Redes Sociales *@
+                @if (_socialLinks != null && _socialLinks.HasAnyLink())
                 {
                     <div class="social-row">
                         @if (!string.IsNullOrEmpty(_socialLinks.LinkedIn))
@@ -100,10 +100,8 @@ else
                     </div>
                 }
 
-                @* Status Chips - Hide for services template *@
-                @if (!_isServicesTemplate)
-                {
-                    <div class="status-chips">
+                @* Status Chips *@
+                <div class="status-chips">
                         <span class="status-chip">
                             <span class="chip-dot"></span>
                             Disponible
@@ -117,7 +115,6 @@ else
                             El Salvador
                         </span>
                     </div>
-                }
 
                 @* ─────────────────────────────────────────────────────────────────────
                    PORTFOLIO GALLERY (Conditional - Only if has gallery images)
@@ -248,9 +245,7 @@ else
                    BLOQUE 2: CTAs / ACCIONES RÁPIDAS - Hide for services template
                    Integrados DENTRO de la card, no como sección aparte
                    ───────────────────────────────────────────────────────────────────── *@
-                @if (!_isServicesTemplate)
-                {
-                    <div class="cta-section">
+                <div class="cta-section">
                         @* Botón primario: Guardar contacto - respetar flag *@
                         @if (_card.ShowSaveContact)
                         {
@@ -289,16 +284,13 @@ else
                             }
                         </div>
                     </div>
-                }
             </div>
         </div>
 
         @* ─────────────────────────────────────────────────────────────────────────
-           BLOQUE 3: FORMULARIO DE LEAD PREMIUM - Hide for services template
+           BLOQUE 3: FORMULARIO DE LEAD PREMIUM
            Diseño enterprise-grade con validación avanzada de teléfono
            ───────────────────────────────────────────────────────────────────────── *@
-        @if (!_isServicesTemplate)
-        {
         <div class="lead-form-card @GetCardContrastClass() @(_showSuccess ? "success-state" : "")" style="@GetCardBackgroundStyle()">
             @if (_showSuccess)
             {
@@ -436,7 +428,6 @@ else
                 </EditForm>
             }
         </div>
-        }
         @* ─────────────────────────────────────────────────────────
            LIGHTBOX MODAL (Gallery Image)
            ───────────────────────────────────────────────────────── *@

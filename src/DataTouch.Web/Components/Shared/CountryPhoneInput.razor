@@ -381,6 +381,24 @@
             ValidatePhone();
         }
     }
+
+    protected override void OnParametersSet()
+    {
+        // Handle external resets or value changes
+        if (Value != _nationalNumber)
+        {
+            _nationalNumber = Value ?? "";
+            _displayValue = FormatDisplayValue(_nationalNumber);
+            ValidatePhone();
+        }
+
+        if (_selectedCountry == null || CountryCode != _selectedCountry.Code)
+        {
+            _selectedCountry = PhoneService.GetByCode(CountryCode) ?? PhoneService.GetDefaultCountry();
+            _requiredDigits = _selectedCountry?.MinLength ?? 8;
+            ValidatePhone();
+        }
+    }
     
     private async Task OnCountryChanged(string newCountryCode)
     {
