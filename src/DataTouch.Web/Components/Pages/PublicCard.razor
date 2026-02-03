@@ -814,34 +814,41 @@ else
     .status-chips {
         display: flex;
         justify-content: center;
-        gap: 8px;
-        flex-wrap: wrap;
+        align-items: center;
+        gap: clamp(4px, 1.5vw, 8px);
+        flex-wrap: nowrap;
         margin-bottom: 20px;
+        width: 100%;
     }
 
     .status-chip {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
+        gap: clamp(3px, 1vw, 6px);
+        padding: clamp(4px, 1.5vw, 6px) clamp(6px, 2vw, 12px);
         background: rgba(255, 255, 255, 0.08);
         border-radius: 20px;
-        font-size: 0.75rem;
+        font-size: clamp(0.65rem, 2vw, 0.75rem);
         color: rgba(255, 255, 255, 0.75);
         border: 1px solid rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+        flex-shrink: 1;
+        flex-grow: 0;
     }
 
     .status-chip .mud-icon-root {
-        font-size: 0.875rem !important;
+        font-size: clamp(0.75rem, 2.5vw, 0.875rem) !important;
         opacity: 0.7;
+        flex-shrink: 0;
     }
 
     .chip-dot {
-        width: 8px;
-        height: 8px;
+        width: clamp(6px, 2vw, 8px);
+        height: clamp(6px, 2vw, 8px);
         border-radius: 50%;
         background: #22C55E;
         box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+        flex-shrink: 0;
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
@@ -2080,9 +2087,23 @@ else
             -webkit-line-clamp: 2;
         }
         
+        .status-chips {
+            gap: 4px;
+        }
+        
         .status-chip {
-            font-size: 0.7rem;
-            padding: 4px 8px;
+            font-size: 0.6rem;
+            padding: 3px 6px;
+            gap: 3px;
+        }
+        
+        .status-chip .mud-icon-root {
+            font-size: 0.7rem !important;
+        }
+        
+        .chip-dot {
+            width: 5px;
+            height: 5px;
         }
     }
     
