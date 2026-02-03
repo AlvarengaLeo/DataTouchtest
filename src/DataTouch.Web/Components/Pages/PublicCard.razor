@@ -68,13 +68,13 @@ else
                     <span>@GetDisplayCompanyName()</span>
                 </div>
 
-                @if (!string.IsNullOrEmpty(_card.Bio) && !_isServicesTemplate)
+                @if (!string.IsNullOrEmpty(_card.Bio))
                 {
                     <MudText Typo="Typo.body2" Class="profile-bio">@_card.Bio</MudText>
                 }
 
-                @* Links y Redes Sociales - Hide for services template *@
-                @if (_socialLinks != null && _socialLinks.HasAnyLink() && !_isServicesTemplate)
+                @* Links y Redes Sociales *@
+                @if (_socialLinks != null && _socialLinks.HasAnyLink())
                 {
                     <div class="social-row">
                         @if (!string.IsNullOrEmpty(_socialLinks.LinkedIn))
@@ -100,10 +100,8 @@ else
                     </div>
                 }
 
-                @* Status Chips - Hide for services template *@
-                @if (!_isServicesTemplate)
-                {
-                    <div class="status-chips">
+                @* Status Chips *@
+                <div class="status-chips">
                         <span class="status-chip">
                             <span class="chip-dot"></span>
                             Disponible
@@ -117,7 +115,6 @@ else
                             El Salvador
                         </span>
                     </div>
-                }
 
                 @* ─────────────────────────────────────────────────────────────────────
                    PORTFOLIO GALLERY (Conditional - Only if has gallery images)
@@ -248,9 +245,7 @@ else
                    BLOQUE 2: CTAs / ACCIONES RÁPIDAS - Hide for services template
                    Integrados DENTRO de la card, no como sección aparte
                    ───────────────────────────────────────────────────────────────────── *@
-                @if (!_isServicesTemplate)
-                {
-                    <div class="cta-section">
+                <div class="cta-section">
                         @* Botón primario: Guardar contacto - respetar flag *@
                         @if (_card.ShowSaveContact)
                         {
@@ -289,16 +284,13 @@ else
                             }
                         </div>
                     </div>
-                }
             </div>
         </div>
 
         @* ─────────────────────────────────────────────────────────────────────────
-           BLOQUE 3: FORMULARIO DE LEAD PREMIUM - Hide for services template
+           BLOQUE 3: FORMULARIO DE LEAD PREMIUM
            Diseño enterprise-grade con validación avanzada de teléfono
            ───────────────────────────────────────────────────────────────────────── *@
-        @if (!_isServicesTemplate)
-        {
         <div class="lead-form-card @GetCardContrastClass() @(_showSuccess ? "success-state" : "")" style="@GetCardBackgroundStyle()">
             @if (_showSuccess)
             {
@@ -436,7 +428,6 @@ else
                 </EditForm>
             }
         </div>
-        }
         @* ─────────────────────────────────────────────────────────
            LIGHTBOX MODAL (Gallery Image)
            ───────────────────────────────────────────────────────── *@
@@ -719,22 +710,25 @@ else
         text-align: center;
     }
 
-    /* Avatar with Glow Ring - HERO SIZE */
+    /* Avatar with Glow Ring - HERO SIZE - RESPONSIVE MOBILE/TABLET */
     .avatar-container {
         margin-top: 0;
         margin-bottom: 24px;
         position: relative;
+        display: flex;
+        justify-content: center;
+        overflow: visible;
     }
 
     .profile-avatar {
-        width: 160px !important;
-        height: 160px !important;
-        font-size: 3.75rem !important;
+        width: 200px !important;
+        height: 200px !important;
+        font-size: 4.5rem !important;
         background: var(--dt-accent-gradient) !important;
-        border: 5px solid rgba(255, 255, 255, 0.25) !important;
-        box-shadow: 0 0 0 6px var(--dt-accent-soft),
-                    0 0 60px var(--dt-accent-soft),
-                    0 12px 32px rgba(0, 0, 0, 0.35) !important;
+        border: 6px solid rgba(255, 255, 255, 0.25) !important;
+        box-shadow: 0 0 0 8px var(--dt-accent-soft),
+                    0 0 80px var(--dt-accent-soft),
+                    0 16px 40px rgba(0, 0, 0, 0.35) !important;
         color: white !important;
         overflow: hidden !important;
     }
@@ -759,17 +753,17 @@ else
     /* Info - White text for dark theme */
     .profile-name {
         font-weight: 700 !important;
-        font-size: 1.75rem !important;
+        font-size: 2rem !important;
         color: #FFFFFF !important;
-        margin-bottom: 6px !important;
+        margin-bottom: 8px !important;
         letter-spacing: -0.02em;
     }
 
     .profile-title {
         color: rgba(255, 255, 255, 0.7) !important;
-        font-size: 1rem !important;
+        font-size: 1.125rem !important;
         font-weight: 400 !important;
-        margin-bottom: 8px !important;
+        margin-bottom: 10px !important;
     }
 
     .profile-location {
@@ -2023,6 +2017,96 @@ else
     
     .services-contact-footer .contact-item:hover {
         color: #14B8A6;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RESPONSIVE MOBILE/TABLET - AVATAR PREMIUM LAYOUT
+       Rango: 320px - 768px (Mobile First Approach)
+       ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Avatar responsive con clamp() para escalado suave */
+    @@media (max-width: 768px) {
+        .card-content {
+            padding-top: clamp(18px, 3vw, 22px);
+        }
+        
+        .avatar-container {
+            margin-top: clamp(8px, 2vw, 16px);
+            margin-bottom: clamp(12px, 2.5vw, 16px);
+        }
+        
+        .profile-avatar {
+            width: clamp(150px, 40vw, 200px) !important;
+            height: clamp(150px, 40vw, 200px) !important;
+            font-size: clamp(3rem, 8.5vw, 4.5rem) !important;
+            border-width: clamp(6px, 2.2vw, 10px) !important;
+            box-shadow: 0 0 0 clamp(6px, 2vw, 10px) var(--dt-accent-soft),
+                        0 0 clamp(50px, 12vw, 80px) var(--dt-accent-soft),
+                        0 10px 32px rgba(0, 0, 0, 0.35) !important;
+        }
+        
+        .profile-name {
+            font-size: clamp(1.5rem, 6vw, 2rem) !important;
+            margin-bottom: 8px !important;
+        }
+        
+        .profile-title {
+            font-size: clamp(1rem, 3.5vw, 1.25rem) !important;
+            margin-bottom: 10px !important;
+        }
+        
+        .profile-bio {
+            font-size: clamp(0.8125rem, 2.2vw, 0.9375rem) !important;
+            margin-bottom: clamp(12px, 2.5vw, 16px) !important;
+            /* Clamp lines for mobile */
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .status-chips {
+            margin-bottom: clamp(14px, 3vw, 18px);
+        }
+    }
+    
+    /* XS: 320px - 374px (móvil más angosto) */
+    @@media (max-width: 374px) {
+        .card-content {
+            padding: 18px 14px 20px;
+        }
+        
+        .profile-bio {
+            -webkit-line-clamp: 2;
+        }
+        
+        .status-chip {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+        }
+    }
+    
+    /* SM: 375px - 479px (móvil estándar) */
+    @@media (min-width: 375px) and (max-width: 479px) {
+        .card-content {
+            padding: 20px 18px 24px;
+        }
+        
+        .profile-bio {
+            -webkit-line-clamp: 2;
+        }
+    }
+    
+    /* MD/TABLET: 480px - 768px */
+    @@media (min-width: 480px) and (max-width: 768px) {
+        .card-content {
+            padding: 22px 24px 28px;
+        }
+        
+        .profile-bio {
+            -webkit-line-clamp: 3;
+            max-width: 380px;
+        }
     }
 </style>
 

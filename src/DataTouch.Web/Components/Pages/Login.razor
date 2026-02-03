@@ -5,7 +5,12 @@
 <PageTitle>Iniciar Sesión - DataTouch</PageTitle>
 
 <div class="login-wrapper">
-    <!-- Panel Izquierdo - Branding con ondas -->
+    <!-- Mobile Header (solo visible en mobile) -->
+    <div class="mobile-header">
+        <a href="/register" class="mobile-signup-link">Crear cuenta</a>
+    </div>
+
+    <!-- Panel Izquierdo - Branding con ondas (oculto en mobile) -->
     <div class="left-panel">
         <div class="wave-container">
             <svg class="wave-bg" viewBox="0 0 500 500" preserveAspectRatio="none">
@@ -25,6 +30,20 @@
 
     <!-- Panel Derecho - Formulario -->
     <div class="right-panel">
+        <!-- Mobile Logo Badge (solo visible en mobile) -->
+        <div class="mobile-logo-section">
+            <div class="mobile-logo-badge">
+                <div class="logo-inner">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#818CF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="#818CF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="#6366F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="mobile-divider"></div>
+        </div>
+
         <div class="form-container">
             <h2 class="form-title">Iniciar Sesión en <span class="highlight">DataTouch</span></h2>
 
@@ -41,6 +60,8 @@
             }
 
             <form method="post" action="/api/auth/login">
+                <!-- Mobile Labels (solo visible en mobile) -->
+                <label class="mobile-label" for="email">Correo electrónico</label>
                 <div class="input-group">
                     <div class="input-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2">
@@ -48,9 +69,10 @@
                             <path d="M22,6 L12,13 L2,6"></path>
                         </svg>
                     </div>
-                    <input type="email" id="email" name="email" required placeholder="Email" />
+                    <input type="email" id="email" name="email" required placeholder="Enter your email" />
                 </div>
 
+                <label class="mobile-label" for="password">Contraseña</label>
                 <div class="input-group password-group">
                     <div class="input-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2">
@@ -58,8 +80,8 @@
                             <path d="M7,11 L7,7 C7,4.239 9.239,2 12,2 C14.761,2 17,4.239 17,7 L17,11"></path>
                         </svg>
                     </div>
-                    <input type="@(_showPassword ? "text" : "password")" id="password" name="password" required placeholder="Password" />
-                    <button type="button" class="toggle-password" @onclick="TogglePasswordVisibility" @onclick:preventDefault>
+                    <input type="@(_showPassword ? "text" : "password")" id="password" name="password" required placeholder="Enter your password" />
+                    <button type="button" class="toggle-password" @onclick="TogglePasswordVisibility" @onclick:preventDefault aria-label="Mostrar contraseña">
                         @if (_showPassword)
                         {
                             <!-- Eye Off Icon -->
@@ -111,6 +133,19 @@
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
         background: #0B0F14;
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MOBILE-ONLY ELEMENTS (ocultos por defecto en tablet+)
+       ═══════════════════════════════════════════════════════════════ */
+    .mobile-header,
+    .mobile-logo-section,
+    .mobile-label {
+        display: none;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DESKTOP/TABLET STYLES (≥600px) - SIN CAMBIOS
+       ═══════════════════════════════════════════════════════════════ */
 
     /* Panel Izquierdo */
     .left-panel {
@@ -172,6 +207,7 @@
     .right-panel {
         flex: 1;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         padding: 60px;
@@ -346,60 +382,668 @@
         outline-offset: 2px;
     }
 
-    /* Responsive */
-    @@media (max-width: 900px) {
+    /* ═══════════════════════════════════════════════════════════════
+       DESKTOP STYLES (≥1024px) - Unified with Mobile/Tablet visual language
+       2-column layout with same block system
+       ═══════════════════════════════════════════════════════════════ */
+    @@media (min-width: 1024px) {
         .login-wrapper {
-            flex-direction: column;
+            flex-direction: row;
+            background: #0B0F14;
         }
 
+        /* Panel Izquierdo - Branding (45%) */
         .left-panel {
-            min-height: 280px;
-            padding: 40px;
+            flex: 0.45;
+            display: flex;
+            align-items: center;
             justify-content: center;
+            padding: 48px;
+            min-height: 100vh;
         }
 
         .brand-content {
             text-align: center;
-            max-width: 100%;
+            max-width: 360px;
         }
 
         .brand-title {
-            font-size: 2.5rem;
+            font-size: 3rem;
         }
 
         .brand-description {
-            max-width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
         }
 
+        /* Panel Derecho - Login (55%) */
         .right-panel {
-            padding: 40px 30px;
+            flex: 0.55;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px;
+            background: linear-gradient(180deg, #0B0F14 0%, #111827 50%, #0B0F14 100%);
+            position: relative;
+        }
+
+        /* "Crear cuenta" arriba derecha del panel */
+        .mobile-header {
+            display: flex;
+            justify-content: flex-end;
+            padding: 20px 32px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+
+        .mobile-signup-link {
+            color: #818CF8;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .mobile-signup-link:hover {
+            background: rgba(129, 140, 248, 0.1);
+        }
+
+        /* Logo Badge visible en desktop */
+        .mobile-logo-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .mobile-logo-badge {
+            width: 110px;
+            height: 110px;
+            background: rgba(79, 70, 229, 0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 26px;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 
+                0 0 60px rgba(99, 102, 241, 0.15),
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            margin-bottom: 36px;
+        }
+
+        .logo-inner {
+            transform: rotate(-45deg);
+            width: 52px;
+            height: 52px;
+        }
+
+        .logo-inner svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Divisor visible en desktop */
+        .mobile-divider {
+            width: 40%;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(99, 102, 241, 0.3) 50%, 
+                transparent 100%);
+            margin-bottom: 32px;
+        }
+
+        /* Form Container - Transparente como mobile/tablet */
+        .form-container {
+            background: transparent;
+            border: none;
+            padding: 0;
+            max-width: 460px;
+            width: 100%;
+        }
+
+        /* Título centrado */
+        .form-title {
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        /* Labels visibles en desktop */
+        .mobile-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #9CA3AF;
+            margin-bottom: 8px;
+            padding-left: 4px;
+        }
+
+        /* Inputs Pill Style */
+        .input-group {
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            border-radius: 28px;
+            padding: 18px 20px 18px 52px;
+            font-size: 15px;
+            height: 56px;
+            background: rgba(14, 20, 27, 0.8);
+            border: 1px solid rgba(35, 48, 68, 0.6);
+        }
+
+        .input-group input:focus {
+            border-color: #6366F1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .input-icon {
+            left: 20px;
+        }
+
+        .password-group input {
+            padding-right: 56px;
+        }
+
+        .toggle-password {
+            right: 18px;
+            padding: 12px;
+            min-width: 44px;
+            min-height: 44px;
+        }
+
+        /* Form Options - en fila */
+        .form-options {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: 28px;
+        }
+
+        .remember-me {
+            display: flex;
+        }
+
+        .forgot-link {
+            font-size: 14px;
+        }
+
+        /* CTA Button con gradiente y glow */
+        .login-btn {
+            border-radius: 28px;
+            padding: 18px 32px;
+            font-size: 14px;
+            letter-spacing: 1.5px;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+            background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+            box-shadow: 
+                0 4px 20px rgba(99, 102, 241, 0.4),
+                0 0 40px rgba(99, 102, 241, 0.15);
+        }
+
+        .login-btn:hover {
+            background: linear-gradient(135deg, #5B52ED 0%, #7C7FF7 100%);
+            box-shadow: 
+                0 6px 24px rgba(99, 102, 241, 0.5),
+                0 0 50px rgba(99, 102, 241, 0.2);
+        }
+
+        .login-btn:active {
+            background: linear-gradient(135deg, #4338CA 0%, #5B52ED 100%);
+            transform: translateY(0);
+        }
+
+        /* Error Alert */
+        .error-alert {
+            border-radius: 12px;
+            margin-bottom: 24px;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
         }
     }
 
-    @@media (max-width: 480px) {
+    /* ═══════════════════════════════════════════════════════════════
+       TABLET RESPONSIVE (600px - 1023px) - Mobile escalado con más aire
+       Mismo diseño que mobile, solo con mejor proporción y max-width
+       ═══════════════════════════════════════════════════════════════ */
+    @@media (min-width: 600px) and (max-width: 1023px) {
+        .login-wrapper {
+            flex-direction: column;
+            background: linear-gradient(180deg, #0B0F14 0%, #111827 50%, #0B0F14 100%);
+            position: relative;
+        }
+
+        /* Ocultar panel izquierdo (hero) en tablet */
         .left-panel {
-            padding: 30px 20px;
-            min-height: 220px;
+            display: none;
         }
 
-        .brand-title {
-            font-size: 2rem;
+        /* Mobile Header visible en tablet */
+        .mobile-header {
+            display: flex;
+            justify-content: flex-end;
+            padding: 20px 32px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
         }
 
-        .brand-tagline {
-            font-size: 0.95rem;
+        .mobile-signup-link {
+            color: #818CF8;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
         }
 
-        .brand-description {
-            font-size: 0.85rem;
+        .mobile-signup-link:hover {
+            background: rgba(129, 140, 248, 0.1);
         }
 
+        /* Logo Section Tablet - ligeramente más grande */
+        .mobile-logo-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 80px;
+            margin-bottom: 16px;
+        }
+
+        .mobile-logo-badge {
+            width: 110px;
+            height: 110px;
+            background: rgba(79, 70, 229, 0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 26px;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 
+                0 0 60px rgba(99, 102, 241, 0.15),
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            margin-bottom: 36px;
+        }
+
+        .logo-inner {
+            transform: rotate(-45deg);
+            width: 52px;
+            height: 52px;
+        }
+
+        .logo-inner svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .mobile-divider {
+            width: 50%;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(99, 102, 241, 0.3) 50%, 
+                transparent 100%);
+            margin-bottom: 32px;
+        }
+
+        /* Right Panel Tablet */
         .right-panel {
-            padding: 30px 20px;
+            flex: 1;
+            padding: 0 40px 48px;
+            background: transparent;
+            justify-content: flex-start;
+            align-items: center;
         }
 
+        /* Form Container Tablet - con max-width */
+        .form-container {
+            background: transparent;
+            border: none;
+            padding: 0;
+            max-width: 480px;
+            width: 100%;
+        }
+
+        /* Title Tablet */
         .form-title {
-            font-size: 1.4rem;
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        /* Labels visibles en tablet */
+        .mobile-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #9CA3AF;
+            margin-bottom: 8px;
+            padding-left: 4px;
+        }
+
+        /* Inputs Pill Style Tablet */
+        .input-group {
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            border-radius: 28px;
+            padding: 18px 20px 18px 52px;
+            font-size: 15px;
+            height: 56px;
+            background: rgba(14, 20, 27, 0.8);
+            border: 1px solid rgba(35, 48, 68, 0.6);
+        }
+
+        .input-group input:focus {
+            border-color: #6366F1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .input-icon {
+            left: 20px;
+        }
+
+        .password-group input {
+            padding-right: 56px;
+        }
+
+        .toggle-password {
+            right: 18px;
+            padding: 12px;
+            min-width: 44px;
+            min-height: 44px;
+        }
+
+        /* Form Options Tablet - en fila */
+        .form-options {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: 28px;
+        }
+
+        .remember-me {
+            display: flex; /* Visible en tablet */
+        }
+
+        .forgot-link {
+            font-size: 14px;
+        }
+
+        /* CTA Button Tablet */
+        .login-btn {
+            border-radius: 28px;
+            padding: 18px 32px;
+            font-size: 14px;
+            letter-spacing: 1.5px;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+            background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+            box-shadow: 
+                0 4px 20px rgba(99, 102, 241, 0.4),
+                0 0 40px rgba(99, 102, 241, 0.15);
+        }
+
+        .login-btn:hover {
+            background: linear-gradient(135deg, #5B52ED 0%, #7C7FF7 100%);
+            box-shadow: 
+                0 6px 24px rgba(99, 102, 241, 0.5),
+                0 0 50px rgba(99, 102, 241, 0.2);
+        }
+
+        .login-btn:active {
+            background: linear-gradient(135deg, #4338CA 0%, #5B52ED 100%);
+            transform: translateY(0);
+        }
+
+        /* Error Alert Tablet */
+        .error-alert {
+            border-radius: 12px;
+            margin-bottom: 24px;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MOBILE STYLES (max-width: 599px) - CANON / FUENTE DE VERDAD
+       ═══════════════════════════════════════════════════════════════ */
+    @@media (max-width: 599px) {
+        .login-wrapper {
+            flex-direction: column;
+            background: linear-gradient(180deg, #0B0F14 0%, #111827 50%, #0B0F14 100%);
+            position: relative;
+        }
+
+        /* Ocultar panel izquierdo completamente */
+        .left-panel {
+            display: none;
+        }
+
+        /* Mobile Header */
+        .mobile-header {
+            display: flex;
+            justify-content: flex-end;
+            padding: 16px 24px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+
+        .mobile-signup-link {
+            color: #818CF8;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .mobile-signup-link:hover {
+            background: rgba(129, 140, 248, 0.1);
+        }
+
+        /* Logo Section Mobile */
+        .mobile-logo-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 60px;
+            margin-bottom: 8px;
+        }
+
+        .mobile-logo-badge {
+            width: 100px;
+            height: 100px;
+            background: rgba(79, 70, 229, 0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 24px;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 
+                0 0 60px rgba(99, 102, 241, 0.15),
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            margin-bottom: 32px;
+        }
+
+        .logo-inner {
+            transform: rotate(-45deg);
+            width: 48px;
+            height: 48px;
+        }
+
+        .logo-inner svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .mobile-divider {
+            width: 60%;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(99, 102, 241, 0.3) 50%, 
+                transparent 100%);
+            margin-bottom: 24px;
+        }
+
+        /* Right Panel Mobile */
+        .right-panel {
+            flex: 1;
+            padding: 0 24px 32px;
+            background: transparent;
+            justify-content: flex-start;
+        }
+
+        /* Form Container Mobile - Sin card */
+        .form-container {
+            background: transparent;
+            border: none;
+            padding: 0;
+            max-width: 100%;
+        }
+
+        /* Title Mobile */
+        .form-title {
+            font-size: 22px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        /* Mobile Labels */
+        .mobile-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #9CA3AF;
+            margin-bottom: 8px;
+            padding-left: 4px;
+        }
+
+        /* Inputs Pill Style Mobile */
+        .input-group input {
+            border-radius: 28px;
+            padding: 18px 20px 18px 52px;
+            font-size: 15px;
+            height: 56px;
+            background: rgba(14, 20, 27, 0.8);
+            border: 1px solid rgba(35, 48, 68, 0.6);
+        }
+
+        .input-group input:focus {
+            border-color: #6366F1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .input-icon {
+            left: 20px;
+        }
+
+        .password-group input {
+            padding-right: 56px;
+        }
+
+        .toggle-password {
+            right: 18px;
+            padding: 12px;
+            min-width: 44px;
+            min-height: 44px;
+        }
+
+        /* Form Options Mobile */
+        .form-options {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0;
+            margin-bottom: 24px;
+        }
+
+        .remember-me {
+            display: none; /* Simplificar en mobile */
+        }
+
+        .forgot-link {
+            font-size: 14px;
+            padding: 8px 4px;
+        }
+
+        /* CTA Button Premium Mobile */
+        .login-btn {
+            border-radius: 28px;
+            padding: 18px 32px;
+            font-size: 14px;
+            letter-spacing: 1.5px;
+            background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+            box-shadow: 
+                0 4px 20px rgba(99, 102, 241, 0.4),
+                0 0 40px rgba(99, 102, 241, 0.15);
+        }
+
+        .login-btn:hover {
+            background: linear-gradient(135deg, #5B52ED 0%, #7C7FF7 100%);
+            box-shadow: 
+                0 6px 24px rgba(99, 102, 241, 0.5),
+                0 0 50px rgba(99, 102, 241, 0.2);
+        }
+
+        .login-btn:active {
+            background: linear-gradient(135deg, #4338CA 0%, #5B52ED 100%);
+            transform: translateY(0);
+        }
+
+        /* Error Alert Mobile */
+        .error-alert {
+            border-radius: 12px;
+            margin-bottom: 20px;
         }
     }
 </style>
