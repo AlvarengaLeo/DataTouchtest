@@ -3,80 +3,316 @@
 @inject DataTouchDbContext DbContext
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject IDialogService DialogService
 
 <PageTitle>Leads - DataTouch</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">
-    <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" /> Leads
-</MudText>
+@* ═══════════════════════════════════════════════════════════════════════════════
+   DESKTOP HEADER - Premium Design
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<div class="leads-page-header">
+    <div class="header-left">
+        <div class="header-title-row">
+            <MudIcon Icon="@Icons.Material.Filled.People" Class="header-icon" />
+            <h1>Leads</h1>
+        </div>
+        <p class="header-subtitle">
+            <MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" Class="refresh-icon" />
+            Última actualización: hace @_lastUpdateMinutes min • Mostrando @_leads.Count resultados
+        </p>
+    </div>
+    <div class="header-right">
+        <button class="btn-create-lead">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small" />
+            <span>Crear lead</span>
+        </button>
+    </div>
+</div>
 
-<MudPaper Elevation="2" Class="pa-4 mb-4">
-    <MudGrid>
-        <MudItem xs="12" md="3">
-            <MudDatePicker @bind-Date="_dateFrom" Label="Desde" Variant="Variant.Outlined" />
-        </MudItem>
-        <MudItem xs="12" md="3">
-            <MudDatePicker @bind-Date="_dateTo" Label="Hasta" Variant="Variant.Outlined" />
-        </MudItem>
-        <MudItem xs="12" md="3">
-            <MudSelect T="string" @bind-Value="_statusFilter" Label="Estado" Variant="Variant.Outlined">
-                <MudSelectItem Value="@("")">Todos</MudSelectItem>
-                <MudSelectItem Value="@("New")">Nuevo</MudSelectItem>
-                <MudSelectItem Value="@("Contacted")">Contactado</MudSelectItem>
-                <MudSelectItem Value="@("Qualified")">Calificado</MudSelectItem>
-                <MudSelectItem Value="@("Closed")">Cerrado</MudSelectItem>
-                <MudSelectItem Value="@("Lost")">Perdido</MudSelectItem>
-            </MudSelect>
-        </MudItem>
-        <MudItem xs="12" md="3" Class="d-flex align-end">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadLeads" StartIcon="@Icons.Material.Filled.Search">
-                Filtrar
-            </MudButton>
-        </MudItem>
-    </MudGrid>
-</MudPaper>
+@* ═══════════════════════════════════════════════════════════════════════════════
+   MOBILE VIEW: Compact Header + Estado Chip + Clickable Cards
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<div class="leads-mobile-wrapper">
+    @* Compact Header *@
+    <div class="mobile-toolbar">
+        <div class="toolbar-left">
+            <span class="toolbar-title">LEADS</span>
+            <span class="toolbar-count">@_leads.Count</span>
+        </div>
+    </div>
 
-@if (_isLoading)
-{
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
-}
-else
-{
-    <MudTable Items="_leads" Hover="true" Striped="true" Elevation="2">
-        <HeaderContent>
-            <MudTh>Fecha</MudTh>
-            <MudTh>Nombre</MudTh>
-            <MudTh>Email</MudTh>
-            <MudTh>Teléfono</MudTh>
-            <MudTh>Tarjeta</MudTh>
-            <MudTh>Fuente</MudTh>
-            <MudTh>Estado</MudTh>
-            <MudTh>Acciones</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Fecha">@context.CreatedAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
-            <MudTd DataLabel="Nombre">@context.FullName</MudTd>
-            <MudTd DataLabel="Email">@context.Email</MudTd>
-            <MudTd DataLabel="Teléfono">@context.Phone</MudTd>
-            <MudTd DataLabel="Tarjeta">@context.Card?.FullName</MudTd>
-            <MudTd DataLabel="Fuente">@GetSourceLabel(context.Source)</MudTd>
-            <MudTd DataLabel="Estado">
-                <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">@GetStatusLabel(context.Status)</MudChip>
-            </MudTd>
-            <MudTd DataLabel="Acciones">
-                <MudTooltip Text="Ver ficha del lead">
-                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" 
-                               Href="@($"/leads/{context.Id}")" StartIcon="@Icons.Material.Filled.Visibility">
-                        Ver
-                    </MudButton>
-                </MudTooltip>
-            </MudTd>
-        </RowTemplate>
-        <NoRecordsContent>
-            <MudText>No hay leads registrados</MudText>
-        </NoRecordsContent>
-    </MudTable>
-}
+    @* Filter Chip (Estado only) *@
+    <div class="filter-chips-row">
+        <button class="filter-chip-compact" @onclick="OpenFiltersModal">
+            <span>Estado</span>
+            <span class="chip-value">@GetStatusFilterLabel()</span>
+            <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" />
+        </button>
+        @if (HasActiveFilters())
+        {
+            <button class="filter-chip-clear" @onclick="ClearFilters">
+                <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                <span>Limpiar</span>
+            </button>
+        }
+    </div>
+
+    @* Lead Cards (Clickable) *@
+    @if (_isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (!_leads.Any())
+    {
+        <div class="leads-empty-state">
+            <MudIcon Icon="@Icons.Material.Outlined.PersonSearch" Class="empty-icon" />
+            <div class="empty-title">No hay leads registrados</div>
+            <div class="empty-subtitle">Los leads aparecerán aquí cuando los contactos envíen formularios</div>
+        </div>
+    }
+    else
+    {
+        <div class="leads-cards-container">
+            @foreach (var lead in _leads)
+            {
+                <a href="/leads/@lead.Id" class="lead-card-link">
+                    <div class="lead-card">
+                        <div class="lead-card-header">
+                            <h3 class="lead-name">@lead.FullName</h3>
+                            <span class="lead-badge @GetStatusBadgeClass(lead.Status)">@GetStatusLabel(lead.Status)</span>
+                        </div>
+                        <div class="lead-meta">
+                            <span>@lead.CreatedAt.ToLocalTime().ToString("dd/MM - HH:mm")</span>
+                            <span class="meta-divider">•</span>
+                            <span>@GetSourceLabel(lead.Source)</span>
+                        </div>
+                        <div class="lead-card-actions" @onclick:stopPropagation="true">
+                            <div class="quick-actions">
+                                @if (!string.IsNullOrEmpty(lead.Phone))
+                                {
+                                    <a href="tel:@lead.Phone" class="quick-action-btn phone-btn" title="Llamar">
+                                        <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
+                                    </a>
+                                    <a href="https://wa.me/@(lead.Phone.Replace(" ", "").Replace("-", ""))" 
+                                       target="_blank" class="quick-action-btn whatsapp-btn" title="WhatsApp">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                        </svg>
+                                    </a>
+                                }
+                                <a href="mailto:@lead.Email" class="quick-action-btn email-btn" title="Email">
+                                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
+                                </a>
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="card-chevron" />
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   DESKTOP VIEW: Premium Filters + Metrics + Table
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<div class="leads-desktop-wrapper">
+    @* ─────────────────────────────────────────────────────────────────────────────
+       SEARCH & FILTERS BAR
+       ───────────────────────────────────────────────────────────────────────────── *@
+    <div class="leads-filters-bar">
+        <div class="search-container">
+            <svg xmlns="http://www.w3.org/2000/svg" class="search-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+            </svg>
+            <input type="text"
+                   class="search-input"
+                   placeholder="Buscar por nombre, email o teléfono..."
+                   @bind="_searchTerm"
+                   @bind:event="oninput"
+                   @onkeyup="OnSearchKeyUp" />
+        </div>
+        
+        <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Class="date-menu">
+            <ActivatorContent>
+                <button class="date-range-btn">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" />
+                    <span>@GetDateRangeLabel()</span>
+                    <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Class="chevron" />
+                </button>
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem OnClick="@(() => SetDatePreset("today"))">Hoy</MudMenuItem>
+                <MudMenuItem OnClick="@(() => SetDatePreset("30days"))">Últimos 30 días</MudMenuItem>
+                <MudMenuItem OnClick="OpenCustomDatePicker">Personalizado</MudMenuItem>
+            </ChildContent>
+        </MudMenu>
+
+
+    </div>
+
+    @* ─────────────────────────────────────────────────────────────────────────────
+       METRIC CARDS ROW
+       ───────────────────────────────────────────────────────────────────────────── *@
+    <div class="leads-metrics-row">
+        <div class="metric-card total">
+            <div class="metric-icon">
+                <MudIcon Icon="@Icons.Material.Filled.People" />
+            </div>
+            <div class="metric-content">
+                <span class="metric-value">@_leads.Count</span>
+                <span class="metric-label">TOTAL</span>
+            </div>
+        </div>
+        <div class="metric-card new">
+            <div class="metric-icon">
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" />
+            </div>
+            <div class="metric-content">
+                <span class="metric-value">@_newLeadsCount</span>
+                <span class="metric-label">NUEVOS (7 DÍAS)</span>
+            </div>
+        </div>
+        <div class="metric-card qualified">
+            <div class="metric-icon">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+            </div>
+            <div class="metric-content">
+                <span class="metric-value">@_qualifiedCount</span>
+                <span class="metric-label">CALIFICADO</span>
+            </div>
+        </div>
+        <div class="metric-card closed">
+            <div class="metric-icon">
+                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" />
+            </div>
+            <div class="metric-content">
+                <span class="metric-value">@_closedCount</span>
+                <span class="metric-label">CERRADO</span>
+            </div>
+        </div>
+    </div>
+
+    @* ─────────────────────────────────────────────────────────────────────────────
+       DATA TABLE - Premium Grid Layout
+       ───────────────────────────────────────────────────────────────────────────── *@
+    @if (_isLoading)
+    {
+        <div class="leads-loading">
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        </div>
+    }
+    else if (!GetFilteredLeads().Any())
+    {
+        <div class="leads-empty-state desktop">
+            <MudIcon Icon="@Icons.Material.Outlined.PersonSearch" Class="empty-icon" />
+            <div class="empty-title">No hay leads registrados</div>
+            <div class="empty-subtitle">Los leads aparecerán aquí cuando los contactos envíen formularios</div>
+        </div>
+    }
+    else
+    {
+        <div class="leads-data-table">
+            @* Table Header *@
+            <div class="table-header-row">
+                <span>Fecha</span>
+                <span>Nombre</span>
+                <span>Tarjeta</span>
+                <span>Fuente</span>
+                <span>Tarjeta</span>
+                <span>Estado</span>
+                <span></span>
+            </div>
+
+            @* Table Body *@
+            <div class="table-body">
+                @foreach (var lead in GetFilteredLeads())
+                {
+                    <a href="/leads/@lead.Id" class="table-row-link">
+                        <div class="table-row">
+                            <span class="col-date">@lead.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                            <div class="col-name">
+                                <div class="avatar" style="background: @GetAvatarColor(lead.FullName)">
+                                    @GetInitial(lead.FullName)
+                                </div>
+                                <div class="name-info">
+                                    <span class="name">@lead.FullName</span>
+                                    <span class="email">@lead.Email</span>
+                                </div>
+                            </div>
+                            <span class="col-phone">@lead.Phone</span>
+                            <span class="col-card">@(lead.Card?.FullName ?? "-")</span>
+                            <span class="col-source">
+                                <span class="source-badge">@GetSourceLabel(lead.Source)</span>
+                            </span>
+                            <span class="col-status">
+                                <span class="status-badge @GetStatusClass(lead.Status)">@GetStatusLabel(lead.Status)</span>
+                            </span>
+                            <div class="col-actions" @onclick:stopPropagation="true">
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
+                                         AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                                    <MudMenuItem Href="@($"/leads/{lead.Id}")">
+                                        <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Class="menu-icon" /> Ver detalle
+                                    </MudMenuItem>
+                                    @if (!string.IsNullOrEmpty(lead.Phone))
+                                    {
+                                        <MudMenuItem Href="@($"tel:{lead.Phone}")">
+                                            <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" Class="menu-icon" /> Llamar
+                                        </MudMenuItem>
+                                        <MudMenuItem Href="@($"https://wa.me/{lead.Phone.Replace(" ", "").Replace("-", "")}")" Target="_blank">
+                                            <MudIcon Icon="@Icons.Material.Filled.Chat" Size="Size.Small" Class="menu-icon" /> WhatsApp
+                                        </MudMenuItem>
+                                    }
+                                    <MudMenuItem Href="@($"mailto:{lead.Email}")">
+                                        <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Class="menu-icon" /> Email
+                                    </MudMenuItem>
+                                </MudMenu>
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   FILTERS MODAL (Mobile)
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<MudDialog @bind-Visible="_filtersModalOpen" Options="@_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Filtrar Leads</MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="filters-modal-content">
+            <div class="filter-field">
+                <label class="filter-field-label">Desde</label>
+                <MudDatePicker @bind-Date="_dateFrom" Variant="Variant.Outlined" />
+            </div>
+            <div class="filter-field">
+                <label class="filter-field-label">Hasta</label>
+                <MudDatePicker @bind-Date="_dateTo" Variant="Variant.Outlined" />
+            </div>
+            <div class="filter-field">
+                <label class="filter-field-label">Estado</label>
+                <MudSelect T="string" @bind-Value="_statusFilter" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("")">Todos</MudSelectItem>
+                    <MudSelectItem Value="@("New")">Nuevo</MudSelectItem>
+                    <MudSelectItem Value="@("Contacted")">Contactado</MudSelectItem>
+                    <MudSelectItem Value="@("Qualified")">Calificado</MudSelectItem>
+                    <MudSelectItem Value="@("Closed")">Cerrado</MudSelectItem>
+                    <MudSelectItem Value="@("Lost")">Perdido</MudSelectItem>
+                </MudSelect>
+            </div>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <div class="filter-actions">
+            <button class="btn-clear" @onclick="ClearFilters">LIMPIAR</button>
+            <button class="btn-apply" @onclick="ApplyFilters">APLICAR</button>
+        </div>
+    </DialogActions>
+</MudDialog>
 
 @code {
     private List<Lead> _leads = new();
@@ -84,9 +320,37 @@ else
     private DateTime? _dateFrom;
     private DateTime? _dateTo;
     private string _statusFilter = "";
+    private int _newLeadsCount = 0;
+    private int _qualifiedCount = 0;
+    private int _closedCount = 0;
+    private string _searchTerm = "";
+    private int _lastUpdateMinutes = 2;
+    private DateTime _lastUpdateTime = DateTime.Now;
+
+    // Filters modal
+    private bool _filtersModalOpen = false;
+    private string _datePreset = "30days";
+
+    private DialogOptions _dialogOptions = new()
+    {
+        CloseButton = true,
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true
+    };
+
+    // Avatar colors for names
+    private static readonly string[] AvatarColors = new[]
+    {
+        "#6366F1", "#8B5CF6", "#EC4899", "#F43F5E", "#F97316",
+        "#EAB308", "#22C55E", "#14B8A6", "#06B6D4", "#3B82F6"
+    };
 
     protected override async Task OnInitializedAsync()
     {
+        // Default to last 30 days
+        _dateTo = DateTime.Today;
+        _dateFrom = DateTime.Today.AddDays(-30);
+        _datePreset = "30days";
         await LoadLeads();
     }
 
@@ -115,8 +379,141 @@ else
                 query = query.Where(l => l.Status == _statusFilter);
 
             _leads = await query.OrderByDescending(l => l.CreatedAt).ToListAsync();
+
+            // Calculate metrics
+            _newLeadsCount = _leads.Count(l => l.Status == "New");
+            _qualifiedCount = _leads.Count(l => l.Status == "Qualified");
+            _closedCount = _leads.Count(l => l.Status == "Closed");
+
+            // Update timestamp
+            _lastUpdateTime = DateTime.Now;
+            _lastUpdateMinutes = 0;
         }
         _isLoading = false;
+    }
+
+    private List<Lead> GetFilteredLeads()
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+            return _leads;
+
+        var term = _searchTerm.ToLower();
+        return _leads.Where(l =>
+            (l.FullName?.ToLower().Contains(term) ?? false) ||
+            (l.Email?.ToLower().Contains(term) ?? false) ||
+            (l.Phone?.ToLower().Contains(term) ?? false)
+        ).ToList();
+    }
+
+    private async Task SetDatePreset(string preset)
+    {
+        _datePreset = preset;
+        _dateTo = DateTime.Today;
+
+        _dateFrom = preset switch
+        {
+            "today" => DateTime.Today,
+            "30days" => DateTime.Today.AddDays(-30),
+            _ => DateTime.Today.AddDays(-7)
+        };
+
+        await LoadLeads();
+    }
+
+    private void OpenCustomDatePicker()
+    {
+        _datePreset = "custom";
+        _filtersModalOpen = true;
+    }
+
+    private void OnSearchKeyUp(KeyboardEventArgs e)
+    {
+        StateHasChanged();
+    }
+
+    private string GetAvatarColor(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return AvatarColors[0];
+        var index = Math.Abs(name.GetHashCode()) % AvatarColors.Length;
+        return AvatarColors[index];
+    }
+
+    private char GetInitial(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return '?';
+        return char.ToUpper(name[0]);
+    }
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "New" => "status-new",
+        "Contacted" => "status-contacted",
+        "Qualified" => "status-qualified",
+        "Closed" => "status-closed",
+        "Lost" => "status-lost",
+        _ => ""
+    };
+
+    private void OpenFiltersModal()
+    {
+        _filtersModalOpen = true;
+    }
+
+    private async Task ApplyFilters()
+    {
+        _filtersModalOpen = false;
+        await LoadLeads();
+    }
+
+    private async Task ClearFilters()
+    {
+        _statusFilter = "";
+        _dateFrom = null;
+        _dateTo = null;
+        _filtersModalOpen = false;
+        await LoadLeads();
+    }
+
+    private string GetStatusFilterLabel()
+    {
+        return string.IsNullOrEmpty(_statusFilter) ? "Todos" : GetStatusLabel(_statusFilter);
+    }
+
+    private string GetDateFilterLabel()
+    {
+        if (_dateFrom.HasValue && _dateTo.HasValue)
+        {
+            var days = (_dateTo.Value - _dateFrom.Value).Days;
+            if (days == 7) return "Últimos 7 días";
+            if (days == 30) return "Último mes";
+            return $"{_dateFrom.Value:dd/MM} - {_dateTo.Value:dd/MM}";
+        }
+        return "Sin filtro";
+    }
+
+    private string GetDateFilterLabelShort()
+    {
+        if (_dateFrom.HasValue && _dateTo.HasValue)
+        {
+            var days = (_dateTo.Value - _dateFrom.Value).Days;
+            if (days == 7) return "7d";
+            if (days == 30) return "30d";
+            return $"{days}d";
+        }
+        return "Todo";
+    }
+
+    private bool HasActiveFilters()
+    {
+        return !string.IsNullOrEmpty(_statusFilter) || _dateFrom.HasValue || _dateTo.HasValue;
+    }
+
+    private int GetActiveFiltersCount()
+    {
+        int count = 0;
+        if (!string.IsNullOrEmpty(_statusFilter)) count++;
+        if (_dateFrom.HasValue || _dateTo.HasValue) count++;
+        return count;
     }
 
     private Color GetStatusColor(string status) => status switch
@@ -129,13 +526,34 @@ else
         _ => Color.Default
     };
 
+    private string GetDateRangeLabel()
+    {
+        return _datePreset switch
+        {
+            "today" => "Hoy",
+            "30days" => "30 días",
+            "custom" => "Personalizado",
+            _ => "Rango"
+        };
+    }
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "New" => "status-new",
+        "Contacted" => "status-contacted",
+        "Qualified" => "status-qualified",
+        "Closed" => "status-closed",
+        "Lost" => "status-lost",
+        _ => ""
+    };
+
     private string GetStatusLabel(string status) => status switch
     {
-        "New" => "Nuevo",
-        "Contacted" => "Contactado",
-        "Qualified" => "Calificado",
-        "Closed" => "Cerrado",
-        "Lost" => "Perdido",
+        "New" => "NUEVO",
+        "Contacted" => "CONTACTADO",
+        "Qualified" => "CALIFICADO",
+        "Closed" => "CERRADO",
+        "Lost" => "PERDIDO",
         _ => status
     };
 
