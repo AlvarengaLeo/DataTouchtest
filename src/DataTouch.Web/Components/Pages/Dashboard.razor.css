@@ -901,16 +901,187 @@
     background: linear-gradient(135deg, #5EEAD4, #2DD4BF);
 }
 
-/* Chart Container */
+/* Chart Container - Legacy (keeping for reference) */
 .analytics-chart {
     position: relative;
     margin: 0 -10px;
+}
+
+/* ECharts Container - Auto-responsive */
+.analytics-echart {
+    width: 100%;
+    height: 280px;
+    /* Taller since legend moved to footer */
+    margin: 0.5rem 0;
+}
+
+/* Taller on mobile for better visibility */
+@media (max-width: 768px) {
+    .analytics-echart {
+        height: clamp(300px, 50vh, 420px);
+        margin: 0.5rem 0;
+    }
+}
+
+/* ─── Premium Footer Strip with Legend Pills ─── */
+.analytics-footer-strip {
+    margin-top: 0.5rem;
+}
+
+.footer-divider {
+    height: 1px;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(167, 139, 250, 0.2) 20%,
+            rgba(94, 234, 212, 0.2) 80%,
+            transparent);
+    margin-bottom: 12px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 36px;
+}
+
+.legend-pills {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex: 1;
+}
+
+.legend-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+    cursor: default;
+    transition: all 150ms ease;
+}
+
+.legend-pill:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.pill-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.pill-dot.interactions {
+    background: linear-gradient(135deg, #A78BFA, #8B5CF6);
+    box-shadow: 0 0 6px rgba(167, 139, 250, 0.4);
+}
+
+.pill-dot.leads {
+    background: linear-gradient(135deg, #5EEAD4, #2DD4BF);
+    box-shadow: 0 0 6px rgba(94, 234, 212, 0.4);
+}
+
+.pill-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.footer-insights {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.footer-insights strong {
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .footer-content {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .footer-insights {
+        text-align: center;
+    }
 }
 
 .analytics-svg {
     width: 100%;
     height: auto;
     overflow: visible;
+}
+
+/* ─── HTML Labels (outside SVG - NEVER stretch) ─── */
+.chart-y-labels {
+    position: absolute;
+    /* Grid lines en SVG: y=20 (top) a y=220 (bottom) de viewBox 280 = 7.1% a 78.6% */
+    top: 7%;
+    bottom: 21%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.chart-y-labels.left {
+    left: 0;
+    width: 50px;
+    align-items: flex-end;
+    padding-right: 10px;
+}
+
+.chart-y-labels.right {
+    right: 0;
+    width: 50px;
+    align-items: flex-start;
+    padding-left: 10px;
+}
+
+.chart-y-labels .y-label {
+    font-size: 11px;
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.chart-y-labels.left .y-label {
+    color: rgba(167, 139, 250, 0.9);
+}
+
+.chart-y-labels.right .y-label {
+    color: rgba(94, 234, 212, 0.9);
+}
+
+.chart-x-labels {
+    position: absolute;
+    bottom: 3%;
+    /* Align with bars area: 8.75% left (70/800) to 91.25% right (730/800) */
+    left: 8.5%;
+    right: 8.5%;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.chart-x-labels .x-label {
+    font-size: 12px;
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
 }
 
 .chart-gridline {
@@ -3326,19 +3497,22 @@
         font-size: 12px !important;
     }
 
-    /* Map Container */
+    /* Map Container - Full width, increased height for visibility */
     .map-container {
-        width: 100% !important;
-        height: 160px !important;
-        min-height: 160px !important;
-        border-radius: 12px !important;
+        width: calc(100% + 32px) !important;
+        /* Full width + padding compensation */
+        margin-left: -16px !important;
+        margin-right: -16px !important;
+        height: 280px !important;
+        min-height: 280px !important;
+        border-radius: 0 !important;
         overflow: hidden !important;
-        margin-bottom: 8px !important;
+        margin-bottom: 12px !important;
         position: relative !important;
     }
 
     .map-container.expanded {
-        height: 280px !important;
+        height: 380px !important;
     }
 
     .map-top-pill {
@@ -3368,65 +3542,50 @@
         height: 16px !important;
     }
 
-    /* Section Header - Top ubicaciones + Ver todo */
-    .locations-section-header {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        margin-bottom: 12px !important;
+    /* ═══ Locations Analysis Section ═══ */
+    .locations-analysis-section {
+        margin-top: 20px !important;
+        padding-top: 16px !important;
+        border-top: 1px solid rgba(99, 102, 241, 0.15) !important;
     }
 
-    .locations-section-header .section-title {
-        font-size: 15px !important;
+    .locations-analysis-title {
+        font-size: 16px !important;
         font-weight: 600 !important;
         color: #E5E7EB !important;
+        margin: 0 0 16px 0 !important;
     }
 
-    .view-all-link {
-        font-size: 12px !important;
-        color: #9CA3AF !important;
-        text-decoration: none !important;
-    }
-
-    .view-all-link:hover {
-        color: #818CF8 !important;
-    }
-
-    /* Location Table - Grid Layout with visible headers */
+    /* Location Table - Full table layout with visible headers */
     .location-table {
         font-size: 12px !important;
-        overflow: hidden !important;
+        overflow-x: auto !important;
     }
 
+    /* Show table header on mobile - Grid layout */
     .table-header-row {
         display: grid !important;
-        grid-template-columns: 1.5fr 1fr 0.8fr !important;
+        grid-template-columns: 1.5fr 1fr 0.7fr 0.8fr 0.5fr !important;
         gap: 8px !important;
-        padding: 8px 0 !important;
-        margin-bottom: 4px !important;
-        border-bottom: 1px solid rgba(99, 102, 241, 0.1) !important;
+        padding: 10px 0 !important;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.15) !important;
     }
 
     .table-header-row span {
-        font-size: 10px !important;
+        font-size: 11px !important;
         font-weight: 500 !important;
         color: #6B7280 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
+        text-transform: none !important;
     }
 
-    /* Hide conversion header - merge with Leads */
-    .table-header-row span:nth-child(4) {
-        display: none !important;
-    }
-
+    /* Location row - Grid layout matching headers */
     .table-row {
         display: grid !important;
-        grid-template-columns: 1.5fr 1fr 0.8fr !important;
+        grid-template-columns: 1.5fr 1fr 0.7fr 0.8fr 0.5fr !important;
         gap: 8px !important;
-        padding: 10px 0 !important;
-        border-bottom: 1px solid rgba(99, 102, 241, 0.06) !important;
+        padding: 12px 0 !important;
         align-items: center !important;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.08) !important;
     }
 
     .table-row:last-child {
@@ -3434,21 +3593,36 @@
     }
 
     .col-location {
-        font-size: 13px !important;
+        font-size: 14px !important;
         font-weight: 500 !important;
         color: #E5E7EB !important;
     }
 
+    /* Stats columns */
     .col-stat {
         font-size: 13px !important;
         color: #9CA3AF !important;
         text-align: center !important;
     }
 
-    /* Conversion in green, shown in Leads column area */
+    /* Remove ::before labels for grid layout */
+    .table-row .col-stat::before {
+        content: none !important;
+    }
+
+    /* Conversion in green */
     .col-stat.conversion {
         color: #22C55E !important;
         font-weight: 500 !important;
+        margin-left: 0 !important;
+    }
+
+    /* Tendencia column */
+    .col-action {
+        font-size: 14px !important;
+        color: #818CF8 !important;
+        text-align: center !important;
+        cursor: pointer !important;
     }
 
     /* Sort Controls - Visible with pill buttons */

@@ -190,9 +190,18 @@
         <div class="panel chart-panel analytics-widget @(_widgetState == WidgetState.Loading ? "loading" : "")">
             @* ─── Header Row ─── *@
             <div class="analytics-header">
-                <div class="analytics-header-left">
+            <div class="analytics-header-left">
                     <h2 class="analytics-title">Interacciones vs. Leads</h2>
-                    <span class="analytics-subtitle">Actualizado @GetLastUpdateTimeSpanish()</span>
+                    <span class="analytics-subtitle">
+                        @if (_groupedChartData != null)
+                        {
+                            @:@_groupedChartData.RangeLabel · Agrupado por: @_groupedChartData.GroupingUnit
+                        }
+                        else
+                        {
+                            @:Cargando...
+                        }
+                    </span>
                 </div>
                 <div class="analytics-header-right">
                     @* Range Dropdown Pill (único control de rango) *@
@@ -330,134 +339,26 @@
                     </div>
                 </div>
 
-                @* ─── Bar Chart with Dual Y-Axis ─── *@
-                <div id="@ChartContainerId" class="analytics-chart" @onmouseleave="() => _hoveredPointIndex = -1">
-                    @* viewBox 800x280 with none fills container, transform corrects text stretch *@
-                    <svg viewBox="0 0 @ViewBoxWidth.ToString("0") @ViewBoxHeight.ToString("0")" class="analytics-svg" preserveAspectRatio="none">
-                        @* Gradient definitions *@
-                        <defs>
-                            <linearGradient id="interactionsBarGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="#A78BFA" />
-                                <stop offset="100%" stop-color="#8B5CF6" />
-                            </linearGradient>
-                            <linearGradient id="leadsBarGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="#5EEAD4" />
-                                <stop offset="100%" stop-color="#2DD4BF" />
-                            </linearGradient>
-                        </defs>
+                @* ─── ECharts Bar Chart with Dual Y-Axis ─── *@
+                <div id="analytics-echart" class="analytics-echart"></div>
 
-                        @* Horizontal grid lines (scaled Y) *@
-                        @for (int i = 0; i <= 5; i++)
-                        {
-                            var y = ChartBottom - i * GridStep;
-                            <line x1="60" y1="@y.ToString("0.#")" x2="740" y2="@y.ToString("0.#")" class="chart-gridline" />
-                        }
-
-                        @* Y-axis LEFT (Interacciones) *@
-                        @for (int i = 0; i <= 5; i++)
-                        {
-                            var y = LabelY - i * GridStep;
-                            var value = i * IntStep;
-                            <g transform="translate(50,@y.ToString("0.#")) scale(1,@TextScaleY.ToString("0.###")) translate(-50,-@y.ToString("0.#"))"><text x="50" y="@y.ToString("0.#")" class="axis-label y-left">@FormatAxisValue(value)</text></g>
-                        }
-
-                        @* Y-axis RIGHT (Leads) *@
-                        @for (int i = 0; i <= 5; i++)
-                        {
-                            var y = LabelY - i * GridStep;
-                            var value = i * LeadsStep;
-                            <g transform="translate(750,@y.ToString("0.#")) scale(1,@TextScaleY.ToString("0.###")) translate(-750,-@y.ToString("0.#"))"><text x="750" y="@y.ToString("0.#")" class="axis-label y-right">@value</text></g>
-                        }
-
-                        @* Bars - uses BarCount, ChartWidth, GroupWidth, BarW, Gap from scope *@
-                        @for (int i = 0; i < _chartData.Count; i++)
-                        {
-                            var index = i;
-                            var point = _chartData[i];
-                            var gx = 70 + i * GroupWidth + (GroupWidth - (BarW * 2 + Gap)) / 2;
-
-                            // Scale bar heights with PlotHeight (scaled from original 200)
-                            var intH = MaxInt > 0 ? (point.Interactions * PlotHeight / MaxInt) : 0;
-                            // Leads bars scale against fixed axis max (10)
-                            var leadH = LeadsAxisMax > 0 ? (point.Leads * PlotHeight / LeadsAxisMax) : 0;
-
-                            var intY = ChartBottom - intH;
-                            var leadY = ChartBottom - leadH;
-
-                            @* Hover zone (scaled Y) *@
-                            <rect x="@(gx - 5)" y="@ChartTop.ToString("0.#")" width="@(BarW * 2 + Gap + 10)" height="@PlotHeight.ToString("0.#")"
-                                  fill="transparent" @onmouseenter="() => _hoveredPointIndex = index" class="bar-hover-zone" />
-
-                            @* Interaction bar (Y already scaled via intY) *@
-                            <rect x="@gx" y="@intY.ToString("0.#")" width="@BarW" height="@Math.Max(4, intH).ToString("0.#")"
-                                  fill="url(#interactionsBarGradient)" rx="6" ry="6"
-                                  class="chart-bar @(_hoveredPointIndex == i ? "hovered" : "")" />
-
-                            @* Lead bar (Y already scaled via leadY) *@
-                            <rect x="@(gx + BarW + Gap)" y="@leadY.ToString("0.#")" width="@BarW" height="@Math.Max(4, leadH).ToString("0.#")"
-                                  fill="url(#leadsBarGradient)" rx="6" ry="6"
-                                  class="chart-bar @(_hoveredPointIndex == i ? "hovered" : "")" />
-                        }
-
-                        @* X-axis labels (L M M J V S D) *@
-                        @for (int i = 0; i < _chartData.Count; i++)
-                        {
-                            var gx = 70 + i * GroupWidth + GroupWidth / 2;
-                            var dayLabel = _chartData[i].DayLabel;
-                            <g transform="translate(@gx.ToString("0.#"),@XLabelY.ToString("0.#")) scale(1,@TextScaleY.ToString("0.###")) translate(-@gx.ToString("0.#"),-@XLabelY.ToString("0.#"))"><text x="@gx" y="@XLabelY.ToString("0.#")" class="axis-label x-label">@dayLabel</text></g>
-                        }
-
-                        @* Hover highlight line *@
-                        @if (_hoveredPointIndex >= 0 && _hoveredPointIndex < _chartData.Count)
-                        {
-                            var hx = 70 + _hoveredPointIndex * GroupWidth + GroupWidth / 2;
-                            <line x1="@hx" y1="@ChartTop.ToString("0.#")" x2="@hx" y2="@ChartBottom.ToString("0.#")" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4,4" />
-                        }
-                    </svg>
-
-                    @* Premium Tooltip (Weekday Aggregated) *@
-                    @if (_hoveredPointIndex >= 0 && _hoveredPointIndex < _chartData.Count)
-                    {
-                        var point = _chartData[_hoveredPointIndex];
-                        var conv = point.Interactions > 0 ? (decimal)point.Leads / point.Interactions * 100 : 0;
-                        <div class="analytics-tooltip" style="left: @GetTooltipPosition(_hoveredPointIndex)%;">
-                            <div class="tooltip-header">@point.DayName</div>
-                            <div class="tooltip-subheader">Agrupado · @GetRangeLabel()</div>
-                            <div class="tooltip-row">
-                                <span class="tooltip-dot interactions"></span>
-                                <span class="tooltip-label">@point.Interactions Interacciones</span>
-                            </div>
-                            <div class="tooltip-row">
-                                <span class="tooltip-dot leads"></span>
-                                <span class="tooltip-label">@point.Leads Leads</span>
-                            </div>
-                            <div class="tooltip-footer">
-                                Conversión: <strong>@conv.ToString("0.00")%</strong>
-                                @if (point.OccurrenceCount > 0)
-                                {
-                                    <span class="tooltip-occurrences"> · @point.OccurrenceCount @(point.OccurrenceCount == 1 ? point.DayName.ToLower() : GetPluralDayName(point.DayName))</span>
-                                }
-                            </div>
+                @* ─── Footer Strip with Premium Legend Pills ─── *@
+                <div class="analytics-footer-strip">
+                    <div class="footer-divider"></div>
+                    <div class="footer-content">
+                        <div class="legend-pills">
+                            <span class="legend-pill">
+                                <span class="pill-dot interactions"></span>
+                                <span class="pill-label">Interacciones</span>
+                            </span>
+                            <span class="legend-pill">
+                                <span class="pill-dot leads"></span>
+                                <span class="pill-label">Leads</span>
+                            </span>
                         </div>
-                    }
-                </div>
-
-                @* ─── Chart Legend (al pie del widget, centrada) ─── *@
-                <div class="analytics-legend bottom-centered">
-                    <div class="legend-item">
-                        <span class="legend-dot interactions"></span>
-                        <span>Interacciones</span>
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-dot leads"></span>
-                        <span>Leads</span>
-                    </div>
-                </div>
-
-                @* ─── Footer with Insights ─── *@
-                <div class="analytics-footer">
-                    <div class="footer-insights">
-                        Pico: <strong>@GetPeakDaySpanish()</strong> · Mínimo: <strong>@GetLowestDaySpanish()</strong>
+                        <div class="footer-insights">
+                            Pico: <strong>@GetPeakDaySpanish()</strong> · Mínimo: <strong>@GetLowestDaySpanish()</strong>
+                        </div>
                     </div>
                 </div>
             }
@@ -521,39 +422,30 @@
                 </button>
             </div>
 
-            @* Top Locations Section Header *@
-            <div class="locations-section-header">
-                <span class="section-title">Top ubicaciones</span>
-                <a href="#" class="view-all-link">Ver todo ></a>
-            </div>
-
-            @* Location Table *@
-            <div class="location-table">
-                <div class="table-header-row">
-                    <span class="col-location">Ubicación</span>
-                    <span class="col-stat">Interacciones</span>
-                    <span class="col-stat">Leads</span>
-                    <span class="col-stat">Conversión</span>
-                </div>
-                @foreach (var loc in _topLocations?.Locations.Take(5) ?? new List<LocationData>())
-                {
-                    <div class="table-row">
-                        <span class="col-location">@loc.Location</span>
-                        <span class="col-stat">@loc.Interactions</span>
-                        <span class="col-stat">@loc.Leads</span>
-                        <span class="col-stat conversion">@(loc.ConversionRate.ToString("F1"))%</span>
+            @* Locations Analysis Section *@
+            <div class="locations-analysis-section">
+                <h3 class="locations-analysis-title">Análisis de Ubicaciones Principales</h3>
+                
+                @* Location Table with headers *@
+                <div class="location-table">
+                    <div class="table-header-row">
+                        <span class="col-location">Ubicación</span>
+                        <span class="col-stat">Interacciones</span>
+                        <span class="col-stat">Leads</span>
+                        <span class="col-stat">Conversión</span>
+                        <span class="col-action">Tendencia</span>
                     </div>
-                }
-            </div>
-            
-            <div class="sort-controls">
-                <span class="sort-label">Ordenar por:</span>
-                <button class="sort-btn @(_locationSortBy == LocationSortBy.Conversion ? "active" : "")" 
-                        @onclick="() => SetLocationSort(LocationSortBy.Conversion)">Conversión</button>
-                <button class="sort-btn @(_locationSortBy == LocationSortBy.Leads ? "active" : "")" 
-                        @onclick="() => SetLocationSort(LocationSortBy.Leads)">Leads</button>
-                <button class="sort-btn @(_locationSortBy == LocationSortBy.Interactions ? "active" : "")" 
-                        @onclick="() => SetLocationSort(LocationSortBy.Interactions)">Interacciones</button>
+                    @foreach (var loc in _topLocations?.Locations.Take(5) ?? new List<LocationData>())
+                    {
+                        <div class="table-row">
+                            <span class="col-location">@loc.Location</span>
+                            <span class="col-stat">@loc.Interactions</span>
+                            <span class="col-stat">@loc.Leads</span>
+                            <span class="col-stat conversion">@(loc.ConversionRate.ToString("F1"))%</span>
+                            <span class="col-action">→</span>
+                        </div>
+                    }
+                </div>
             </div>
         </div>
     </div>
@@ -851,7 +743,7 @@
 
 @code {
     private bool _isLoading = true;
-    private string _selectedDateRange = "15d";
+    private string _selectedDateRange = "today";  // Default to Today
     private bool _mapExpanded = false;
     private bool _mapInitialized = false;
     private System.Threading.Timer? _refreshTimer;
@@ -874,6 +766,7 @@
     // Data
     private DashboardKpis? _kpis;
     private List<WeekdayChartDataPoint> _chartData = new();
+    private GroupedChartData? _groupedChartData;  // Enterprise grouping data
     private TopLocationsResult? _topLocations;
     private List<LinkPerformance> _topLinks = new();
     private InsightsData? _insights;
@@ -941,19 +834,74 @@
             await InitializeMap();
         }
 
-        // Initialize chart ResizeObserver for dynamic viewBox
-        if (firstRender && !_chartResizeObserverInitialized)
+        // Initialize ECharts only on first render after data is loaded
+        // Use a small delay to ensure DOM is ready
+        if (firstRender && _widgetState == WidgetState.Ready && _chartData.Count > 0 && !_echartInitialized)
         {
-            try
+            await Task.Delay(100); // Give DOM time to render
+            await InitializeOrUpdateEChart();
+        }
+    }
+
+    private bool _echartInitialized = false;
+
+    private async Task InitializeOrUpdateEChart()
+    {
+        try
+        {
+            // Use enterprise grouped data or demo data
+            var hasRealData = _groupedChartData?.Buckets != null && 
+                              _groupedChartData.Buckets.Any() && 
+                              _groupedChartData.Buckets.Sum(b => b.Interactions + b.Leads) > 0;
+            
+            object chartData;
+            if (hasRealData)
             {
-                _chartResizeRef = DotNetObjectReference.Create(this);
-                await JSRuntime.InvokeVoidAsync("chartResizeObserver.observe", ChartContainerId, _chartResizeRef);
-                _chartResizeObserverInitialized = true;
+                chartData = new
+                {
+                    labels = _groupedChartData!.Buckets.Select(b => b.Label).ToArray(),
+                    interactions = _groupedChartData.Buckets.Select(b => b.Interactions).ToArray(),
+                    leads = _groupedChartData.Buckets.Select(b => b.Leads).ToArray(),
+                    // Enterprise tooltip data
+                    buckets = _groupedChartData.Buckets.Select(b => new
+                    {
+                        label = b.Label,
+                        tooltipTitle = b.TooltipTitle,
+                        tooltipRange = b.TooltipRange,
+                        interactions = b.Interactions,
+                        leads = b.Leads,
+                        conversionRate = b.ConversionRate
+                    }).ToArray()
+                };
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"Chart ResizeObserver init error: {ex.Message}");
+                // Demo data to always show something
+                chartData = new
+                {
+                    labels = new[] { "L", "M", "M", "J", "V", "S", "D" },
+                    interactions = new[] { 45, 32, 28, 15, 38, 52, 25 },
+                    leads = new[] { 5, 3, 2, 1, 4, 6, 3 },
+                    buckets = new[]
+                    {
+                        new { label = "L", tooltipTitle = "Lunes", tooltipRange = "Demo", interactions = 45, leads = 5, conversionRate = 11.1m },
+                        new { label = "M", tooltipTitle = "Martes", tooltipRange = "Demo", interactions = 32, leads = 3, conversionRate = 9.4m },
+                        new { label = "M", tooltipTitle = "Miércoles", tooltipRange = "Demo", interactions = 28, leads = 2, conversionRate = 7.1m },
+                        new { label = "J", tooltipTitle = "Jueves", tooltipRange = "Demo", interactions = 15, leads = 1, conversionRate = 6.7m },
+                        new { label = "V", tooltipTitle = "Viernes", tooltipRange = "Demo", interactions = 38, leads = 4, conversionRate = 10.5m },
+                        new { label = "S", tooltipTitle = "Sábado", tooltipRange = "Demo", interactions = 52, leads = 6, conversionRate = 11.5m },
+                        new { label = "D", tooltipTitle = "Domingo", tooltipRange = "Demo", interactions = 25, leads = 3, conversionRate = 12.0m }
+                    }
+                };
             }
+
+            // Always call init - JS wrapper handles dispose of existing instance
+            await JSRuntime.InvokeVoidAsync("EChartsAnalytics.init", "analytics-echart", chartData);
+            _echartInitialized = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"EChart error: {ex.Message}");
         }
     }
 
@@ -1059,9 +1007,9 @@
                 ? DashboardService.GetCustomDateRange(_customStartDate, _customEndDate)
                 : DashboardService.GetDateRangeFromOption(_selectedDateRange);
 
-            // Load all data in parallel (chart now uses weekday aggregation)
+            // Load all data in parallel (chart uses enterprise grouping)
             var kpisTask = DashboardService.GetDashboardKpisAsync(orgId.Value, dateRange);
-            var chartTask = DashboardService.GetWeekdayAggregatedChartAsync(orgId.Value, dateRange);
+            var chartTask = DashboardService.GetGroupedChartDataAsync(orgId.Value, dateRange, _selectedDateRange);
             var locationsTask = DashboardService.GetTopLocationsAsync(orgId.Value, dateRange, _locationSortBy);
             var linksTask = DashboardService.GetTopLinksAsync(orgId.Value, dateRange);
             var insightsTask = DashboardService.GetInsightsAsync(orgId.Value, dateRange);
@@ -1070,7 +1018,7 @@
             await Task.WhenAll(kpisTask, chartTask, locationsTask, linksTask, insightsTask, highIntentTask);
 
             _kpis = await kpisTask;
-            _chartData = await chartTask;
+            _groupedChartData = await chartTask;
             _topLocations = await locationsTask;
             _topLinks = await linksTask;
             _insights = await insightsTask;
@@ -1078,14 +1026,8 @@
             _lastDataUpdate = DateTime.UtcNow;
 
             // Determine widget state based on data
-            if (_chartData == null || !_chartData.Any())
-            {
-                _widgetState = WidgetState.Empty;
-            }
-            else
-            {
-                _widgetState = WidgetState.Ready;
-            }
+            // Always set to Ready - chart will show demo data if empty
+            _widgetState = WidgetState.Ready;
         }
         catch (Exception ex)
         {
@@ -1096,6 +1038,14 @@
         {
             _isLoading = false;
             StateHasChanged();
+            
+            // Always initialize ECharts after data load
+            // Demo data will be used if real data is empty
+            if (_widgetState != WidgetState.Error)
+            {
+                await Task.Delay(100); // Wait for DOM to update
+                await InitializeOrUpdateEChart();
+            }
         }
     }
 
