@@ -184,179 +184,283 @@
        ROW 2: CHART + TOP LOCATIONS
        ═══════════════════════════════════════════════════════════════ *@
     <div class="main-row">
-        @* Interactions vs Leads Chart - Bar Chart Premium Redesign *@
-        <div class="panel chart-panel bar-chart-widget">
-            @* Header with Pill Tabs *@
-            <div class="bar-chart-header">
-                <div class="bar-chart-header-left">
-                    <h2 class="bar-chart-title">Interacciones vs. Leads</h2>
-                    <span class="bar-chart-subtitle">@GetChartSubtitle() · Actualizado @GetLastUpdateTime()</span>
+        @* ═══════════════════════════════════════════════════════════════════════════
+           WIDGET: Interacciones vs. Leads - Premium Redesign (Mockup Replica)
+           ═══════════════════════════════════════════════════════════════════════════ *@
+        <div class="panel chart-panel analytics-widget @(_widgetState == WidgetState.Loading ? "loading" : "")">
+            @* ─── Header Row ─── *@
+            <div class="analytics-header">
+                <div class="analytics-header-left">
+                    <h2 class="analytics-title">Interacciones vs. Leads</h2>
+                    <span class="analytics-subtitle">Actualizado @GetLastUpdateTimeSpanish()</span>
                 </div>
-                <div class="bar-chart-tabs">
-                    <button class="bar-tab @(_chartAggregation == ChartAggregation.Day ? "active" : "")" 
-                            @onclick="() => SetChartAggregation(ChartAggregation.Day)">Día</button>
-                    <button class="bar-tab @(_chartAggregation == ChartAggregation.Week ? "active" : "")" 
-                            @onclick="() => SetChartAggregation(ChartAggregation.Week)">Semana</button>
-                    <button class="bar-tab @(_chartAggregation == ChartAggregation.Month ? "active" : "")" 
-                            @onclick="() => SetChartAggregation(ChartAggregation.Month)">Mes</button>
+                <div class="analytics-header-right">
+                    @* Range Dropdown Pill (único control de rango) *@
+                    <div class="analytics-range-dropdown">
+                        <button class="range-pill" @onclick="ToggleRangeDropdown">
+                            <span>@GetRangeLabel()</span>
+                            <svg class="chevron @(_showRangeDropdown ? "open" : "")" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        @if (_showRangeDropdown)
+                        {
+                            <div class="range-dropdown-menu" @onclick:stopPropagation="true">
+                                <button class="range-option @(_selectedDateRange == "today" ? "selected" : "")" @onclick='() => SelectRange("today")'>Hoy</button>
+                                <button class="range-option @(_selectedDateRange == "7d" ? "selected" : "")" @onclick='() => SelectRange("7d")'>Últimos 7 días</button>
+                                <button class="range-option @(_selectedDateRange == "15d" ? "selected" : "")" @onclick='() => SelectRange("15d")'>Últimos 15 días</button>
+                                <button class="range-option @(_selectedDateRange == "30d" ? "selected" : "")" @onclick='() => SelectRange("30d")'>Últimos 30 días</button>
+                                <button class="range-option @(_selectedDateRange == "6m" ? "selected" : "")" @onclick='() => SelectRange("6m")'>Últimos 6 meses</button>
+                                <button class="range-option @(_selectedDateRange == "12m" ? "selected" : "")" @onclick='() => SelectRange("12m")'>Últimos 12 meses</button>
+                                <button class="range-option @(_selectedDateRange == "custom" ? "selected" : "")" @onclick="OpenCustomRange">Personalizado</button>
+                            </div>
+                        }
+                    </div>
+                    @* Export Menu *@
+                    <div class="analytics-export">
+                        <button class="export-btn" @onclick="ToggleExportMenu" title="Exportar datos">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="1"></circle>
+                                <circle cx="12" cy="5" r="1"></circle>
+                                <circle cx="12" cy="19" r="1"></circle>
+                            </svg>
+                        </button>
+                        @if (_showExportMenu)
+                        {
+                            <div class="export-dropdown">
+                                <button class="export-option" @onclick="ExportToCsv">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                    <span>Exportar CSV</span>
+                                </button>
+                                <button class="export-option" @onclick="ExportToXlsx">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                    <span>Exportar XLSX</span>
+                                </button>
+                            </div>
+                        }
+                    </div>
                 </div>
             </div>
 
-            @* KPI Cards Row *@
-            <div class="bar-chart-kpis">
-                <div class="bar-kpi-card">
-                    <span class="bar-kpi-label">Interacciones</span>
-                    <span class="bar-kpi-value">@FormatNumber(GetTotalInteractions())</span>
-                    <span class="bar-kpi-delta @(GetInteractionsDelta() >= 0 ? "positive" : "negative")">
-                        @(GetInteractionsDelta() >= 0 ? "↑" : "↓")@Math.Abs(GetInteractionsDelta()).ToString("0.#")%
-                    </span>
-                </div>
-                <div class="bar-kpi-card">
-                    <span class="bar-kpi-label">Leads</span>
-                    <span class="bar-kpi-value">@FormatNumber(GetTotalLeads())</span>
-                    <span class="bar-kpi-delta @(GetLeadsDelta() >= 0 ? "positive" : "negative")">
-                        @(GetLeadsDelta() >= 0 ? "↑" : "↓")@Math.Abs(GetLeadsDelta()).ToString("0.#")%
-                    </span>
-                </div>
-                <div class="bar-kpi-card">
-                    <span class="bar-kpi-label">Conversión</span>
-                    <span class="bar-kpi-value">@GetConversionRate().ToString("0.#")%</span>
-                    <span class="bar-kpi-delta @(GetConversionDelta() >= 0 ? "positive" : "negative")">
-                        @(GetConversionDelta() >= 0 ? "↑" : "↓")@Math.Abs(GetConversionDelta()).ToString("0.#")%
-                    </span>
+            @* ─── Mobile Header (visible only on mobile) ─── *@
+            <div class="analytics-mobile-controls">
+                <div class="mobile-range-pill full-width">
+                    <button class="range-pill" @onclick="ToggleRangeDropdown">
+                        <span>@GetRangeLabel()</span>
+                        <svg class="chevron @(_showRangeDropdown ? "open" : "")" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
-            @* Mobile Tabs (visible only on mobile) *@
-            <div class="bar-chart-mobile-tabs">
-                <button class="bar-tab @(_chartAggregation == ChartAggregation.Day ? "active" : "")" 
-                        @onclick="() => SetChartAggregation(ChartAggregation.Day)">Día</button>
-                <button class="bar-tab @(_chartAggregation == ChartAggregation.Week ? "active" : "")" 
-                        @onclick="() => SetChartAggregation(ChartAggregation.Week)">Semana</button>
-                <button class="bar-tab @(_chartAggregation == ChartAggregation.Month ? "active" : "")" 
-                        @onclick="() => SetChartAggregation(ChartAggregation.Month)">Mes</button>
-            </div>
+            @* ─── States: Loading / Empty / Error ─── *@
+            @if (_widgetState == WidgetState.Loading)
+            {
+                <div class="analytics-loading">
+                    <div class="kpi-skeleton-row">
+                        <div class="kpi-skeleton"></div>
+                        <div class="kpi-skeleton"></div>
+                        <div class="kpi-skeleton"></div>
+                    </div>
+                    <div class="chart-skeleton"></div>
+                </div>
+            }
+            else if (_widgetState == WidgetState.Empty)
+            {
+                <div class="analytics-empty">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M3 3v18h18"/>
+                        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                    </svg>
+                    <span class="empty-title">No hay datos para este rango</span>
+                    <span class="empty-subtitle">Intenta seleccionar un período diferente</span>
+                    <button class="empty-cta" @onclick="ToggleRangeDropdown">Cambiar rango</button>
+                </div>
+            }
+            else if (_widgetState == WidgetState.Error)
+            {
+                <div class="analytics-error">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span class="error-title">Error al cargar datos</span>
+                    <button class="error-cta" @onclick="RetryLoadData">Reintentar</button>
+                </div>
+            }
+            else
+            {
+                @* ─── KPI Cards Row ─── *@
+                <div class="analytics-kpis">
+                    <div class="analytics-kpi-card">
+                        <span class="kpi-title">INTERACCIONES</span>
+                        <span class="kpi-number">@FormatCompactNumber(GetTotalInteractions())</span>
+                        <span class="kpi-change @(GetInteractionsDelta() >= 0 ? "positive" : "negative")">
+                            @(GetInteractionsDelta() >= 0 ? "↑" : "↓") @Math.Abs(GetInteractionsDelta()).ToString("0.#")% vs. período anterior
+                        </span>
+                    </div>
+                    <div class="analytics-kpi-card">
+                        <span class="kpi-title">LEADS</span>
+                        <span class="kpi-number">@FormatCompactNumber(GetTotalLeads())</span>
+                        <span class="kpi-change @(GetLeadsDelta() >= 0 ? "positive" : "negative")">
+                            @(GetLeadsDelta() >= 0 ? "↑" : "↓") @Math.Abs(GetLeadsDelta()).ToString("0.#")% vs. período anterior
+                        </span>
+                    </div>
+                    <div class="analytics-kpi-card">
+                        <span class="kpi-title">CONVERSIÓN</span>
+                        <span class="kpi-number">@GetConversionRate().ToString("0.00")%</span>
+                        <span class="kpi-change @(GetConversionDelta() >= 0 ? "positive" : "negative")">
+                            @(GetConversionDelta() >= 0 ? "↑" : "↓") @Math.Abs(GetConversionDelta()).ToString("0.#")% vs. período anterior
+                            <span class="info-icon" title="Conversión = Leads / Interacciones">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </span>
+                        </span>
+                    </div>
+                </div>
 
-            @* Bar Chart Container *@
-            <div class="bar-chart-container" @onmouseleave="() => _hoveredPointIndex = -1">
-                <svg viewBox="0 0 800 220" class="bar-chart-svg" preserveAspectRatio="xMidYMid meet">
-                    @* Gradient definitions for bars *@
-                    <defs>
-                        <linearGradient id="barInteractionsGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#8B5CF6" />
-                            <stop offset="100%" stop-color="#7C3AED" />
-                        </linearGradient>
-                        <linearGradient id="barLeadsGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#2DD4BF" />
-                            <stop offset="100%" stop-color="#14B8A6" />
-                        </linearGradient>
-                    </defs>
+                @* ─── Bar Chart with Dual Y-Axis ─── *@
+                <div id="@ChartContainerId" class="analytics-chart" @onmouseleave="() => _hoveredPointIndex = -1">
+                    @* viewBox 800x280 with none fills container, transform corrects text stretch *@
+                    <svg viewBox="0 0 @ViewBoxWidth.ToString("0") @ViewBoxHeight.ToString("0")" class="analytics-svg" preserveAspectRatio="none">
+                        @* Gradient definitions *@
+                        <defs>
+                            <linearGradient id="interactionsBarGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#A78BFA" />
+                                <stop offset="100%" stop-color="#8B5CF6" />
+                            </linearGradient>
+                            <linearGradient id="leadsBarGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#5EEAD4" />
+                                <stop offset="100%" stop-color="#2DD4BF" />
+                            </linearGradient>
+                        </defs>
 
-                    @* Subtle horizontal grid lines *@
-                    @for (int i = 0; i <= 4; i++)
-                    {
-                        var y = 180 - i * 40;
-                        <line x1="50" y1="@y" x2="750" y2="@y" class="bar-grid-line" />
-                    }
+                        @* Horizontal grid lines (scaled Y) *@
+                        @for (int i = 0; i <= 5; i++)
+                        {
+                            var y = ChartBottom - i * GridStep;
+                            <line x1="60" y1="@y.ToString("0.#")" x2="740" y2="@y.ToString("0.#")" class="chart-gridline" />
+                        }
 
-                    @* Y-axis labels (unified scale based on max value) *@
-                    @for (int i = 0; i <= 4; i++)
-                    {
-                        var y = 185 - i * 40;
-                        var value = (int)(GetBarChartMaxValue() / 4.0 * i);
-                        <g><text x="40" y="@y" class="bar-axis-label bar-y-label">@value</text></g>
-                    }
+                        @* Y-axis LEFT (Interacciones) *@
+                        @for (int i = 0; i <= 5; i++)
+                        {
+                            var y = LabelY - i * GridStep;
+                            var value = i * IntStep;
+                            <g transform="translate(50,@y.ToString("0.#")) scale(1,@TextScaleY.ToString("0.###")) translate(-50,-@y.ToString("0.#"))"><text x="50" y="@y.ToString("0.#")" class="axis-label y-left">@FormatAxisValue(value)</text></g>
+                        }
 
-                    @* Grouped Bars *@
-                    @for (int i = 0; i < _chartData.Count; i++)
-                    {
-                        var index = i;
-                        var point = _chartData[i];
-                        var groupX = GetBarGroupX(i);
-                        var barWidth = GetBarWidth();
-                        var barGap = 4;
-                        
-                        var interactionHeight = GetBarHeight(point.Interactions);
-                        var leadsHeight = GetBarHeight(point.Leads);
-                        
-                        var interactionY = 180 - interactionHeight;
-                        var leadsY = 180 - leadsHeight;
-                        
-                        @* Hover zone for the group *@
-                        <rect x="@(groupX - barWidth - 5)" y="20" width="@(barWidth * 2 + barGap + 10)" height="170" 
-                              fill="transparent" @onmouseenter="() => _hoveredPointIndex = index" class="bar-hover-zone" />
-                        
-                        @* Interactions Bar (left) *@
-                        <rect x="@groupX" y="@interactionY" width="@barWidth" height="@Math.Max(4, interactionHeight)" 
-                              fill="url(#barInteractionsGradient)" rx="4" ry="4" 
-                              class="bar-rect @(_hoveredPointIndex == i ? "hovered" : "")" />
-                        
-                        @* Leads Bar (right) *@
-                        <rect x="@(groupX + barWidth + barGap)" y="@leadsY" width="@barWidth" height="@Math.Max(4, leadsHeight)" 
-                              fill="url(#barLeadsGradient)" rx="4" ry="4" 
-                              class="bar-rect @(_hoveredPointIndex == i ? "hovered" : "")" />
-                    }
+                        @* Y-axis RIGHT (Leads) *@
+                        @for (int i = 0; i <= 5; i++)
+                        {
+                            var y = LabelY - i * GridStep;
+                            var value = i * LeadsStep;
+                            <g transform="translate(750,@y.ToString("0.#")) scale(1,@TextScaleY.ToString("0.###")) translate(-750,-@y.ToString("0.#"))"><text x="750" y="@y.ToString("0.#")" class="axis-label y-right">@value</text></g>
+                        }
 
-                    @* X-axis labels *@
-                    @for (int i = 0; i < _chartData.Count; i++)
-                    {
-                        var groupX = GetBarGroupX(i);
-                        var barWidth = GetBarWidth();
-                        var labelX = groupX + barWidth + 2;
-                        var date = _chartData[i].Date;
-                        <g><text x="@labelX.ToString("F0")" y="200" class="bar-axis-label bar-x-label">@GetBarXAxisLabel(date)</text></g>
-                    }
+                        @* Bars - uses BarCount, ChartWidth, GroupWidth, BarW, Gap from scope *@
+                        @for (int i = 0; i < _chartData.Count; i++)
+                        {
+                            var index = i;
+                            var point = _chartData[i];
+                            var gx = 70 + i * GroupWidth + (GroupWidth - (BarW * 2 + Gap)) / 2;
 
-                    @* Highlight effect on hover *@
+                            // Scale bar heights with PlotHeight (scaled from original 200)
+                            var intH = MaxInt > 0 ? (point.Interactions * PlotHeight / MaxInt) : 0;
+                            // Leads bars scale against fixed axis max (10)
+                            var leadH = LeadsAxisMax > 0 ? (point.Leads * PlotHeight / LeadsAxisMax) : 0;
+
+                            var intY = ChartBottom - intH;
+                            var leadY = ChartBottom - leadH;
+
+                            @* Hover zone (scaled Y) *@
+                            <rect x="@(gx - 5)" y="@ChartTop.ToString("0.#")" width="@(BarW * 2 + Gap + 10)" height="@PlotHeight.ToString("0.#")"
+                                  fill="transparent" @onmouseenter="() => _hoveredPointIndex = index" class="bar-hover-zone" />
+
+                            @* Interaction bar (Y already scaled via intY) *@
+                            <rect x="@gx" y="@intY.ToString("0.#")" width="@BarW" height="@Math.Max(4, intH).ToString("0.#")"
+                                  fill="url(#interactionsBarGradient)" rx="6" ry="6"
+                                  class="chart-bar @(_hoveredPointIndex == i ? "hovered" : "")" />
+
+                            @* Lead bar (Y already scaled via leadY) *@
+                            <rect x="@(gx + BarW + Gap)" y="@leadY.ToString("0.#")" width="@BarW" height="@Math.Max(4, leadH).ToString("0.#")"
+                                  fill="url(#leadsBarGradient)" rx="6" ry="6"
+                                  class="chart-bar @(_hoveredPointIndex == i ? "hovered" : "")" />
+                        }
+
+                        @* X-axis labels (L M M J V S D) *@
+                        @for (int i = 0; i < _chartData.Count; i++)
+                        {
+                            var gx = 70 + i * GroupWidth + GroupWidth / 2;
+                            var dayLabel = _chartData[i].DayLabel;
+                            <g transform="translate(@gx.ToString("0.#"),@XLabelY.ToString("0.#")) scale(1,@TextScaleY.ToString("0.###")) translate(-@gx.ToString("0.#"),-@XLabelY.ToString("0.#"))"><text x="@gx" y="@XLabelY.ToString("0.#")" class="axis-label x-label">@dayLabel</text></g>
+                        }
+
+                        @* Hover highlight line *@
+                        @if (_hoveredPointIndex >= 0 && _hoveredPointIndex < _chartData.Count)
+                        {
+                            var hx = 70 + _hoveredPointIndex * GroupWidth + GroupWidth / 2;
+                            <line x1="@hx" y1="@ChartTop.ToString("0.#")" x2="@hx" y2="@ChartBottom.ToString("0.#")" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4,4" />
+                        }
+                    </svg>
+
+                    @* Premium Tooltip (Weekday Aggregated) *@
                     @if (_hoveredPointIndex >= 0 && _hoveredPointIndex < _chartData.Count)
                     {
-                        var groupX = GetBarGroupX(_hoveredPointIndex);
-                        var barWidth = GetBarWidth();
-                        <line x1="@(groupX + barWidth + 2)" y1="15" x2="@(groupX + barWidth + 2)" y2="180" 
-                              stroke="#3B4F6B" stroke-width="1" stroke-dasharray="3,3" opacity="0.5" />
+                        var point = _chartData[_hoveredPointIndex];
+                        var conv = point.Interactions > 0 ? (decimal)point.Leads / point.Interactions * 100 : 0;
+                        <div class="analytics-tooltip" style="left: @GetTooltipPosition(_hoveredPointIndex)%;">
+                            <div class="tooltip-header">@point.DayName</div>
+                            <div class="tooltip-subheader">Agrupado · @GetRangeLabel()</div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-dot interactions"></span>
+                                <span class="tooltip-label">@point.Interactions Interacciones</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-dot leads"></span>
+                                <span class="tooltip-label">@point.Leads Leads</span>
+                            </div>
+                            <div class="tooltip-footer">
+                                Conversión: <strong>@conv.ToString("0.00")%</strong>
+                                @if (point.OccurrenceCount > 0)
+                                {
+                                    <span class="tooltip-occurrences"> · @point.OccurrenceCount @(point.OccurrenceCount == 1 ? point.DayName.ToLower() : GetPluralDayName(point.DayName))</span>
+                                }
+                            </div>
+                        </div>
                     }
-                </svg>
+                </div>
 
-                @* Floating Tooltip *@
-                @if (_hoveredPointIndex >= 0 && _hoveredPointIndex < _chartData.Count)
-                {
-                    var point = _chartData[_hoveredPointIndex];
-                    var conversion = point.Interactions > 0 ? (decimal)point.Leads / point.Interactions * 100 : 0;
-                    <div class="bar-chart-tooltip" style="left: @(GetBarTooltipLeft(_hoveredPointIndex))px;">
-                        <div class="bar-tooltip-date">@GetTooltipDate(point.Date)</div>
-                        <div class="bar-tooltip-row">
-                            <span class="bar-tooltip-dot interactions"></span>
-                            <span class="bar-tooltip-label">Interacciones:</span>
-                            <span class="bar-tooltip-value">@point.Interactions</span>
-                        </div>
-                        <div class="bar-tooltip-row">
-                            <span class="bar-tooltip-dot leads"></span>
-                            <span class="bar-tooltip-label">Leads:</span>
-                            <span class="bar-tooltip-value">@point.Leads</span>
-                        </div>
-                        <div class="bar-tooltip-conversion">
-                            Conversión: <strong>@conversion.ToString("0.#")%</strong>
-                        </div>
-                    </div>
-                }
-            </div>
-
-            @* Legend + Insights Footer *@
-            <div class="bar-chart-footer">
-                <div class="bar-chart-legend">
-                    <div class="bar-legend-item">
-                        <span class="bar-legend-dot interactions"></span>
+                @* ─── Chart Legend (al pie del widget, centrada) ─── *@
+                <div class="analytics-legend bottom-centered">
+                    <div class="legend-item">
+                        <span class="legend-dot interactions"></span>
                         <span>Interacciones</span>
                     </div>
-                    <div class="bar-legend-item">
-                        <span class="bar-legend-dot leads"></span>
+                    <div class="legend-item">
+                        <span class="legend-dot leads"></span>
                         <span>Leads</span>
                     </div>
                 </div>
-                <div class="bar-chart-insights">
-                    Pico: <strong>@GetPeakDay()</strong> · Mínimo: <strong>@GetLowestDay()</strong>
+
+                @* ─── Footer with Insights ─── *@
+                <div class="analytics-footer">
+                    <div class="footer-insights">
+                        Pico: <strong>@GetPeakDaySpanish()</strong> · Mínimo: <strong>@GetLowestDaySpanish()</strong>
+                    </div>
                 </div>
-            </div>
+            }
         </div>
 
         @* Top Locations *@
@@ -705,28 +809,115 @@
             <span>Perfil</span>
         </a>
     </nav>
+
+    @* ═══════════════════════════════════════════════════════════════
+       DATE RANGE PICKER MODAL (Personalizado)
+       ═══════════════════════════════════════════════════════════════ *@
+    @if (_showCustomDatePicker)
+    {
+        <div class="date-picker-overlay" @onclick="CloseCustomDatePicker">
+            <div class="date-picker-modal" @onclick:stopPropagation="true">
+                <div class="date-picker-header">
+                    <h3>Seleccionar rango personalizado</h3>
+                    <button class="close-btn" @onclick="CloseCustomDatePicker">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="date-picker-body">
+                    <div class="date-field">
+                        <label>Desde</label>
+                        <input type="date" @bind="_customStartDate" max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="date-field">
+                        <label>Hasta</label>
+                        <input type="date" @bind="_customEndDate" max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+                    @if (_customDateError != null)
+                    {
+                        <div class="date-error">@_customDateError</div>
+                    }
+                </div>
+                <div class="date-picker-footer">
+                    <button class="btn-cancel" @onclick="CloseCustomDatePicker">Cancelar</button>
+                    <button class="btn-accept" @onclick="ApplyCustomDateRange">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
     private bool _isLoading = true;
-    private string _selectedDateRange = "7d";
+    private string _selectedDateRange = "15d";
     private bool _mapExpanded = false;
     private bool _mapInitialized = false;
     private System.Threading.Timer? _refreshTimer;
     private int _hoveredPointIndex = -1;
     private DateTime _lastDataUpdate = DateTime.UtcNow;
 
+    // Widget state
+    private enum WidgetState { Loading, Empty, Error, Ready }
+    private WidgetState _widgetState = WidgetState.Loading;
+    private bool _showRangeDropdown = false;
+    private bool _showExportMenu = false;
+
+    // Custom date range picker
+    private bool _showCustomDatePicker = false;
+    private DateTime _customStartDate = DateTime.Now.AddDays(-7);
+    private DateTime _customEndDate = DateTime.Now;
+    private string? _customDateError = null;
+    private string? _customRangeLabel = null;
+
     // Data
     private DashboardKpis? _kpis;
-    private List<ChartDataPoint> _chartData = new();
+    private List<WeekdayChartDataPoint> _chartData = new();
     private TopLocationsResult? _topLocations;
     private List<LinkPerformance> _topLinks = new();
     private InsightsData? _insights;
     private HighIntentData? _highIntent;
 
     // Filters
-    private ChartAggregation _chartAggregation = ChartAggregation.Day;
     private LocationSortBy _locationSortBy = LocationSortBy.Conversion;
+
+    // Chart dynamic viewBox (for crisp text without distortion)
+    private const string ChartContainerId = "analytics-chart-container";
+    private double _chartContainerWidth = 800;
+    private double _chartContainerHeight = 280;
+    private DotNetObjectReference<Dashboard>? _chartResizeRef;
+    private bool _chartResizeObserverInitialized = false;
+
+    // Computed properties for dynamic viewBox scaling
+    private double ChartContainerRatio => _chartContainerHeight > 0 ? _chartContainerWidth / _chartContainerHeight : 2.86;
+    private double ViewBoxWidth => 800.0;
+    // viewBox fijo 800x280, preserveAspectRatio='none' estira para llenar contenedor
+    private double ViewBoxHeight => 280.0;
+    // ScaleY para coordenadas internas (siempre 1.0 con viewBox fijo)
+    private double ScaleY => 1.0;
+    private double ChartTop => 20 * ScaleY;
+    private double ChartBottom => 220 * ScaleY;
+    private double PlotHeight => 200 * ScaleY;
+    private double GridStep => 40 * ScaleY;
+    private double LabelY => 225 * ScaleY;
+    private double XLabelY => 250 * ScaleY;
+    
+    // TextScaleY: Factor inverso para corregir estiramiento de texto
+    // viewBoxRatio=2.86, si containerRatio=1.26 (mobile), text se estira 2.27x
+    // Este factor (containerRatio/viewBoxRatio) contraresta el estiramiento
+    private double TextScaleY => ChartContainerRatio / (ViewBoxWidth / ViewBoxHeight);
+    
+    // Chart data computed values
+    private int MaxInt => GetDynamicMaxInteractions();
+    private int IntStep => MaxInt / 5;
+    private int LeadsAxisMax => 10;
+    private int LeadsStep => 2;
+    private int BarCount => _chartData.Count;
+    private double ChartWidth => 660.0;
+    private double GroupWidth => BarCount > 0 ? ChartWidth / BarCount : ChartWidth;
+    private double BarW => Math.Min(38, Math.Max(18, GroupWidth * 0.42));
+    private double Gap => 6.0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -748,6 +939,36 @@
         if (firstRender || (!_mapInitialized && _topLocations?.HasData == true))
         {
             await InitializeMap();
+        }
+
+        // Initialize chart ResizeObserver for dynamic viewBox
+        if (firstRender && !_chartResizeObserverInitialized)
+        {
+            try
+            {
+                _chartResizeRef = DotNetObjectReference.Create(this);
+                await JSRuntime.InvokeVoidAsync("chartResizeObserver.observe", ChartContainerId, _chartResizeRef);
+                _chartResizeObserverInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Chart ResizeObserver init error: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Callback invoked by JS ResizeObserver when chart container dimensions change.
+    /// Recalculates viewBox height to maintain aspect ratio and prevent text distortion.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnChartContainerResized(double width, double height)
+    {
+        if (width > 0 && height > 0 && (Math.Abs(_chartContainerWidth - width) > 1 || Math.Abs(_chartContainerHeight - height) > 1))
+        {
+            _chartContainerWidth = width;
+            _chartContainerHeight = height;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -821,6 +1042,7 @@
     private async Task LoadDashboardData()
     {
         _isLoading = true;
+        _widgetState = WidgetState.Loading;
         StateHasChanged();
 
         try
@@ -828,15 +1050,18 @@
             var orgId = AuthService.GetCurrentOrganizationId();
             if (!orgId.HasValue)
             {
-                Snackbar.Add("No organization found", Severity.Error);
+                Snackbar.Add("No se encontró la organización", Severity.Error);
+                _widgetState = WidgetState.Error;
                 return;
             }
 
-            var dateRange = DashboardService.GetDateRangeFromOption(_selectedDateRange);
+            var dateRange = _selectedDateRange == "custom"
+                ? DashboardService.GetCustomDateRange(_customStartDate, _customEndDate)
+                : DashboardService.GetDateRangeFromOption(_selectedDateRange);
 
-            // Load all data in parallel
+            // Load all data in parallel (chart now uses weekday aggregation)
             var kpisTask = DashboardService.GetDashboardKpisAsync(orgId.Value, dateRange);
-            var chartTask = DashboardService.GetInteractionsVsLeadsChartAsync(orgId.Value, dateRange, _chartAggregation);
+            var chartTask = DashboardService.GetWeekdayAggregatedChartAsync(orgId.Value, dateRange);
             var locationsTask = DashboardService.GetTopLocationsAsync(orgId.Value, dateRange, _locationSortBy);
             var linksTask = DashboardService.GetTopLinksAsync(orgId.Value, dateRange);
             var insightsTask = DashboardService.GetInsightsAsync(orgId.Value, dateRange);
@@ -850,10 +1075,22 @@
             _topLinks = await linksTask;
             _insights = await insightsTask;
             _highIntent = await highIntentTask;
+            _lastDataUpdate = DateTime.UtcNow;
+
+            // Determine widget state based on data
+            if (_chartData == null || !_chartData.Any())
+            {
+                _widgetState = WidgetState.Empty;
+            }
+            else
+            {
+                _widgetState = WidgetState.Ready;
+            }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error loading dashboard: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Error al cargar dashboard: {ex.Message}", Severity.Error);
+            _widgetState = WidgetState.Error;
         }
         finally
         {
@@ -886,18 +1123,11 @@
         await OnDateRangeChanged();
     }
 
-    private async Task SetChartAggregation(ChartAggregation aggregation)
+    private DashboardService.DateRangeFilter GetCurrentDateRange()
     {
-        if (_chartAggregation == aggregation) return;
-        _chartAggregation = aggregation;
-
-        var orgId = AuthService.GetCurrentOrganizationId();
-        if (orgId.HasValue)
-        {
-            var dateRange = DashboardService.GetDateRangeFromOption(_selectedDateRange);
-            _chartData = await DashboardService.GetInteractionsVsLeadsChartAsync(orgId.Value, dateRange, _chartAggregation);
-            StateHasChanged();
-        }
+        return _selectedDateRange == "custom"
+            ? DashboardService.GetCustomDateRange(_customStartDate, _customEndDate)
+            : DashboardService.GetDateRangeFromOption(_selectedDateRange);
     }
 
     private async Task SetLocationSort(LocationSortBy sortBy)
@@ -927,11 +1157,222 @@
         }
     }
 
+    #region Analytics Widget Helpers
+
+    // Toggle dropdown menus
+    private void ToggleRangeDropdown()
+    {
+        _showRangeDropdown = !_showRangeDropdown;
+        _showExportMenu = false;
+    }
+
+    private void ToggleExportMenu()
+    {
+        _showExportMenu = !_showExportMenu;
+        _showRangeDropdown = false;
+    }
+
+    private async Task SelectRange(string range)
+    {
+        _showRangeDropdown = false;
+        if (_selectedDateRange == range) return;
+        _selectedDateRange = range;
+        await OnDateRangeChanged();
+    }
+
+    private void OpenCustomRange()
+    {
+        _showRangeDropdown = false;
+        _customDateError = null;
+        _showCustomDatePicker = true;
+    }
+
+    private void CloseCustomDatePicker()
+    {
+        _showCustomDatePicker = false;
+        _customDateError = null;
+    }
+
+    private async Task ApplyCustomDateRange()
+    {
+        // Validación: Hasta no puede ser menor que Desde
+        if (_customEndDate < _customStartDate)
+        {
+            _customDateError = "La fecha 'Hasta' no puede ser anterior a 'Desde'";
+            return;
+        }
+
+        // Validación: No permitir fechas futuras
+        if (_customEndDate > DateTime.Now || _customStartDate > DateTime.Now)
+        {
+            _customDateError = "No se permiten fechas futuras";
+            return;
+        }
+
+        _customDateError = null;
+        _selectedDateRange = "custom";
+        _customRangeLabel = FormatCustomRangeLabel(_customStartDate, _customEndDate);
+        _showCustomDatePicker = false;
+
+        await OnDateRangeChanged();
+    }
+
+    private string FormatCustomRangeLabel(DateTime start, DateTime end)
+    {
+        var startStr = start.ToString("dd MMM", new System.Globalization.CultureInfo("es-ES"));
+        var endStr = end.ToString("dd MMM", new System.Globalization.CultureInfo("es-ES"));
+        return $"{startStr} – {endStr}";
+    }
+
+    private string GetRangeLabel()
+    {
+        return _selectedDateRange switch
+        {
+            "today" => "Hoy",
+            "7d" => "Últimos 7 días",
+            "14d" => "Últimos 14 días",
+            "15d" => "Últimos 15 días",
+            "30d" => "Últimos 30 días",
+            "90d" => "Últimos 90 días",
+            "6m" => "Últimos 6 meses",
+            "12m" => "Últimos 12 meses",
+            "custom" => _customRangeLabel ?? "Personalizado",
+            _ => "Últimos 15 días"
+        };
+    }
+
+    private string GetLastUpdateTimeSpanish()
+    {
+        var diff = DateTime.UtcNow - _lastDataUpdate;
+        if (diff.TotalMinutes < 1) return "hace un momento";
+        if (diff.TotalMinutes < 60) return $"hace {(int)diff.TotalMinutes} min";
+        return $"hace {(int)diff.TotalHours}h";
+    }
+
+    /// <summary>
+    /// Returns the plural form of a weekday name in Spanish (lowercase).
+    /// In Spanish, weekday names don't change for plural, just lowercase.
+    /// Example: "Lunes" → "lunes"
+    /// </summary>
+    private string GetPluralDayName(string dayName)
+    {
+        return dayName.ToLower();
+    }
+
+    // Dynamic Y-axis scales
+    private int GetDynamicMaxInteractions()
+    {
+        if (!_chartData.Any()) return 10;
+        var max = _chartData.Max(d => d.Interactions);
+        if (max <= 10) return 10;
+        if (max <= 20) return 20;
+        if (max <= 50) return 50;
+        if (max <= 100) return 100;
+        if (max <= 200) return 200;
+        if (max <= 500) return 500;
+        if (max <= 1000) return 1000;
+        if (max <= 2000) return 2000;
+        if (max <= 5000) return 5000;
+        if (max <= 10000) return 10000;
+        if (max <= 20000) return 20000;
+        if (max <= 50000) return 50000;
+        return (int)Math.Ceiling(max / 10000.0) * 10000;
+    }
+
+    private int GetDynamicMaxLeads()
+    {
+        if (!_chartData.Any()) return 10;
+        var max = _chartData.Max(d => d.Leads);
+        if (max <= 10) return 10;
+        if (max <= 20) return 20;
+        if (max <= 50) return 50;
+        if (max <= 100) return 100;
+        if (max <= 200) return 200;
+        if (max <= 500) return 500;
+        if (max <= 1000) return 1000;
+        if (max <= 2000) return 2000;
+        return (int)Math.Ceiling(max / 1000.0) * 1000;
+    }
+
+    private string FormatAxisValue(int value)
+    {
+        // Never use abbreviations like "k" - always show normal numbers
+        return value.ToString("N0");
+    }
+
+    private string FormatCompactNumber(int value)
+    {
+        // For KPI cards, use compact format like "45.2k"
+        if (value >= 1000000) return $"{value / 1000000.0:F1}M";
+        if (value >= 1000) return $"{value / 1000.0:F1}k";
+        return value.ToString();
+    }
+
+    private string GetPeakDaySpanish()
+    {
+        if (!_chartData.Any()) return "N/A";
+        var peak = _chartData.OrderByDescending(d => d.Interactions).First();
+        return peak.DayName;
+    }
+
+    private string GetLowestDaySpanish()
+    {
+        if (!_chartData.Any()) return "N/A";
+        var lowest = _chartData.OrderBy(d => d.Interactions).First();
+        return lowest.DayName;
+    }
+
+    private double GetTooltipPosition(int index)
+    {
+        if (_chartData.Count <= 1) return 50;
+        return 10 + (index * 80.0 / (_chartData.Count - 1));
+    }
+
+    // Export functions
+    private async Task ExportToCsv()
+    {
+        _showExportMenu = false;
+        try
+        {
+            var csv = "Día,Interacciones,Leads,Conversión (%),Ocurrencias\n";
+            foreach (var point in _chartData)
+            {
+                var conv = point.Interactions > 0 ? (decimal)point.Leads / point.Interactions * 100 : 0;
+                csv += $"{point.DayName},{point.Interactions},{point.Leads},{conv:F2},{point.OccurrenceCount}\n";
+            }
+
+            var fileName = $"interacciones_leads_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csv, "text/csv");
+            Snackbar.Add("Archivo CSV descargado", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al exportar: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ExportToXlsx()
+    {
+        _showExportMenu = false;
+        // For XLSX we'd need a library like ClosedXML - for now, export as CSV
+        await ExportToCsv();
+        Snackbar.Add("Exportación XLSX próximamente - se exportó como CSV", Severity.Info);
+    }
+
+    private async Task RetryLoadData()
+    {
+        _widgetState = WidgetState.Loading;
+        StateHasChanged();
+        await LoadDashboardData();
+    }
+
+    #endregion
+
     #region Chart Helpers
 
     // Dual Y-axis max values
-    private int GetMaxInteractions() => _chartData.Any() 
-        ? Math.Max(10, (int)Math.Ceiling(_chartData.Max(d => d.Interactions) * 1.1 / 10) * 10) 
+    private int GetMaxInteractions() => _chartData.Any()
+        ? Math.Max(10, (int)Math.Ceiling(_chartData.Max(d => d.Interactions) * 1.1 / 10) * 10)
         : 40;
 
     private int GetMaxLeads() => _chartData.Any() 
@@ -983,16 +1424,6 @@
         if (!_chartData.Any()) return "";
         var points = string.Join(" L ", _chartData.Select((d, i) => $"{GetChartX(i):F0},{GetChartYLeads(d.Leads):F0}"));
         return $"M {GetChartX(0):F0},200 L {points} L {GetChartX(_chartData.Count - 1):F0},200 Z";
-    }
-
-    private string GetXAxisLabel(DateTime date)
-    {
-        return _chartAggregation switch
-        {
-            ChartAggregation.Week => $"W{GetIsoWeekNumber(date)}",
-            ChartAggregation.Month => date.ToString("MMM"),
-            _ => date.ToString("ddd dd")
-        };
     }
 
     private int GetIsoWeekNumber(DateTime date)
@@ -1060,14 +1491,14 @@
     {
         if (!_chartData.Any()) return "N/A";
         var peak = _chartData.OrderByDescending(d => d.Interactions).First();
-        return peak.Date.ToString("ddd dd");
+        return peak.DayName;
     }
 
     private string GetLowestDay()
     {
         if (!_chartData.Any()) return "N/A";
         var lowest = _chartData.OrderBy(d => d.Interactions).First();
-        return lowest.Date.ToString("ddd dd");
+        return lowest.DayName;
     }
 
     // Bar Chart specific helpers
@@ -1102,16 +1533,6 @@
         var max = GetBarChartMaxValue();
         if (max == 0) return 0;
         return (value * 160.0 / max);
-    }
-
-    private string GetBarXAxisLabel(DateTime date)
-    {
-        return _chartAggregation switch
-        {
-            ChartAggregation.Week => $"W{GetIsoWeekNumber(date)}",
-            ChartAggregation.Month => date.ToString("MMM"),
-            _ => date.ToString("ddd")
-        };
     }
 
     private int GetBarTooltipLeft(int index)
@@ -1243,6 +1664,17 @@
         {
             await _refreshTimer.DisposeAsync();
         }
+
+        // Cleanup chart ResizeObserver
+        if (_chartResizeObserverInitialized)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("chartResizeObserver.unobserve", ChartContainerId);
+            }
+            catch { /* Ignore errors during disposal */ }
+        }
+        _chartResizeRef?.Dispose();
         
         if (_mapInitialized)
         {

@@ -57,6 +57,18 @@ public class DashboardService
 
     public record ChartDataPoint(DateTime Date, int Interactions, int Leads);
     
+    /// <summary>
+    /// Data point aggregated by weekday (always 7 fixed buckets: L M M J V S D)
+    /// </summary>
+    public record WeekdayChartDataPoint(
+        DayOfWeek DayOfWeek,
+        string DayLabel,       // "L", "M", "M", "J", "V", "S", "D"
+        string DayName,        // "Lunes", "Martes", etc.
+        int Interactions,
+        int Leads,
+        int OccurrenceCount    // How many times this weekday appears in the range
+    );
+    
     public record LocationData(
         string Location,
         string Country,
@@ -134,7 +146,7 @@ public class DashboardService
         string? ContactName
     );
 
-    public enum ChartAggregation { Day, Week, Month }
+    public enum ChartAggregation { Day, Week, Month, Total }
     public enum LocationSortBy { Conversion, Leads, Interactions }
 
     #endregion
@@ -262,11 +274,19 @@ public class DashboardService
             .Select(l => l.CreatedAt)
             .ToListAsync();
 
+        // Handle "Total" aggregation - single data point
+        if (aggregation == ChartAggregation.Total)
+        {
+            var totalInteractions = interactions.Count;
+            var totalLeads = leads.Count;
+            return new List<ChartDataPoint> { new ChartDataPoint(dateRange.Start, totalInteractions, totalLeads) };
+        }
+
         // Aggregate based on selected period
         var result = new List<ChartDataPoint>();
         var current = dateRange.Start;
         var processedDates = new HashSet<DateTime>();
-        
+
         while (current <= dateRange.End)
         {
             DateTime periodStart;
@@ -281,13 +301,13 @@ public class DashboardService
                     periodEnd = periodStart.AddDays(6);
                     nextPeriod = periodStart.AddDays(7);
                     break;
-                    
+
                 case ChartAggregation.Month:
                     periodStart = new DateTime(current.Year, current.Month, 1);
                     periodEnd = periodStart.AddMonths(1).AddDays(-1);
                     nextPeriod = periodStart.AddMonths(1);
                     break;
-                    
+
                 default: // Day
                     periodStart = current.Date;
                     periodEnd = current.Date;
@@ -299,7 +319,7 @@ public class DashboardService
             if (!processedDates.Contains(periodStart))
             {
                 processedDates.Add(periodStart);
-                
+
                 if (periodEnd > dateRange.End) periodEnd = dateRange.End;
 
                 var interactionCount = interactions.Count(i => i.Date >= periodStart && i.Date <= periodEnd);
@@ -307,12 +327,93 @@ public class DashboardService
 
                 result.Add(new ChartDataPoint(periodStart, interactionCount, leadCount));
             }
-            
+
             current = nextPeriod;
             if (current > dateRange.End) break;
         }
 
         return result.OrderBy(r => r.Date).ToList();
+    }
+
+    /// <summary>
+    /// Get chart data aggregated by weekday (always 7 fixed points: L M M J V S D).
+    /// The date range only determines which data to include in the aggregation.
+    /// </summary>
+    public async Task<List<WeekdayChartDataPoint>> GetWeekdayAggregatedChartAsync(
+        Guid organizationId, 
+        DateRangeFilter dateRange)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
+
+        // Get all interactions in range
+        var endDate = dateRange.End.AddDays(1);
+        var eventTypes = InteractionEventTypes.ToList();
+
+        var interactions = cardIds.Any() 
+            ? await context.CardAnalytics
+                .Where(a => cardIds.Contains(a.CardId))
+                .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
+                .Where(a => eventTypes.Contains(a.EventType))
+                .Select(a => a.Timestamp)
+                .ToListAsync()
+            : new List<DateTime>();
+
+        // Get all leads in range
+        var leads = await context.Leads
+            .Where(l => l.OrganizationId == organizationId)
+            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
+            .Select(l => l.CreatedAt)
+            .ToListAsync();
+
+        // Count occurrences of each weekday in the date range
+        var weekdayOccurrences = new Dictionary<DayOfWeek, int>();
+        for (var day = dateRange.Start.Date; day <= dateRange.End.Date; day = day.AddDays(1))
+        {
+            if (!weekdayOccurrences.ContainsKey(day.DayOfWeek))
+                weekdayOccurrences[day.DayOfWeek] = 0;
+            weekdayOccurrences[day.DayOfWeek]++;
+        }
+
+        // Spanish weekday labels and names
+        var weekdayData = new Dictionary<DayOfWeek, (string Label, string Name)>
+        {
+            { DayOfWeek.Monday, ("L", "Lunes") },
+            { DayOfWeek.Tuesday, ("M", "Martes") },
+            { DayOfWeek.Wednesday, ("M", "Miércoles") },
+            { DayOfWeek.Thursday, ("J", "Jueves") },
+            { DayOfWeek.Friday, ("V", "Viernes") },
+            { DayOfWeek.Saturday, ("S", "Sábado") },
+            { DayOfWeek.Sunday, ("D", "Domingo") }
+        };
+
+        // Create exactly 7 buckets, one per weekday
+        var weekdayOrder = new[] 
+        { 
+            DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, 
+            DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday 
+        };
+
+        var result = new List<WeekdayChartDataPoint>();
+
+        foreach (var dayOfWeek in weekdayOrder)
+        {
+            var (label, name) = weekdayData[dayOfWeek];
+            var interactionCount = interactions.Count(i => i.DayOfWeek == dayOfWeek);
+            var leadCount = leads.Count(l => l.DayOfWeek == dayOfWeek);
+            var occurrences = weekdayOccurrences.GetValueOrDefault(dayOfWeek, 0);
+
+            result.Add(new WeekdayChartDataPoint(
+                dayOfWeek,
+                label,
+                name,
+                interactionCount,
+                leadCount,
+                occurrences
+            ));
+        }
+
+        return result;
     }
 
     #endregion
@@ -1005,13 +1106,22 @@ public class DashboardService
         var end = DateTime.UtcNow.Date;
         var start = option switch
         {
+            "today" => end,
             "7d" => end.AddDays(-6),
             "14d" => end.AddDays(-13),
+            "15d" => end.AddDays(-14),
             "30d" => end.AddDays(-29),
             "90d" => end.AddDays(-89),
-            _ => end.AddDays(-6)
+            "6m" => end.AddMonths(-6),
+            "12m" => end.AddMonths(-12),
+            _ => end.AddDays(-14) // Default to 15 days
         };
         return new DateRangeFilter(start, end);
+    }
+
+    public static DateRangeFilter GetCustomDateRange(DateTime customStart, DateTime customEnd)
+    {
+        return new DateRangeFilter(customStart.Date, customEnd.Date);
     }
 
     #endregion

@@ -9,6 +9,171 @@ public static class DbInitializer
     // Flag to enable demo seed data (set via environment or config)
     public static bool UseDemoSeed { get; set; } = true;
 
+    /// <summary>
+    /// Force seed demo analytics data to existing database (without deleting it).
+    /// Call this to add demo data for dashboard visualization.
+    /// </summary>
+    public static async Task ForceSeedDemoAnalyticsAsync(DataTouchDbContext context)
+    {
+        // Get existing organization and card
+        var organization = await context.Organizations.FirstOrDefaultAsync();
+        if (organization == null)
+        {
+            Console.WriteLine("No organization found. Run InitializeAsync first.");
+            return;
+        }
+
+        var card = await context.Cards.FirstOrDefaultAsync(c => c.OrganizationId == organization.Id && c.IsActive);
+        if (card == null)
+        {
+            Console.WriteLine("No active card found.");
+            return;
+        }
+
+        var user = await context.Users.FirstOrDefaultAsync(u => u.OrganizationId == organization.Id);
+
+        // Clear existing analytics for clean demo
+        var existingAnalytics = await context.CardAnalytics.Where(a => a.CardId == card.Id).ToListAsync();
+        if (existingAnalytics.Any())
+        {
+            context.CardAnalytics.RemoveRange(existingAnalytics);
+            await context.SaveChangesAsync();
+            Console.WriteLine($"Cleared {existingAnalytics.Count} existing analytics events.");
+        }
+
+        // Get or create leads
+        var leads = await context.Leads.Where(l => l.OrganizationId == organization.Id).ToListAsync();
+        if (!leads.Any() && user != null)
+        {
+            Console.WriteLine("No leads found. Creating demo leads...");
+            leads = CreateDemoLeads(organization.Id, card.Id, user.Id);
+            context.Leads.AddRange(leads);
+            await context.SaveChangesAsync();
+            Console.WriteLine($"Created {leads.Count} demo leads.");
+        }
+
+        // Seed new demo events
+        await SeedEngagementEventsAsync(context, organization.Id, card.Id, leads);
+        Console.WriteLine("Demo analytics data seeded successfully!");
+    }
+
+    /// <summary>
+    /// Creates demo leads for testing
+    /// </summary>
+    private static List<Lead> CreateDemoLeads(Guid organizationId, Guid cardId, Guid userId)
+    {
+        return new List<Lead>
+        {
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                CardId = cardId,
+                OwnerUserId = userId,
+                FullName = "Juan Pérez",
+                Email = "juan@example.com",
+                Phone = "+503 7123 4567",
+                Message = "Me interesa conocer más sobre sus servicios",
+                Source = "CARD_CONTACT_FORM",
+                Status = "New",
+                CreatedAt = DateTime.UtcNow.AddDays(-2).AddHours(-3)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                CardId = cardId,
+                OwnerUserId = userId,
+                FullName = "María García",
+                Email = "maria@example.com",
+                Phone = "+503 7890 1234",
+                Message = "Quisiera agendar una reunión",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Contacted",
+                CreatedAt = DateTime.UtcNow.AddDays(-5).AddHours(-5)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                CardId = cardId,
+                OwnerUserId = userId,
+                FullName = "Carlos López",
+                Email = "carlos@example.com",
+                Phone = "+503 7456 7890",
+                Source = "CARD_CONTACT_FORM",
+                Status = "New",
+                CreatedAt = DateTime.UtcNow.AddDays(-8).AddHours(-2)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                CardId = cardId,
+                OwnerUserId = userId,
+                FullName = "Sarah Johnson",
+                Email = "sarah@example.com",
+                Phone = "+1 555 123 4567",
+                Message = "Looking for partnership opportunities",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Qualified",
+                CreatedAt = DateTime.UtcNow.AddDays(-12).AddHours(-8)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                CardId = cardId,
+                OwnerUserId = userId,
+                FullName = "Roberto Martínez",
+                Email = "roberto@example.com",
+                Phone = "+52 55 1234 5678",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Closed",
+                CreatedAt = DateTime.UtcNow.AddDays(-15)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                CardId = cardId,
+                OwnerUserId = userId,
+                FullName = "Ana Fernández",
+                Email = "ana@example.com",
+                Phone = "+503 7111 2222",
+                Source = "CARD_CONTACT_FORM",
+                Status = "New",
+                CreatedAt = DateTime.UtcNow.AddDays(-18).AddHours(-10)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                CardId = cardId,
+                OwnerUserId = userId,
+                FullName = "Pedro Sánchez",
+                Email = "pedro@example.com",
+                Phone = "+503 7333 4444",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Contacted",
+                CreatedAt = DateTime.UtcNow.AddDays(-22).AddHours(-14)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                CardId = cardId,
+                OwnerUserId = userId,
+                FullName = "Laura Torres",
+                Email = "laura@example.com",
+                Phone = "+503 7555 6666",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Qualified",
+                CreatedAt = DateTime.UtcNow.AddDays(-25).AddHours(-9)
+            }
+        };
+    }
+
     public static async Task InitializeAsync(DataTouchDbContext context)
     {
         // Ensure database is created
@@ -144,7 +309,7 @@ public static class DbInitializer
         };
         context.BookingSettings.Add(bookingSettings);
 
-        // Create sample leads with varied dates
+        // Create sample leads with varied dates over 30 days
         var leads = new List<Lead>
         {
             new Lead
@@ -214,6 +379,98 @@ public static class DbInitializer
                 Source = "CARD_CONTACT_FORM",
                 Status = "Closed",
                 CreatedAt = DateTime.UtcNow.AddDays(-5)
+            },
+            // Additional leads distributed over 30 days for weekday aggregation demo
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                CardId = activeCard.Id,
+                OwnerUserId = user.Id,
+                FullName = "Ana Fernández",
+                Email = "ana@example.com",
+                Phone = "+503 7111 2222",
+                Source = "CARD_CONTACT_FORM",
+                Status = "New",
+                CreatedAt = DateTime.UtcNow.AddDays(-7).AddHours(-10)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                CardId = activeCard.Id,
+                OwnerUserId = user.Id,
+                FullName = "Pedro Sánchez",
+                Email = "pedro@example.com",
+                Phone = "+503 7333 4444",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Contacted",
+                CreatedAt = DateTime.UtcNow.AddDays(-10).AddHours(-14)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                CardId = activeCard.Id,
+                OwnerUserId = user.Id,
+                FullName = "Laura Torres",
+                Email = "laura@example.com",
+                Phone = "+503 7555 6666",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Qualified",
+                CreatedAt = DateTime.UtcNow.AddDays(-14).AddHours(-9)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                CardId = activeCard.Id,
+                OwnerUserId = user.Id,
+                FullName = "Miguel Ángel Ruiz",
+                Email = "miguel@example.com",
+                Phone = "+503 7777 8888",
+                Source = "CARD_CONTACT_FORM",
+                Status = "New",
+                CreatedAt = DateTime.UtcNow.AddDays(-18).AddHours(-11)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                CardId = activeCard.Id,
+                OwnerUserId = user.Id,
+                FullName = "Carmen Díaz",
+                Email = "carmen@example.com",
+                Phone = "+503 7999 0000",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Contacted",
+                CreatedAt = DateTime.UtcNow.AddDays(-21).AddHours(-15)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                CardId = activeCard.Id,
+                OwnerUserId = user.Id,
+                FullName = "David Morales",
+                Email = "david@example.com",
+                Phone = "+1 555 987 6543",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Qualified",
+                CreatedAt = DateTime.UtcNow.AddDays(-25).AddHours(-8)
+            },
+            new Lead
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organization.Id,
+                CardId = activeCard.Id,
+                OwnerUserId = user.Id,
+                FullName = "Patricia Hernández",
+                Email = "patricia@example.com",
+                Phone = "+52 55 9999 8888",
+                Source = "CARD_CONTACT_FORM",
+                Status = "Closed",
+                CreatedAt = DateTime.UtcNow.AddDays(-28).AddHours(-12)
             }
         };
 
@@ -254,35 +511,35 @@ public static class DbInitializer
             ("Ciudad de México", "Mexico", "MX", 19.4326, -99.1332)
         };
 
-        // Generate ~60 page views over 7 days
-        for (int i = 0; i < 60; i++)
+        // Generate ~200 page views over 30 days (to show weekday aggregation)
+        for (int i = 0; i < 200; i++)
         {
-            var daysAgo = random.Next(0, 7);
+            var daysAgo = random.Next(0, 30);
             var hoursAgo = random.Next(0, 23);
             var loc = locations[random.Next(locations.Length)];
             
             events.Add(CreateEvent(cardId, "page_view", now.AddDays(-daysAgo).AddHours(-hoursAgo), loc.City, loc.Country, loc.CC, loc.Lat, loc.Lng, random));
         }
 
-        // Generate ~15 QR scans
-        for (int i = 0; i < 15; i++)
+        // Generate ~50 QR scans over 30 days
+        for (int i = 0; i < 50; i++)
         {
-            var daysAgo = random.Next(0, 7);
+            var daysAgo = random.Next(0, 30);
             var hoursAgo = random.Next(0, 23);
             var loc = locations[random.Next(locations.Length)];
             
             events.Add(CreateEvent(cardId, "qr_scan", now.AddDays(-daysAgo).AddHours(-hoursAgo), loc.City, loc.Country, loc.CC, loc.Lat, loc.Lng, random));
         }
 
-        // Generate link clicks with specific types for Top Links widget
+        // Generate link clicks with specific types for Top Links widget (over 30 days)
         var linkTypes = new[] { "whatsapp", "email", "linkedin", "portfolio", "website", "instagram" };
-        var clickCounts = new[] { 35, 12, 8, 4, 3, 2 }; // WhatsApp most clicked
+        var clickCounts = new[] { 80, 30, 20, 15, 10, 8 }; // More clicks distributed over 30 days
 
         for (int linkIndex = 0; linkIndex < linkTypes.Length; linkIndex++)
         {
             for (int i = 0; i < clickCounts[linkIndex]; i++)
             {
-                var daysAgo = random.Next(0, 7);
+                var daysAgo = random.Next(0, 30);
                 var hoursAgo = random.Next(0, 23);
                 var loc = locations[random.Next(locations.Length)];
                 
