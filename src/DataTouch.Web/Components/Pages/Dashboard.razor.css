@@ -916,66 +916,63 @@
 /* ─── HTML Labels (outside SVG - NEVER stretch) ─── */
 .chart-y-labels {
     position: absolute;
+    /* Grid lines en SVG: y=20 (top) a y=220 (bottom) de viewBox 280 = 7.1% a 78.6% */
     top: 7%;
-    bottom: 22%;
+    bottom: 21%;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    align-items: flex-end;
     pointer-events: none;
     z-index: 5;
 }
 
 .chart-y-labels.left {
     left: 0;
-    width: 45px;
-    padding-right: 8px;
+    width: 50px;
+    align-items: flex-end;
+    padding-right: 10px;
 }
 
 .chart-y-labels.right {
     right: 0;
-    width: 45px;
-    padding-left: 8px;
+    width: 50px;
     align-items: flex-start;
+    padding-left: 10px;
 }
 
 .chart-y-labels .y-label {
-    position: absolute;
     font-size: 11px;
     font-family: 'Inter', -apple-system, sans-serif;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.5);
     line-height: 1;
-    transform: translateY(50%);
 }
 
 .chart-y-labels.left .y-label {
-    right: 8px;
-    color: rgba(167, 139, 250, 0.8);
+    color: rgba(167, 139, 250, 0.9);
 }
 
 .chart-y-labels.right .y-label {
-    left: 8px;
-    color: rgba(94, 234, 212, 0.8);
+    color: rgba(94, 234, 212, 0.9);
 }
 
 .chart-x-labels {
     position: absolute;
-    bottom: 5%;
-    left: 7.5%;
-    right: 7.5%;
-    height: 20px;
+    bottom: 3%;
+    /* Align with bars area: 8.75% left (70/800) to 91.25% right (730/800) */
+    left: 8.5%;
+    right: 8.5%;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
     pointer-events: none;
     z-index: 5;
 }
 
 .chart-x-labels .x-label {
-    position: absolute;
-    transform: translateX(-50%);
     font-size: 12px;
     font-family: 'Inter', -apple-system, sans-serif;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.8);
     text-transform: uppercase;
 }
 

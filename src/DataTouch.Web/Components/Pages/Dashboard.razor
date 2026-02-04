@@ -333,23 +333,21 @@
                 @* ─── Bar Chart with Dual Y-Axis ─── *@
                 <div id="@ChartContainerId" class="analytics-chart" @onmouseleave="() => _hoveredPointIndex = -1">
                     
-                    @* HTML Y-axis LEFT labels (never stretch) *@
+                    @* HTML Y-axis LEFT labels (never stretch) - from top to bottom = high to low *@
                     <div class="chart-y-labels left">
-                        @for (int i = 0; i <= 5; i++)
+                        @for (int i = 5; i >= 0; i--)
                         {
                             var value = i * IntStep;
-                            var bottomPercent = i * 20; // 0%, 20%, 40%, 60%, 80%, 100%
-                            <span class="y-label" style="bottom: @bottomPercent%;">@FormatAxisValue(value)</span>
+                            <span class="y-label">@FormatAxisValue(value)</span>
                         }
                     </div>
 
                     @* HTML Y-axis RIGHT labels (never stretch) *@
                     <div class="chart-y-labels right">
-                        @for (int i = 0; i <= 5; i++)
+                        @for (int i = 5; i >= 0; i--)
                         {
                             var value = i * LeadsStep;
-                            var bottomPercent = i * 20;
-                            <span class="y-label" style="bottom: @bottomPercent%;">@value</span>
+                            <span class="y-label">@value</span>
                         }
                     </div>
 
@@ -417,11 +415,9 @@
 
                     @* HTML X-axis labels (never stretch) *@
                     <div class="chart-x-labels">
-                        @for (int i = 0; i < _chartData.Count; i++)
+                        @foreach (var point in _chartData)
                         {
-                            var leftPercent = (70.0 + i * groupWidth + groupWidth / 2) / 800.0 * 100;
-                            var dayLabel = _chartData[i].DayLabel;
-                            <span class="x-label" style="left: @leftPercent.ToString("0.#")%;">@dayLabel</span>
+                            <span class="x-label">@point.DayLabel</span>
                         }
                     </div>
 
