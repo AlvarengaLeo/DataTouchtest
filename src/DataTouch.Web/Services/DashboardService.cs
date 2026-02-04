@@ -68,7 +68,33 @@ public class DashboardService
         int Leads,
         int OccurrenceCount    // How many times this weekday appears in the range
     );
-    
+
+    /// <summary>
+    /// Enterprise grouping types for chart visualization
+    /// </summary>
+    public enum GroupingType { Hours, Days, Weeks, Months, Quarters }
+
+    /// <summary>
+    /// Single bucket/bar in the grouped chart
+    /// </summary>
+    public record ChartBucket(
+        string Label,           // "L", "Sem 1", "Feb", "T1", "08h"
+        string TooltipTitle,    // "Lunes", "Semana 1", "Febrero", "T1"
+        string TooltipRange,    // "08 ene – 14 ene", "01 feb – 03 feb"
+        int Interactions,
+        int Leads,
+        decimal ConversionRate
+    );
+
+    /// <summary>
+    /// Complete grouped chart data with range info and buckets
+    /// </summary>
+    public record GroupedChartData(
+        string RangeLabel,      // "28 ene – 03 feb", "sep 2025 – feb 2026"
+        string GroupingUnit,    // "Horas", "Días", "Semanas", "Meses", "Trimestres"
+        GroupingType Grouping,
+        List<ChartBucket> Buckets
+    );
     public record LocationData(
         string Location,
         string Country,
@@ -415,6 +441,312 @@ public class DashboardService
 
         return result;
     }
+
+    /// <summary>
+    /// Get chart data with enterprise grouping based on date range.
+    /// Grouping rules:
+    /// - Today: Hours (6-8 buckets)
+    /// - 7 days: Days (L M M J V S D)
+    /// - 15 days: Weeks (Sem 1-3)
+    /// - 30 days: Weeks (Sem 1-5)
+    /// - 6 months: Months (6 buckets)
+    /// - 12 months: Quarters (T1-T4)
+    /// - Custom: Auto based on duration
+    /// </summary>
+    public async Task<GroupedChartData> GetGroupedChartDataAsync(
+        Guid organizationId,
+        DateRangeFilter dateRange,
+        string filterOption)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
+
+        var endDate = dateRange.End.AddDays(1);
+        var eventTypes = InteractionEventTypes.ToList();
+
+        // Fetch all interactions and leads in range
+        var interactions = cardIds.Any()
+            ? await context.CardAnalytics
+                .Where(a => cardIds.Contains(a.CardId))
+                .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
+                .Where(a => eventTypes.Contains(a.EventType))
+                .Select(a => a.Timestamp)
+                .ToListAsync()
+            : new List<DateTime>();
+
+        var leads = await context.Leads
+            .Where(l => l.OrganizationId == organizationId)
+            .Where(l => l.CreatedAt >= dateRange.Start && l.CreatedAt < endDate)
+            .Select(l => l.CreatedAt)
+            .ToListAsync();
+
+        // Determine grouping based on filter
+        var (grouping, buckets) = CreateBuckets(dateRange, filterOption, interactions, leads);
+        var rangeLabel = FormatRangeLabel(dateRange, grouping);
+        var groupingUnit = GetGroupingUnitName(grouping);
+
+        return new GroupedChartData(rangeLabel, groupingUnit, grouping, buckets);
+    }
+
+    private (GroupingType, List<ChartBucket>) CreateBuckets(
+        DateRangeFilter dateRange,
+        string filterOption,
+        List<DateTime> interactions,
+        List<DateTime> leads)
+    {
+        var days = (dateRange.End - dateRange.Start).Days + 1;
+
+        // Determine grouping type
+        GroupingType grouping = filterOption switch
+        {
+            "today" => GroupingType.Hours,
+            "7d" => GroupingType.Days,
+            "15d" => GroupingType.Weeks,
+            "30d" => GroupingType.Weeks,
+            "6m" => GroupingType.Months,
+            "12m" => GroupingType.Quarters,
+            _ => days <= 2 ? GroupingType.Hours
+                : days <= 14 ? GroupingType.Days
+                : days <= 60 ? GroupingType.Weeks
+                : days <= 365 ? GroupingType.Months
+                : GroupingType.Quarters
+        };
+
+        return grouping switch
+        {
+            GroupingType.Hours => (grouping, CreateHourBuckets(dateRange, interactions, leads)),
+            GroupingType.Days => (grouping, CreateDayBuckets(dateRange, interactions, leads)),
+            GroupingType.Weeks => (grouping, CreateWeekBuckets(dateRange, interactions, leads)),
+            GroupingType.Months => (grouping, CreateMonthBuckets(dateRange, interactions, leads)),
+            GroupingType.Quarters => (grouping, CreateQuarterBuckets(dateRange, interactions, leads)),
+            _ => (grouping, CreateDayBuckets(dateRange, interactions, leads))
+        };
+    }
+
+    private List<ChartBucket> CreateHourBuckets(DateRangeFilter range, List<DateTime> interactions, List<DateTime> leads)
+    {
+        var buckets = new List<ChartBucket>();
+        var hours = new[] { 0, 4, 8, 12, 16, 20 }; // 6 buckets of 4 hours each
+
+        foreach (var startHour in hours)
+        {
+            var endHour = startHour + 4;
+            var intCount = interactions.Count(i => i.Hour >= startHour && i.Hour < endHour);
+            var leadCount = leads.Count(l => l.Hour >= startHour && l.Hour < endHour);
+            var conv = intCount > 0 ? (decimal)leadCount / intCount * 100 : 0;
+
+            buckets.Add(new ChartBucket(
+                Label: $"{startHour:D2}h",
+                TooltipTitle: $"{startHour:D2}:00 – {endHour - 1:D2}:59",
+                TooltipRange: range.Start.ToString("dd MMM yyyy", new System.Globalization.CultureInfo("es-ES")),
+                Interactions: intCount,
+                Leads: leadCount,
+                ConversionRate: conv
+            ));
+        }
+
+        return buckets;
+    }
+
+    private List<ChartBucket> CreateDayBuckets(DateRangeFilter range, List<DateTime> interactions, List<DateTime> leads)
+    {
+        var buckets = new List<ChartBucket>();
+        var dayLabels = new Dictionary<DayOfWeek, (string Label, string Name)>
+        {
+            { DayOfWeek.Monday, ("L", "Lunes") },
+            { DayOfWeek.Tuesday, ("M", "Martes") },
+            { DayOfWeek.Wednesday, ("M", "Miércoles") },
+            { DayOfWeek.Thursday, ("J", "Jueves") },
+            { DayOfWeek.Friday, ("V", "Viernes") },
+            { DayOfWeek.Saturday, ("S", "Sábado") },
+            { DayOfWeek.Sunday, ("D", "Domingo") }
+        };
+
+        var weekdayOrder = new[] 
+        { 
+            DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, 
+            DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday 
+        };
+
+        foreach (var dayOfWeek in weekdayOrder)
+        {
+            var (label, name) = dayLabels[dayOfWeek];
+            var intCount = interactions.Count(i => i.DayOfWeek == dayOfWeek);
+            var leadCount = leads.Count(l => l.DayOfWeek == dayOfWeek);
+            var conv = intCount > 0 ? (decimal)leadCount / intCount * 100 : 0;
+
+            // Find dates for tooltip
+            var dates = Enumerable.Range(0, range.DayCount)
+                .Select(d => range.Start.AddDays(d))
+                .Where(d => d.DayOfWeek == dayOfWeek)
+                .ToList();
+            var tooltipRange = dates.Count == 1
+                ? dates[0].ToString("dd MMM", new System.Globalization.CultureInfo("es-ES"))
+                : $"{dates.Count} {name.ToLower()}s";
+
+            buckets.Add(new ChartBucket(
+                Label: label,
+                TooltipTitle: name,
+                TooltipRange: tooltipRange,
+                Interactions: intCount,
+                Leads: leadCount,
+                ConversionRate: conv
+            ));
+        }
+
+        return buckets;
+    }
+
+    private List<ChartBucket> CreateWeekBuckets(DateRangeFilter range, List<DateTime> interactions, List<DateTime> leads)
+    {
+        var buckets = new List<ChartBucket>();
+        var weekNum = 1;
+        var weekStart = range.Start;
+        var culture = new System.Globalization.CultureInfo("es-ES");
+
+        while (weekStart <= range.End)
+        {
+            var weekEnd = weekStart.AddDays(6);
+            if (weekEnd > range.End) weekEnd = range.End;
+
+            var intCount = interactions.Count(i => i.Date >= weekStart && i.Date <= weekEnd);
+            var leadCount = leads.Count(l => l.Date >= weekStart && l.Date <= weekEnd);
+            var conv = intCount > 0 ? (decimal)leadCount / intCount * 100 : 0;
+
+            buckets.Add(new ChartBucket(
+                Label: $"Sem {weekNum}",
+                TooltipTitle: $"Semana {weekNum}",
+                TooltipRange: $"{weekStart:dd} – {weekEnd:dd MMM}",
+                Interactions: intCount,
+                Leads: leadCount,
+                ConversionRate: conv
+            ));
+
+            weekNum++;
+            weekStart = weekEnd.AddDays(1);
+        }
+
+        return buckets;
+    }
+
+    private List<ChartBucket> CreateMonthBuckets(DateRangeFilter range, List<DateTime> interactions, List<DateTime> leads)
+    {
+        var buckets = new List<ChartBucket>();
+        var monthNames = new[] { "", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic" };
+        var monthFullNames = new[] { "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
+
+        var current = new DateTime(range.Start.Year, range.Start.Month, 1);
+        var endMonth = new DateTime(range.End.Year, range.End.Month, 1);
+
+        while (current <= endMonth)
+        {
+            var monthStart = current;
+            var monthEnd = current.AddMonths(1).AddDays(-1);
+            if (monthStart < range.Start) monthStart = range.Start;
+            if (monthEnd > range.End) monthEnd = range.End;
+
+            var intCount = interactions.Count(i => i.Date >= monthStart && i.Date <= monthEnd);
+            var leadCount = leads.Count(l => l.Date >= monthStart && l.Date <= monthEnd);
+            var conv = intCount > 0 ? (decimal)leadCount / intCount * 100 : 0;
+
+            var label = monthNames[current.Month];
+            var yearSuffix = current.Year != DateTime.Now.Year ? $" {current.Year % 100}" : "";
+
+            buckets.Add(new ChartBucket(
+                Label: $"{label}{yearSuffix}",
+                TooltipTitle: $"{monthFullNames[current.Month]} {current.Year}",
+                TooltipRange: $"{monthStart:dd} – {monthEnd:dd MMM}",
+                Interactions: intCount,
+                Leads: leadCount,
+                ConversionRate: conv
+            ));
+
+            current = current.AddMonths(1);
+        }
+
+        return buckets;
+    }
+
+    private List<ChartBucket> CreateQuarterBuckets(DateRangeFilter range, List<DateTime> interactions, List<DateTime> leads)
+    {
+        var buckets = new List<ChartBucket>();
+        var quarterMonths = new Dictionary<int, (int StartMonth, int EndMonth, string Name)>
+        {
+            { 1, (1, 3, "Ene – Mar") },
+            { 2, (4, 6, "Abr – Jun") },
+            { 3, (7, 9, "Jul – Sep") },
+            { 4, (10, 12, "Oct – Dic") }
+        };
+
+        var startQuarter = (range.Start.Month - 1) / 3 + 1;
+        var startYear = range.Start.Year;
+        var endQuarter = (range.End.Month - 1) / 3 + 1;
+        var endYear = range.End.Year;
+
+        var currentYear = startYear;
+        var currentQuarter = startQuarter;
+
+        while (currentYear < endYear || (currentYear == endYear && currentQuarter <= endQuarter))
+        {
+            var (startMonth, endMonth, name) = quarterMonths[currentQuarter];
+            var qStart = new DateTime(currentYear, startMonth, 1);
+            var qEnd = new DateTime(currentYear, endMonth, DateTime.DaysInMonth(currentYear, endMonth));
+
+            if (qStart < range.Start) qStart = range.Start;
+            if (qEnd > range.End) qEnd = range.End;
+
+            var intCount = interactions.Count(i => i.Date >= qStart && i.Date <= qEnd);
+            var leadCount = leads.Count(l => l.Date >= qStart && l.Date <= qEnd);
+            var conv = intCount > 0 ? (decimal)leadCount / intCount * 100 : 0;
+
+            buckets.Add(new ChartBucket(
+                Label: $"T{currentQuarter}",
+                TooltipTitle: $"T{currentQuarter} {currentYear}",
+                TooltipRange: name,
+                Interactions: intCount,
+                Leads: leadCount,
+                ConversionRate: conv
+            ));
+
+            currentQuarter++;
+            if (currentQuarter > 4)
+            {
+                currentQuarter = 1;
+                currentYear++;
+            }
+        }
+
+        return buckets;
+    }
+
+    private string FormatRangeLabel(DateRangeFilter range, GroupingType grouping)
+    {
+        var culture = new System.Globalization.CultureInfo("es-ES");
+
+        if (range.DayCount == 1)
+            return "Hoy";
+
+        if (grouping == GroupingType.Months || grouping == GroupingType.Quarters)
+        {
+            var startMonth = range.Start.ToString("MMM yyyy", culture).ToLower();
+            var endMonth = range.End.ToString("MMM yyyy", culture).ToLower();
+            return $"{startMonth} – {endMonth}";
+        }
+
+        var start = range.Start.ToString("dd MMM", culture);
+        var end = range.End.ToString("dd MMM", culture);
+        return $"{start} – {end}";
+    }
+
+    private string GetGroupingUnitName(GroupingType grouping) => grouping switch
+    {
+        GroupingType.Hours => "Horas",
+        GroupingType.Days => "Días",
+        GroupingType.Weeks => "Semanas",
+        GroupingType.Months => "Meses",
+        GroupingType.Quarters => "Trimestres",
+        _ => "Días"
+    };
 
     #endregion
 
