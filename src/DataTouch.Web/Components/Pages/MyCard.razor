@@ -5097,8 +5097,17 @@ else
                 return;
             }
 
-            var uploadsFolder = Path.Combine(Environment.WebRootPath, "uploads");
-            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+            // FIX: Handle null WebRootPath in production (Railway)
+            var webRootPath = Environment.WebRootPath;
+            if (string.IsNullOrEmpty(webRootPath))
+            {
+                // Fallback to application's base directory
+                webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            }
+            
+            var uploadsFolder = Path.Combine(webRootPath, "uploads");
+            if (!Directory.Exists(uploadsFolder)) 
+                Directory.CreateDirectory(uploadsFolder);
 
             var fileName = $"{Guid.NewGuid()}{extension}";
             var filePath = Path.Combine(uploadsFolder, fileName);
@@ -5109,9 +5118,13 @@ else
                 await stream.CopyToAsync(fs);
             }
 
+            // FIX: Update card and save immediately to DB
             _card.ProfileImageUrl = $"/uploads/{fileName}";
+            _card.UpdatedAt = DateTime.UtcNow;
+            await DbContext.SaveChangesAsync();
+            
             MarkUnsaved();
-            Snackbar.Add("Foto actualizada", Severity.Success);
+            Snackbar.Add("Foto actualizada y guardada", Severity.Success);
         }
         catch (Exception ex)
         {

@@ -152,6 +152,9 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<DataTouchDbContext>();
     await DbInitializer.InitializeAsync(dbContext);
+    
+    // Force seed demo analytics for dashboard visualization
+    await DbInitializer.ForceSeedDemoAnalyticsAsync(dbContext);
 }
 
 await app.RunAsync();
