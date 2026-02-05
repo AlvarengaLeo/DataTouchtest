@@ -11,25 +11,38 @@
 
 <PageTitle>Cotizaciones - DataTouch</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6 quotes-container">
     @* ═══════════════════════════════════════════════════════════════
-       HEADER
+       HEADER (DESKTOP)
        ═══════════════════════════════════════════════════════════════ *@
-    <div class="quotes-header">
+    <div class="quotes-header desktop-only">
         <div class="header-left">
-            <MudText Typo="Typo.h4" Class="page-title">📝 Cotizaciones</MudText>
+            <MudText Typo="Typo.h4" Class="page-title">Cotizaciones</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
                 Gestiona las solicitudes de cotización de tus clientes
             </MudText>
         </div>
         <div class="header-right">
-            <MudButton Variant="Variant.Outlined" 
+            <MudButton Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.Refresh"
                        OnClick="LoadQuotes"
                        Size="Size.Small">
                 Actualizar
             </MudButton>
         </div>
+    </div>
+
+    @* ═══════════════════════════════════════════════════════════════
+       MOBILE TOOLBAR
+       ═══════════════════════════════════════════════════════════════ *@
+    <div class="mobile-toolbar mobile-only">
+        <div class="toolbar-left">
+            <span class="toolbar-title">COTIZACIONES</span>
+            <span class="toolbar-count">@_filteredQuotes.Count</span>
+        </div>
+        <button class="btn-refresh-mobile" @onclick="LoadQuotes">
+            <MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" />
+        </button>
     </div>
 
     @* ═══════════════════════════════════════════════════════════════
@@ -117,59 +130,115 @@
 
     @if (_filteredQuotes.Any())
     {
-        <MudPaper Class="quotes-table" Elevation="0">
-            <MudTable Items="_filteredQuotes" 
-                      Hover="true" 
-                      Dense="true"
-                      OnRowClick="@((TableRowClickEventArgs<QuoteRequest> args) => OpenDetails(args.Item))"
-                      Class="quote-table-content">
-                <HeaderContent>
-                    <MudTh>Solicitud</MudTh>
-                    <MudTh>Cliente</MudTh>
-                    <MudTh>Servicio</MudTh>
-                    <MudTh>Estado</MudTh>
-                    <MudTh>Fecha</MudTh>
-                    <MudTh>SLA</MudTh>
-                    <MudTh></MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Solicitud">
-                        <span class="request-number">@context.RequestNumber</span>
-                    </MudTd>
-                    <MudTd DataLabel="Cliente">
-                        <div class="customer-cell">
-                            <span class="customer-name">@context.CustomerName</span>
-                            <span class="customer-email">@context.CustomerEmail</span>
-                        </div>
-                    </MudTd>
-                    <MudTd DataLabel="Servicio">
-                        <span class="service-name">@context.Service?.Name</span>
-                    </MudTd>
-                    <MudTd DataLabel="Estado">
-                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
-                            @GetStatusLabel(context.Status)
-                        </MudChip>
-                    </MudTd>
-                    <MudTd DataLabel="Fecha">
-                        <span class="date-cell">@context.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
-                    </MudTd>
-                    <MudTd DataLabel="SLA">
-                        @if (context.Status == QuoteStatus.New || context.Status == QuoteStatus.InReview)
-                        {
-                            var slaStatus = GetSlaStatus(context);
-                            <MudChip T="string" Size="Size.Small" Color="@slaStatus.Color" Variant="Variant.Outlined">
-                                @slaStatus.Label
+        @* ═══════════════ DESKTOP TABLE VIEW ═══════════════ *@
+        <div class="quotes-desktop-view">
+            <MudPaper Class="quotes-table" Elevation="0">
+                <MudTable Items="_filteredQuotes"
+                          Hover="true"
+                          Dense="true"
+                          OnRowClick="@((TableRowClickEventArgs<QuoteRequest> args) => OpenDetails(args.Item))"
+                          Class="quote-table-content">
+                    <HeaderContent>
+                        <MudTh>Solicitud</MudTh>
+                        <MudTh>Cliente</MudTh>
+                        <MudTh>Servicio</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>SLA</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Solicitud">
+                            <span class="request-number">@context.RequestNumber</span>
+                        </MudTd>
+                        <MudTd DataLabel="Cliente">
+                            <div class="customer-cell">
+                                <span class="customer-name">@context.CustomerName</span>
+                                <span class="customer-email">@context.CustomerEmail</span>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Servicio">
+                            <span class="service-name">@context.Service?.Name</span>
+                        </MudTd>
+                        <MudTd DataLabel="Estado">
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                                @GetStatusLabel(context.Status)
                             </MudChip>
-                        }
-                    </MudTd>
-                    <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" 
-                                       Size="Size.Small" 
-                                       OnClick="@(() => OpenDetails(context))" />
-                    </MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudPaper>
+                        </MudTd>
+                        <MudTd DataLabel="Fecha">
+                            <span class="date-cell">@context.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                        </MudTd>
+                        <MudTd DataLabel="SLA">
+                            @if (context.Status == QuoteStatus.New || context.Status == QuoteStatus.InReview)
+                            {
+                                var slaStatus = GetSlaStatus(context);
+                                <MudChip T="string" Size="Size.Small" Color="@slaStatus.Color" Variant="Variant.Outlined">
+                                    @slaStatus.Label
+                                </MudChip>
+                            }
+                        </MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                                           Size="Size.Small"
+                                           OnClick="@(() => OpenDetails(context))" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </div>
+
+        @* ═══════════════ MOBILE/TABLET CARDS VIEW ═══════════════ *@
+        <div class="quotes-mobile-view">
+            <div class="quotes-cards-container">
+                @foreach (var quote in _filteredQuotes)
+                {
+                    <div class="quote-card" @onclick="@(() => OpenDetails(quote))">
+                        <div class="quote-card-header">
+                            <span class="quote-request-number">@quote.RequestNumber</span>
+                            <span class="quote-status-badge @GetStatusBadgeClass(quote.Status)">
+                                @GetStatusLabel(quote.Status)
+                            </span>
+                        </div>
+                        <div class="quote-card-body">
+                            <h3 class="quote-customer-name">@quote.CustomerName</h3>
+                            <span class="quote-customer-email">@quote.CustomerEmail</span>
+                            <span class="quote-service-name">@quote.Service?.Name</span>
+                        </div>
+                        <div class="quote-card-footer">
+                            <span class="quote-date">
+                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                                @quote.CreatedAt.ToString("dd/MM HH:mm")
+                            </span>
+                            @if (quote.Status == QuoteStatus.New || quote.Status == QuoteStatus.InReview)
+                            {
+                                var slaStatus = GetSlaStatus(quote);
+                                <span class="quote-sla-badge @GetSlaBadgeClass(slaStatus.Color)">
+                                    @slaStatus.Label
+                                </span>
+                            }
+                        </div>
+                        <div class="quote-card-actions" @onclick:stopPropagation="true">
+                            <div class="quote-quick-actions">
+                                @if (!string.IsNullOrEmpty(quote.CustomerPhone))
+                                {
+                                    <a href="tel:@quote.CustomerPhone" class="quote-action-btn phone">
+                                        <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
+                                    </a>
+                                    <a href="https://wa.me/@(quote.CustomerPhone.Replace(" ", "").Replace("-", ""))"
+                                       target="_blank" class="quote-action-btn whatsapp">
+                                        <MudIcon Icon="@Icons.Material.Filled.Chat" Size="Size.Small" />
+                                    </a>
+                                }
+                                <a href="mailto:@quote.CustomerEmail" class="quote-action-btn email">
+                                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
+                                </a>
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Class="quote-card-chevron" />
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
     }
     else if (!_isLoading)
     {
@@ -538,21 +607,111 @@
     {
         if (quote.SlaDeadlineAt == null)
             return ("—", Color.Default);
-        
+
         var remaining = quote.SlaDeadlineAt.Value - DateTime.UtcNow;
-        
+
         if (remaining.TotalHours < 0)
             return ("Vencido", Color.Error);
         if (remaining.TotalHours < 2)
             return ($"{(int)remaining.TotalMinutes}m", Color.Warning);
         if (remaining.TotalHours < 24)
             return ($"{(int)remaining.TotalHours}h", Color.Info);
-        
+
         return ($"{(int)remaining.TotalDays}d", Color.Success);
     }
+
+    private string GetStatusBadgeClass(QuoteStatus status) => status switch
+    {
+        QuoteStatus.New => "status-new",
+        QuoteStatus.InReview => "status-inreview",
+        QuoteStatus.NeedsInfo => "status-needsinfo",
+        QuoteStatus.Quoted => "status-quoted",
+        QuoteStatus.Negotiation => "status-negotiation",
+        QuoteStatus.Won => "status-won",
+        QuoteStatus.Lost => "status-lost",
+        QuoteStatus.Archived => "status-archived",
+        _ => ""
+    };
+
+    private string GetSlaBadgeClass(Color color) => color switch
+    {
+        Color.Error => "sla-error",
+        Color.Warning => "sla-warning",
+        Color.Info => "sla-info",
+        Color.Success => "sla-success",
+        _ => ""
+    };
 }
 
 <style>
+    /* ═══════════════ GLOBAL OVERFLOW CONTAINMENT ═══════════════ */
+    .quotes-container {
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .quotes-header,
+    .mobile-toolbar,
+    .status-cards,
+    .filters-bar {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* ═══════════════ VISIBILITY TOGGLES ═══════════════ */
+    .mobile-only, .quotes-mobile-view { display: none; }
+    .desktop-only, .quotes-desktop-view { display: block; }
+
+    /* ═══════════════ MOBILE TOOLBAR ═══════════════ */
+    .mobile-toolbar {
+        display: none;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        margin-bottom: 12px;
+    }
+
+    .toolbar-left {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+
+    .toolbar-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .toolbar-count {
+        font-size: 0.875rem;
+        color: #9CA3AF;
+        background: #162234;
+        padding: 0.125rem 0.5rem;
+        border-radius: 10px;
+    }
+
+    .btn-refresh-mobile {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--mud-palette-text-secondary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .btn-refresh-mobile:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--mud-palette-text-primary);
+    }
+
     /* Header */
     .quotes-header {
         display: flex;
@@ -560,11 +719,11 @@
         align-items: flex-start;
         margin-bottom: 1.5rem;
     }
-    
+
     .page-title {
         margin-bottom: 0.25rem;
     }
-    
+
     /* Status Cards */
     .status-cards {
         display: flex;
@@ -572,8 +731,9 @@
         margin-bottom: 1.5rem;
         overflow-x: auto;
         padding-bottom: 0.5rem;
+        -webkit-overflow-scrolling: touch;
     }
-    
+
     .status-card {
         flex: 0 0 auto;
         min-width: 100px;
@@ -585,30 +745,30 @@
         cursor: pointer;
         transition: all 0.2s ease;
     }
-    
+
     .status-card:hover {
         background: rgba(255,255,255,0.08);
         transform: translateY(-2px);
     }
-    
+
     .status-card-active {
         border-color: var(--mud-palette-primary);
         background: rgba(var(--mud-palette-primary-rgb), 0.1);
     }
-    
+
     .status-count {
         font-size: 1.75rem;
         font-weight: 700;
         margin-bottom: 0.5rem;
     }
-    
+
     /* Filters Bar */
     .filters-bar {
         background: rgba(255,255,255,0.03);
         border: 1px solid rgba(255,255,255,0.08);
         border-radius: 12px;
     }
-    
+
     /* Table */
     .quotes-table {
         background: rgba(255,255,255,0.03);
@@ -616,36 +776,36 @@
         border-radius: 12px;
         overflow: hidden;
     }
-    
+
     .request-number {
         font-family: monospace;
         font-weight: 600;
         color: var(--mud-palette-primary);
     }
-    
+
     .customer-cell {
         display: flex;
         flex-direction: column;
     }
-    
+
     .customer-name {
         font-weight: 500;
     }
-    
+
     .customer-email {
         font-size: 0.85rem;
         color: var(--mud-palette-text-secondary);
     }
-    
+
     .service-name {
         font-size: 0.9rem;
     }
-    
+
     .date-cell {
         font-size: 0.85rem;
         color: var(--mud-palette-text-secondary);
     }
-    
+
     /* Empty State */
     .empty-state {
         display: flex;
@@ -657,14 +817,246 @@
         border-radius: 12px;
         text-align: center;
     }
-    
+
+    /* ═══════════════ QUOTE CARDS (MOBILE) ═══════════════ */
+    .quotes-cards-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .quote-card {
+        background: linear-gradient(135deg, rgba(22, 34, 52, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(46, 62, 87, 0.5);
+        border-radius: 12px;
+        padding: 1rem;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+
+    .quote-card:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+        background: linear-gradient(135deg, rgba(26, 40, 60, 0.95) 0%, rgba(20, 28, 46, 0.98) 100%);
+    }
+
+    .quote-card:active {
+        transform: scale(0.99);
+    }
+
+    .quote-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .quote-request-number {
+        font-family: monospace;
+        font-weight: 600;
+        color: #6366F1;
+        font-size: 0.875rem;
+    }
+
+    .quote-status-badge {
+        padding: 0.1875rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .quote-status-badge.status-new {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+    }
+
+    .quote-status-badge.status-inreview {
+        background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        color: white;
+    }
+
+    .quote-status-badge.status-needsinfo {
+        background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
+        color: white;
+    }
+
+    .quote-status-badge.status-quoted {
+        background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+        color: white;
+    }
+
+    .quote-status-badge.status-negotiation {
+        background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+        color: white;
+    }
+
+    .quote-status-badge.status-won {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        color: white;
+    }
+
+    .quote-status-badge.status-lost {
+        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+        color: white;
+    }
+
+    .quote-status-badge.status-archived {
+        background: linear-gradient(135deg, #4B5563 0%, #374151 100%);
+        color: white;
+    }
+
+    .quote-card-body {
+        margin-bottom: 0.75rem;
+    }
+
+    .quote-customer-name {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0 0 0.25rem 0;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .quote-customer-email {
+        font-size: 0.75rem;
+        color: #9CA3AF;
+        display: block;
+        margin-bottom: 0.375rem;
+    }
+
+    .quote-service-name {
+        font-size: 0.8125rem;
+        color: rgba(255, 255, 255, 0.7);
+        display: block;
+        padding-top: 0.375rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .quote-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        margin-bottom: 0.5rem;
+    }
+
+    .quote-date {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.75rem;
+        color: #9CA3AF;
+    }
+
+    .quote-date .mud-icon-root {
+        font-size: 0.875rem;
+        opacity: 0.7;
+    }
+
+    .quote-sla-badge {
+        padding: 0.125rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+    }
+
+    .quote-sla-badge.sla-error {
+        background: rgba(239, 68, 68, 0.15);
+        color: #EF4444;
+    }
+
+    .quote-sla-badge.sla-warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: #F59E0B;
+    }
+
+    .quote-sla-badge.sla-info {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3B82F6;
+    }
+
+    .quote-sla-badge.sla-success {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10B981;
+    }
+
+    .quote-card-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .quote-quick-actions {
+        display: flex;
+        gap: 0.375rem;
+    }
+
+    .quote-action-btn {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        border: 1px solid #233044;
+        background: #111827;
+        color: #9CA3AF;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+
+    .quote-action-btn:hover {
+        border-color: #2E3E57;
+        color: var(--mud-palette-text-primary);
+        transform: scale(1.1);
+    }
+
+    .quote-action-btn.phone:hover {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: #6366F1;
+        color: #818CF8;
+    }
+
+    .quote-action-btn.whatsapp {
+        background: rgba(16, 185, 129, 0.1);
+        border-color: rgba(16, 185, 129, 0.3);
+        color: #34D399;
+    }
+
+    .quote-action-btn.whatsapp:hover {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: #10B981;
+        color: #6EE7B7;
+    }
+
+    .quote-action-btn.email:hover {
+        background: rgba(59, 130, 246, 0.15);
+        border-color: #3B82F6;
+        color: #60A5FA;
+    }
+
+    .quote-card-chevron {
+        color: var(--mud-palette-text-disabled);
+        transition: transform 0.15s ease;
+    }
+
+    .quote-card:hover .quote-card-chevron {
+        color: var(--mud-palette-text-secondary);
+        transform: translateX(2px);
+    }
+
     /* Drawer */
     .drawer-content {
         padding: 1.5rem;
         height: 100%;
         overflow-y: auto;
     }
-    
+
     .drawer-header {
         display: flex;
         justify-content: space-between;
@@ -673,50 +1065,50 @@
         padding-bottom: 1rem;
         border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    
+
     .drawer-title {
         display: flex;
         align-items: center;
         gap: 1rem;
     }
-    
+
     .drawer-section {
         margin-bottom: 1.5rem;
         padding: 1rem;
         background: rgba(255,255,255,0.03);
         border-radius: 8px;
     }
-    
+
     .customer-info {
         display: flex;
         align-items: center;
         gap: 0.5rem;
         margin-top: 0.5rem;
     }
-    
+
     .customer-info a {
         color: var(--mud-palette-primary);
         text-decoration: none;
     }
-    
+
     .quick-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
         margin-top: 0.75rem;
     }
-    
+
     /* Timeline */
     .timeline {
         margin-top: 0.75rem;
     }
-    
+
     .timeline-item {
         display: flex;
         gap: 0.75rem;
         padding: 0.5rem 0;
     }
-    
+
     .timeline-dot {
         width: 8px;
         height: 8px;
@@ -725,18 +1117,175 @@
         margin-top: 6px;
         flex-shrink: 0;
     }
-    
+
     .timeline-content {
         display: flex;
         flex-direction: column;
     }
-    
+
     .timeline-desc {
         font-size: 0.9rem;
     }
-    
+
     .timeline-date {
         font-size: 0.75rem;
         color: var(--mud-palette-text-secondary);
+    }
+
+    /* ═══════════════ TABLET BREAKPOINT (601px - 1024px) ═══════════════ */
+    @@media (max-width: 1024px) and (min-width: 601px) {
+        .desktop-only { display: none !important; }
+        .quotes-desktop-view { display: none !important; }
+        .quotes-mobile-view { display: block !important; }
+        .mobile-toolbar { display: flex !important; }
+
+        /* Hide the filters bar on tablet - use mobile view */
+        .filters-bar { display: none !important; }
+
+        .quotes-cards-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .status-cards {
+            gap: 0.75rem;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .status-card {
+            min-width: 85px;
+            flex: 0 0 auto;
+            padding: 0.75rem;
+        }
+
+        .status-count {
+            font-size: 1.5rem;
+        }
+
+        ::deep .quote-drawer {
+            width: 380px !important;
+        }
+    }
+
+    /* ═══════════════ MOBILE BREAKPOINT (max 600px) ═══════════════ */
+    @@media (max-width: 600px) {
+        /* Hide desktop elements */
+        .desktop-only, .quotes-desktop-view { display: none !important; }
+        .mobile-only, .quotes-mobile-view { display: block !important; }
+        .mobile-toolbar { display: flex !important; }
+
+        .quotes-header.desktop-only {
+            display: none !important;
+        }
+
+        /* Force container to respect viewport */
+        .quotes-container {
+            max-width: 100% !important;
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+            overflow-x: hidden !important;
+        }
+
+        /* MudContainer override */
+        ::deep .mud-container-maxwidth-lg {
+            max-width: 100% !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        /* Hide filters bar on mobile - use mobile toolbar instead */
+        .filters-bar {
+            display: none !important;
+        }
+
+        /* Status cards - horizontal scroll */
+        .status-cards {
+            display: flex !important;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            flex-wrap: nowrap !important;
+            max-width: 100%;
+            padding-bottom: 4px;
+        }
+
+        .status-card {
+            flex: 0 0 auto;
+            min-width: 75px;
+            padding: 0.625rem;
+        }
+
+        .status-count {
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .status-card .status-chip {
+            font-size: 0.625rem !important;
+        }
+
+        /* Quotes cards container */
+        .quotes-cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        /* Ensure all cards stay within bounds */
+        .quote-card {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Drawer full width */
+        ::deep .quote-drawer {
+            width: 100% !important;
+        }
+
+        .drawer-content {
+            padding: 1rem;
+            padding-bottom: 100px;
+        }
+
+        .drawer-header {
+            position: sticky;
+            top: 0;
+            background: rgba(15, 23, 30, 0.98);
+            z-index: 10;
+            padding: 12px 0;
+            margin: 0 0 1rem 0;
+        }
+
+        .quick-actions {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .quick-actions .mud-button {
+            width: 100%;
+        }
+    }
+
+    /* ═══════════════ SMALL MOBILE (max 430px) ═══════════════ */
+    @@media (max-width: 429px) {
+        .quote-card {
+            padding: 0.875rem;
+        }
+
+        .quote-customer-name {
+            font-size: 0.9375rem;
+        }
+
+        .quote-action-btn {
+            width: 32px;
+            height: 32px;
+        }
     }
 </style>
