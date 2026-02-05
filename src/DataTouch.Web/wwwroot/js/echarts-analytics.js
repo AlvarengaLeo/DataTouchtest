@@ -121,7 +121,27 @@ window.EChartsAnalytics = {
                     type: 'value',
                     name: '',
                     position: 'left',
-                    alignTicks: true,
+                    min: 0,
+                    max: (function () {
+                        // Calculate max for Interacciones axis with round steps
+                        const maxInt = Math.max(...(data.interactions || [0]));
+                        // Determine step: 10 for small values, 20 for medium, 50 for large
+                        let step = 10;
+                        if (maxInt > 100) step = 20;
+                        if (maxInt > 300) step = 50;
+                        if (maxInt > 500) step = 100;
+                        // Round max up to next step
+                        return maxInt <= 0 ? 10 : Math.ceil(maxInt / step) * step;
+                    })(),
+                    interval: (function () {
+                        const maxInt = Math.max(...(data.interactions || [0]));
+                        // Aim for 5-7 labels
+                        if (maxInt <= 50) return 10;
+                        if (maxInt <= 100) return 20;
+                        if (maxInt <= 300) return 50;
+                        if (maxInt <= 500) return 100;
+                        return 200;
+                    })(),
                     axisLine: {
                         show: false
                     },
@@ -143,7 +163,16 @@ window.EChartsAnalytics = {
                     type: 'value',
                     name: '',
                     position: 'right',
-                    alignTicks: true,
+                    min: 0,
+                    max: (function () {
+                        // Calculate max for Leads axis with 0.5 step increments
+                        const maxLeads = Math.max(...(data.leads || [0]));
+                        const step = 0.5;
+                        // Round max up to next 0.5 step, minimum 2.5 for readability
+                        const calculatedMax = maxLeads <= 0 ? 2.5 : Math.ceil(maxLeads / step) * step;
+                        return Math.max(calculatedMax, 2.5);
+                    })(),
+                    interval: 0.5,
                     axisLine: {
                         show: false
                     },
@@ -156,7 +185,11 @@ window.EChartsAnalytics = {
                     axisLabel: {
                         color: 'rgba(94, 234, 212, 0.9)',
                         fontSize: 11,
-                        fontWeight: 500
+                        fontWeight: 500,
+                        formatter: function (value) {
+                            // Format leads axis: show .0 for whole numbers, .5 for halves
+                            return value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
+                        }
                     }
                 }
             ],

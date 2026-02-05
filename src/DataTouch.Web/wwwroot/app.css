@@ -159,6 +159,43 @@ h1:focus {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   MOBILE SCROLLBAR - Hide scrollbar for app-like experience
+   ══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 960px) {
+    /* Hide scrollbar but keep scrolling functionality */
+    html,
+    body,
+    .page,
+    main,
+    .mud-main-content,
+    .main-content-wrapper,
+    .swipe-navigation-wrapper,
+    .page-container {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+    }
+
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar,
+    .page::-webkit-scrollbar,
+    main::-webkit-scrollbar,
+    .mud-main-content::-webkit-scrollbar,
+    .main-content-wrapper::-webkit-scrollbar,
+    .swipe-navigation-wrapper::-webkit-scrollbar,
+    .page-container::-webkit-scrollbar {
+        display: none; /* Chrome/Safari/Opera */
+        width: 0;
+        height: 0;
+    }
+
+    /* Ensure smooth touch scrolling */
+    html,
+    body {
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    PUBLIC CARD FORM - FORCE WHITE TEXT IN ALL INPUTS
    This is needed because MudBlazor applies its own styles
    ══════════════════════════════════════════════════════════════════════════════ */
