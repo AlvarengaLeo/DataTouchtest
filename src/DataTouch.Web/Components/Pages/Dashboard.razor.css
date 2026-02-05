@@ -93,113 +93,184 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   KPI ROW (4 Cards)
+   KPI SECTION - Premium Cards with Mobile Carousel
    ══════════════════════════════════════════════════════════════════════════════ */
 
-.kpi-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+.kpi-section {
     margin-bottom: 24px;
 }
 
-.kpi-card {
-    background: var(--dt-surface-2, #162234);
-    border: 1px solid var(--dt-border-default, #233044);
-    border-radius: var(--dt-radius-lg, 12px);
-    padding: 20px 24px;
-    display: flex;
-    align-items: flex-start;
+/* Carousel Wrapper */
+.kpi-carousel {
+    overflow: visible;
+}
+
+/* Card Track - Grid on Desktop */
+.kpi-track {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
-    transition: all var(--dt-transition-fast, 150ms ease);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.03);
 }
 
-.kpi-card:hover {
-    border-color: var(--dt-border-strong, #2E3E57);
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.08);
+/* Premium Card Design - Vertical Hierarchy */
+.kpi-card-premium {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background: linear-gradient(145deg, rgba(26, 31, 43, 0.95) 0%, rgba(15, 20, 27, 0.98) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    transition: all 200ms ease;
+    cursor: default;
+    min-height: 160px;
 }
 
-.kpi-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--dt-radius-lg, 12px);
+.kpi-card-premium:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    transform: translateY(-2px);
+}
+
+/* Header: Icon + Centered Title */
+.kpi-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+/* Circular Icon - Increased size */
+.kpi-icon-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 20, 27, 0.8);
 }
 
-.kpi-icon svg {
-    width: 24px;
-    height: 24px;
+.kpi-icon-circle svg {
+    width: 18px;
+    height: 18px;
 }
 
-.kpi-icon.interactions {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.1));
-    color: var(--dt-primary-400, #818CF8);
+.kpi-icon-circle.interactions {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0.08) 100%);
+    color: #818CF8;
 }
 
-.kpi-icon.leads {
-    background: linear-gradient(135deg, rgba(20, 184, 166, 0.2), rgba(20, 184, 166, 0.1));
-    color: var(--dt-accent-teal-400, #2DD4BF);
+.kpi-icon-circle.leads {
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.2) 0%, rgba(20, 184, 166, 0.08) 100%);
+    color: #2DD4BF;
 }
 
-.kpi-icon.meetings {
-    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(167, 139, 250, 0.1));
+.kpi-icon-circle.meetings {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(167, 139, 250, 0.08) 100%);
     color: #A78BFA;
 }
 
-.kpi-icon.conversion {
-    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1));
+.kpi-icon-circle.conversion {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(251, 191, 36, 0.08) 100%);
     color: #FBBF24;
 }
 
-.kpi-content {
+/* Title - Centered in remaining space */
+.kpi-title {
+    flex: 1;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: center;
+    padding-right: 36px;
+    /* Balance for icon width */
+}
+
+/* Body: Centered Number */
+.kpi-body {
+    flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
 }
 
-.kpi-value {
-    font-size: 2rem;
+.kpi-number {
+    font-size: 2.5rem;
     font-weight: 700;
-    color: var(--dt-text-primary, #E5E7EB);
-    line-height: 1.1;
+    color: #F3F4F6;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-feature-settings: "tnum";
+    text-align: center;
 }
 
-.kpi-label {
-    font-size: 13px;
-    color: var(--dt-text-secondary, #9CA3AF);
-    font-weight: 500;
+.kpi-number.kpi-na {
+    color: rgba(255, 255, 255, 0.35);
+    font-style: italic;
+    font-size: 1.75rem;
 }
 
-.kpi-delta {
+/* Divider - Visible separator */
+.kpi-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 12px 0;
+    width: 100%;
+}
+
+/* Footer: Delta Pill */
+.kpi-footer {
+    display: flex;
+    justify-content: center;
+    padding-top: 4px;
+}
+
+.kpi-delta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
-    margin-top: 4px;
 }
 
-.kpi-delta.positive {
-    color: var(--dt-success, #16A34A);
+.kpi-delta-pill.positive {
+    background: rgba(22, 163, 74, 0.15);
+    color: #4ADE80;
 }
 
-.kpi-delta.negative {
-    color: var(--dt-danger, #DC2626);
+.kpi-delta-pill.negative {
+    background: rgba(220, 38, 38, 0.15);
+    color: #F87171;
 }
 
-.kpi-na,
-.kpi-value.kpi-na,
-.insight-na,
-.insight-value.insight-na {
-    color: var(--dt-text-muted, #6B7280);
-    font-style: italic;
+.kpi-delta-pill.neutral {
+    background: rgba(107, 114, 128, 0.15);
+    color: rgba(255, 255, 255, 0.5);
 }
 
-.kpi-sublabel {
-    font-size: 11px;
-    color: var(--dt-text-muted, #6B7280);
-    margin-top: 2px;
+.delta-arrow {
+    font-weight: 600;
+}
+
+.delta-value {
+    font-weight: 600;
+}
+
+.delta-label {
+    color: inherit;
+    opacity: 0.8;
+}
+
+/* Carousel Indicators - Hidden on Desktop */
+.kpi-indicators {
+    display: none;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -2576,7 +2647,7 @@
         grid-template-columns: 1fr;
     }
 
-    .kpi-row {
+    .kpi-track {
         grid-template-columns: repeat(2, 1fr);
     }
 }
@@ -2795,56 +2866,109 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
-       KPI ROW - Horizontal Mini-cards Carousel
+       KPI SECTION - Premium Carousel on Mobile
        ═══════════════════════════════════════════════════════════════════════ */
-    .kpi-row {
-        display: flex;
-        gap: 12px;
-        padding: 0 16px;
-        margin-bottom: 20px;
+    .kpi-section {
+        margin: 0 0 16px 0;
+        padding: 0 8px;
+    }
+
+    .kpi-carousel {
         overflow-x: auto;
         scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
+        padding: 0;
+        margin: 0;
     }
 
-    .kpi-row::-webkit-scrollbar {
+    .kpi-carousel::-webkit-scrollbar {
         display: none;
     }
 
-    .kpi-card {
-        flex: 0 0 140px;
-        scroll-snap-align: start;
-        padding: 16px;
-        background: rgba(22, 34, 52, 0.5);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(99, 102, 241, 0.12);
-        border-radius: 16px;
+    .kpi-track {
+        display: flex;
+        gap: 12px;
+        padding-right: 8px;
+        width: max-content;
     }
 
-    .kpi-card .kpi-icon {
-        width: 32px;
-        height: 32px;
+    .kpi-card-premium {
+        flex: 0 0 calc(100vw - 48px);
+        scroll-snap-align: start;
+        padding: 16px;
+        min-width: 260px;
+        max-width: 320px;
+        min-height: 150px;
+        height: auto;
+    }
+
+    .kpi-header {
         margin-bottom: 8px;
     }
 
-    .kpi-card .kpi-icon svg {
+    .kpi-icon-circle {
+        width: 32px;
+        height: 32px;
+    }
+
+    .kpi-icon-circle svg {
         width: 16px;
         height: 16px;
     }
 
-    .kpi-card .kpi-value {
-        font-size: 22px;
-        line-height: 1.2;
-    }
-
-    .kpi-card .kpi-label {
-        font-size: 11px;
-        line-height: 1.3;
-    }
-
-    .kpi-card .kpi-delta {
+    .kpi-title {
         font-size: 10px;
+        padding-right: 32px;
+    }
+
+    .kpi-body {
+        padding: 6px 0;
+    }
+
+    .kpi-number {
+        font-size: 2.25rem;
+    }
+
+    .kpi-divider {
+        height: 1px !important;
+        min-height: 1px !important;
+        margin: 12px 0 !important;
+        background: rgba(255, 255, 255, 0.18) !important;
+        display: block !important;
+        width: 100% !important;
+    }
+
+    .kpi-footer {
+        padding-top: 4px;
+    }
+
+    .kpi-delta-pill {
+        font-size: 11px;
+        padding: 4px 10px;
+    }
+
+    /* Carousel Indicators - Visible on Mobile */
+    .kpi-indicators {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .kpi-indicators .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        transition: all 200ms ease;
+        cursor: pointer;
+    }
+
+    .kpi-indicators .indicator.active {
+        width: 24px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #6366F1 0%, #8B5CF6 100%);
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -2932,8 +3056,9 @@
         display: none !important;
     }
 
-    /* Hide ALL dividers on mobile */
-    .kpi-divider {
+    /* Hide chart-kpi dividers on mobile (not the KPI card dividers) */
+    .chart-kpi .kpi-divider,
+    .chart-kpi-bar .kpi-divider {
         display: none !important;
     }
 
