@@ -274,6 +274,11 @@
                             </div>
                         }
                     </div>
+                    @* ─── Mobile: Conversion Badge (hidden on desktop) ─── *@
+                    <div class="analytics-conv-badge">
+                        <span class="conv-badge-label">CONV.</span>
+                        <span class="conv-badge-value">@GetConversionRate().ToString("0.00")%</span>
+                    </div>
                 </div>
             </div>
 
@@ -333,27 +338,32 @@
                         <span class="kpi-title">INTERACCIONES</span>
                         <span class="kpi-number">@FormatCompactNumber(GetTotalInteractions())</span>
                         <span class="kpi-change @(GetInteractionsDelta() >= 0 ? "positive" : "negative")">
-                            @(GetInteractionsDelta() >= 0 ? "↑" : "↓") @Math.Abs(GetInteractionsDelta()).ToString("0.#")% vs. período anterior
+                            <span class="kpi-change-compact">@(GetInteractionsDelta() >= 0 ? "▲" : "▼")@Math.Abs(GetInteractionsDelta()).ToString("0.#")%</span>
+                            <span class="kpi-change-full">@(GetInteractionsDelta() >= 0 ? "↑" : "↓") @Math.Abs(GetInteractionsDelta()).ToString("0.#")% vs. período anterior</span>
                         </span>
                     </div>
                     <div class="analytics-kpi-card">
                         <span class="kpi-title">LEADS</span>
                         <span class="kpi-number">@FormatCompactNumber(GetTotalLeads())</span>
                         <span class="kpi-change @(GetLeadsDelta() >= 0 ? "positive" : "negative")">
-                            @(GetLeadsDelta() >= 0 ? "↑" : "↓") @Math.Abs(GetLeadsDelta()).ToString("0.#")% vs. período anterior
+                            <span class="kpi-change-compact">@(GetLeadsDelta() >= 0 ? "▲" : "▼")@Math.Abs(GetLeadsDelta()).ToString("0.#")%</span>
+                            <span class="kpi-change-full">@(GetLeadsDelta() >= 0 ? "↑" : "↓") @Math.Abs(GetLeadsDelta()).ToString("0.#")% vs. período anterior</span>
                         </span>
                     </div>
-                    <div class="analytics-kpi-card">
+                    <div class="analytics-kpi-card analytics-kpi-conversion">
                         <span class="kpi-title">CONVERSIÓN</span>
                         <span class="kpi-number">@GetConversionRate().ToString("0.00")%</span>
                         <span class="kpi-change @(GetConversionDelta() >= 0 ? "positive" : "negative")">
-                            @(GetConversionDelta() >= 0 ? "↑" : "↓") @Math.Abs(GetConversionDelta()).ToString("0.#")% vs. período anterior
-                            <span class="info-icon" title="Conversión = Leads / Interacciones">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                </svg>
+                            <span class="kpi-change-compact">@(GetConversionDelta() >= 0 ? "▲" : "▼")@Math.Abs(GetConversionDelta()).ToString("0.#")%</span>
+                            <span class="kpi-change-full">
+                                @(GetConversionDelta() >= 0 ? "↑" : "↓") @Math.Abs(GetConversionDelta()).ToString("0.#")% vs. período anterior
+                                <span class="info-icon" title="Conversión = Leads / Interacciones">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </span>
                             </span>
                         </span>
                     </div>
