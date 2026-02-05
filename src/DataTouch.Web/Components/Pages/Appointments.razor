@@ -14,9 +14,9 @@
 <PageTitle>Reservas y Citas - DataTouch</PageTitle>
 
 @* ═══════════════════════════════════════════════════════════════════════════════
-   PREMIUM HEADER
+   PREMIUM HEADER (DESKTOP)
    ═══════════════════════════════════════════════════════════════════════════════ *@
-<div class="page-header d-flex justify-space-between align-center flex-wrap gap-3 mb-4">
+<div class="page-header desktop-only d-flex justify-space-between align-center flex-wrap gap-3 mb-4">
     <div>
         <MudText Typo="Typo.h4" Class="d-flex align-center gap-2" Style="font-weight: 700;">
             <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" />
@@ -31,12 +31,25 @@
                    OnClick="@(() => Snackbar.Add("Exportando...", Severity.Info))">
             Exportar
         </MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.Add"
                    OnClick="@(() => OpenCreateAppointmentDialog(false))">
             Nueva Cita
         </MudButton>
     </div>
+</div>
+
+@* ═══════════════════════════════════════════════════════════════════════════════
+   MOBILE TOOLBAR
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+<div class="mobile-toolbar mobile-only">
+    <div class="toolbar-left">
+        <span class="toolbar-title">AGENDA</span>
+        <span class="toolbar-count">@_filteredAppointments.Count()</span>
+    </div>
+    <button class="btn-add-mobile" @onclick="@(() => OpenCreateAppointmentDialog(false))">
+        <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small" />
+    </button>
 </div>
 
 @* ═══════════════════════════════════════════════════════════════════════════════
@@ -192,129 +205,230 @@
         }
         else
         {
-            <MudTable Items="_filteredAppointments" Hover="true" Elevation="0" 
-                      T="Appointment" OnRowClick="@((e) => OpenAppointmentDrawer(e.Item))" 
-                      RowStyle="cursor: pointer;" Class="appointments-table"
-                      RowsPerPage="10">
-                <HeaderContent>
-                    <MudTh><MudTableSortLabel SortBy="new Func<Appointment, object>(x => x.StartDateTime)">Fecha/Hora</MudTableSortLabel></MudTh>
-                    <MudTh>Cliente</MudTh>
-                    <MudTh>Servicio</MudTh>
-                    <MudTh>Duración</MudTh>
-                    <MudTh>Estado</MudTh>
-                    <MudTh Style="width: 80px;">Acciones</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Fecha/Hora">
-                        <div class="date-cell">
-                            @if (IsToday(context.StartDateTime))
-                            {
-                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled" Class="today-badge">HOY</MudChip>
-                            }
-                            <span class="date-text">@FormatDateSpanish(context.StartDateTime)</span>
-                            <span class="time-text">@context.StartDateTime.ToString("h:mm tt") – @context.EndDateTime.ToString("h:mm tt")</span>
+            @* ═══════════════ DESKTOP TABLE VIEW ═══════════════ *@
+            <div class="desktop-table-view">
+                <MudTable Items="_filteredAppointments" Hover="true" Elevation="0"
+                          T="Appointment" OnRowClick="@((e) => OpenAppointmentDrawer(e.Item))"
+                          RowStyle="cursor: pointer;" Class="appointments-table"
+                          RowsPerPage="10">
+                    <HeaderContent>
+                        <MudTh><MudTableSortLabel SortBy="new Func<Appointment, object>(x => x.StartDateTime)">Fecha/Hora</MudTableSortLabel></MudTh>
+                        <MudTh>Cliente</MudTh>
+                        <MudTh>Servicio</MudTh>
+                        <MudTh>Duración</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh Style="width: 80px;">Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Fecha/Hora">
+                            <div class="date-cell">
+                                @if (IsToday(context.StartDateTime))
+                                {
+                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled" Class="today-badge">HOY</MudChip>
+                                }
+                                <span class="date-text">@FormatDateSpanish(context.StartDateTime)</span>
+                                <span class="time-text">@context.StartDateTime.ToString("h:mm tt") – @context.EndDateTime.ToString("h:mm tt")</span>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Cliente">
+                            <div class="client-cell">
+                                <span class="client-name">@context.CustomerName</span>
+                                <span class="client-email">@context.CustomerEmail</span>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Servicio">
+                            <span class="service-name">@(context.Service?.Name ?? "—")</span>
+                        </MudTd>
+                        <MudTd DataLabel="Duración">
+                            <span class="duration-text">@((context.EndDateTime - context.StartDateTime).TotalMinutes) min</span>
+                        </MudTd>
+                        <MudTd DataLabel="Estado">
+                            <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small"
+                                     Variant="Variant.Filled" Class="status-chip">
+                                @GetStatusLabel(context.Status)
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Acciones" @onclick:stopPropagation="true">
+                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
+                                     AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                                <MudMenuItem Icon="@Icons.Material.Filled.Visibility" OnClick="@(() => OpenAppointmentDrawer(context))">
+                                    Ver detalle
+                                </MudMenuItem>
+                                @if (context.Status == AppointmentStatus.Pending)
+                                {
+                                    <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success"
+                                                 OnClick="@(() => UpdateStatus(context, AppointmentStatus.Confirmed))">
+                                        Confirmar
+                                    </MudMenuItem>
+                                }
+                                @if (context.Status == AppointmentStatus.Confirmed)
+                                {
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Done" IconColor="Color.Primary"
+                                                 OnClick="@(() => UpdateStatus(context, AppointmentStatus.Completed))">
+                                        Marcar completada
+                                    </MudMenuItem>
+                                }
+                                @if (context.Status != AppointmentStatus.Cancelled && context.Status != AppointmentStatus.Completed)
+                                {
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Schedule"
+                                                 OnClick="@(() => { _selectedAppointment = context; OpenRescheduleDialog(); })">
+                                        Reprogramar
+                                    </MudMenuItem>
+                                    <MudDivider />
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Cancel" IconColor="Color.Error"
+                                                 OnClick="@(() => OpenCancelModal(context))">
+                                        Cancelar cita
+                                    </MudMenuItem>
+                                }
+                                @if (context.Status == AppointmentStatus.Cancelled)
+                                {
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Restore" IconColor="Color.Warning"
+                                                 OnClick="@(() => RestoreAppointment(context))">
+                                        Restaurar cita
+                                    </MudMenuItem>
+                                }
+                            </MudMenu>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }"
+                                       RowsPerPageString="Filas por página"
+                                       InfoFormat="{first_item}-{last_item} de {all_items}" />
+                    </PagerContent>
+                </MudTable>
+            </div>
+
+            @* ═══════════════ MOBILE/TABLET CARDS VIEW ═══════════════ *@
+            <div class="mobile-cards-view">
+                <div class="appointments-cards-container">
+                    @foreach (var apt in _filteredAppointments)
+                    {
+                        <div class="appointment-card" @onclick="@(() => OpenAppointmentDrawer(apt))">
+                            <div class="card-header">
+                                <div class="date-badge @(IsToday(apt.StartDateTime) ? "today" : "")">
+                                    <span class="day">@apt.StartDateTime.Day</span>
+                                    <span class="month">@apt.StartDateTime.ToString("MMM").ToUpper()</span>
+                                </div>
+                                <div class="card-main">
+                                    <h3 class="card-client-name">@apt.CustomerName</h3>
+                                    <span class="card-service-name">@(apt.Service?.Name ?? "—")</span>
+                                </div>
+                                <span class="status-badge @GetStatusBadgeClass(apt.Status)">
+                                    @GetStatusLabel(apt.Status)
+                                </span>
+                            </div>
+                            <div class="card-meta">
+                                <span class="time">
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                                    @apt.StartDateTime.ToString("h:mm tt") - @apt.EndDateTime.ToString("h:mm tt")
+                                </span>
+                                <span class="duration">@((apt.EndDateTime - apt.StartDateTime).TotalMinutes) min</span>
+                            </div>
+                            <div class="card-actions" @onclick:stopPropagation="true">
+                                <div class="quick-actions">
+                                    @if (!string.IsNullOrEmpty(apt.CustomerPhone))
+                                    {
+                                        <a href="tel:@apt.CustomerPhone" class="action-btn phone">
+                                            <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
+                                        </a>
+                                        <a href="https://wa.me/@(apt.CustomerPhone.Replace(" ", "").Replace("-", ""))"
+                                           target="_blank" class="action-btn whatsapp">
+                                            <MudIcon Icon="@Icons.Material.Filled.Chat" Size="Size.Small" />
+                                        </a>
+                                    }
+                                    @if (!string.IsNullOrEmpty(apt.CustomerEmail))
+                                    {
+                                        <a href="mailto:@apt.CustomerEmail" class="action-btn email">
+                                            <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
+                                        </a>
+                                    }
+                                </div>
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Class="card-chevron" />
+                            </div>
                         </div>
-                    </MudTd>
-                    <MudTd DataLabel="Cliente">
-                        <div class="client-cell">
-                            <span class="client-name">@context.CustomerName</span>
-                            <span class="client-email">@context.CustomerEmail</span>
-                        </div>
-                    </MudTd>
-                    <MudTd DataLabel="Servicio">
-                        <span class="service-name">@(context.Service?.Name ?? "—")</span>
-                    </MudTd>
-                    <MudTd DataLabel="Duración">
-                        <span class="duration-text">@((context.EndDateTime - context.StartDateTime).TotalMinutes) min</span>
-                    </MudTd>
-                    <MudTd DataLabel="Estado">
-                        <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small" 
-                                 Variant="Variant.Filled" Class="status-chip">
-                            @GetStatusLabel(context.Status)
-                        </MudChip>
-                    </MudTd>
-                    <MudTd DataLabel="Acciones" @onclick:stopPropagation="true">
-                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
-                                 AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                            <MudMenuItem Icon="@Icons.Material.Filled.Visibility" OnClick="@(() => OpenAppointmentDrawer(context))">
-                                Ver detalle
-                            </MudMenuItem>
-                            @if (context.Status == AppointmentStatus.Pending)
-                            {
-                                <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success"
-                                             OnClick="@(() => UpdateStatus(context, AppointmentStatus.Confirmed))">
-                                    Confirmar
-                                </MudMenuItem>
-                            }
-                            @if (context.Status == AppointmentStatus.Confirmed)
-                            {
-                                <MudMenuItem Icon="@Icons.Material.Filled.Done" IconColor="Color.Primary"
-                                             OnClick="@(() => UpdateStatus(context, AppointmentStatus.Completed))">
-                                    Marcar completada
-                                </MudMenuItem>
-                            }
-                            @if (context.Status != AppointmentStatus.Cancelled && context.Status != AppointmentStatus.Completed)
-                            {
-                                <MudMenuItem Icon="@Icons.Material.Filled.Schedule" 
-                                             OnClick="@(() => { _selectedAppointment = context; OpenRescheduleDialog(); })">
-                                    Reprogramar
-                                </MudMenuItem>
-                                <MudDivider />
-                                <MudMenuItem Icon="@Icons.Material.Filled.Cancel" IconColor="Color.Error"
-                                             OnClick="@(() => OpenCancelModal(context))">
-                                    Cancelar cita
-                                </MudMenuItem>
-                            }
-                            @if (context.Status == AppointmentStatus.Cancelled)
-                            {
-                                <MudMenuItem Icon="@Icons.Material.Filled.Restore" IconColor="Color.Warning"
-                                             OnClick="@(() => RestoreAppointment(context))">
-                                    Restaurar cita
-                                </MudMenuItem>
-                            }
-                        </MudMenu>
-                    </MudTd>
-                </RowTemplate>
-                <PagerContent>
-                    <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" 
-                                   RowsPerPageString="Filas por página" 
-                                   InfoFormat="{first_item}-{last_item} de {all_items}" />
-                </PagerContent>
-            </MudTable>
+                    }
+                </div>
+            </div>
         }
     </MudTabPanel>
     
     <MudTabPanel Text="Servicios" Icon="@Icons.Material.Filled.Handyman">
-        <div class="pa-4">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddService" Class="mb-4">
+        <div class="pa-4 services-tab">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddService" Class="mb-4 btn-add-service">
                 Agregar Servicio
             </MudButton>
-            
+
             @if (_services.Any())
             {
-                <MudTable Items="_services" Hover="true" Striped="true" Elevation="0">
-                    <HeaderContent>
-                        <MudTh>Nombre</MudTh>
-                        <MudTh>Duracion</MudTh>
-                        <MudTh>Precio</MudTh>
-                        <MudTh>Estado</MudTh>
-                        <MudTh>Acciones</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Nombre">@context.Name</MudTd>
-                        <MudTd DataLabel="Duracion">@context.DurationMinutes min</MudTd>
-                        <MudTd DataLabel="Precio">@(context.PriceFrom.HasValue ? $"${context.PriceFrom:N2}" : "-")</MudTd>
-                        <MudTd DataLabel="Estado">
-                            <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Default)" Size="Size.Small">
-                                @(context.IsActive ? "Activo" : "Inactivo")
-                            </MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="Acciones">
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditService(context)" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteService(context)" />
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
+                @* ═══════════════ DESKTOP TABLE VIEW ═══════════════ *@
+                <div class="desktop-table-view">
+                    <MudTable Items="_services" Hover="true" Striped="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Nombre</MudTh>
+                            <MudTh>Duracion</MudTh>
+                            <MudTh>Precio</MudTh>
+                            <MudTh>Estado</MudTh>
+                            <MudTh>Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Nombre">@context.Name</MudTd>
+                            <MudTd DataLabel="Duracion">@context.DurationMinutes min</MudTd>
+                            <MudTd DataLabel="Precio">@(context.PriceFrom.HasValue ? $"${context.PriceFrom:N2}" : "-")</MudTd>
+                            <MudTd DataLabel="Estado">
+                                <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Default)" Size="Size.Small">
+                                    @(context.IsActive ? "Activo" : "Inactivo")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Acciones">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditService(context)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteService(context)" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+
+                @* ═══════════════ MOBILE/TABLET CARDS VIEW ═══════════════ *@
+                <div class="mobile-cards-view">
+                    <div class="services-cards-container">
+                        @foreach (var service in _services)
+                        {
+                            <div class="service-card">
+                                <div class="service-card-header">
+                                    <div class="service-info">
+                                        <h3 class="service-title">@service.Name</h3>
+                                        @if (!string.IsNullOrEmpty(service.Description))
+                                        {
+                                            <p class="service-desc">@service.Description</p>
+                                        }
+                                    </div>
+                                    <span class="service-status-badge @(service.IsActive ? "active" : "inactive")">
+                                        @(service.IsActive ? "Activo" : "Inactivo")
+                                    </span>
+                                </div>
+                                <div class="service-card-meta">
+                                    <div class="meta-item">
+                                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                                        <span>@service.DurationMinutes min</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" />
+                                        <span>@(service.PriceFrom.HasValue ? $"${service.PriceFrom:N2}" : "Sin precio")</span>
+                                    </div>
+                                </div>
+                                <div class="service-card-actions">
+                                    <button class="btn-edit" @onclick="() => EditService(service)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
+                                        Editar
+                                    </button>
+                                    <button class="btn-delete" @onclick="() => DeleteService(service)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" />
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
             }
             else
             {
@@ -1029,6 +1143,16 @@
         AppointmentStatus.NoShow => Icons.Material.Filled.PersonOff,
         _ => Icons.Material.Filled.Info
     };
+
+    private string GetStatusBadgeClass(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Pending => "status-pending",
+        AppointmentStatus.Confirmed => "status-confirmed",
+        AppointmentStatus.Completed => "status-completed",
+        AppointmentStatus.Cancelled => "status-cancelled",
+        AppointmentStatus.NoShow => "status-noshow",
+        _ => ""
+    };
     
     private async Task CopyToClipboard(string text)
     {
@@ -1494,6 +1618,64 @@
 }
 
 <style>
+    /* ═══════════════ GLOBAL OVERFLOW CONTAINMENT ═══════════════ */
+    .page-header,
+    .mobile-toolbar,
+    .metrics-row,
+    .toolbar-card,
+    .premium-tabs {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* ═══════════════ VISIBILITY TOGGLES ═══════════════ */
+    .mobile-only, .mobile-cards-view { display: none; }
+    .desktop-only, .desktop-table-view { display: block; }
+
+    /* ═══════════════ MOBILE TOOLBAR ═══════════════ */
+    .mobile-toolbar {
+        display: none;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        margin-bottom: 12px;
+    }
+
+    .toolbar-left {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+
+    .toolbar-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .toolbar-count {
+        font-size: 0.875rem;
+        color: #9CA3AF;
+        background: #162234;
+        padding: 0.125rem 0.5rem;
+        border-radius: 10px;
+    }
+
+    .btn-add-mobile {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+        border: none;
+        color: white;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
     /* ═══════════════ METRICS CARDS ═══════════════ */
     .metric-card {
         display: flex;
@@ -1506,17 +1688,17 @@
         transition: all 0.2s ease;
         min-width: 140px;
     }
-    
+
     .metric-card:hover {
         background: rgba(255, 255, 255, 0.06);
         border-color: rgba(255, 255, 255, 0.1);
     }
-    
+
     .metric-card.active {
         border-color: var(--mud-palette-primary);
         background: rgba(var(--mud-palette-primary-rgb), 0.1);
     }
-    
+
     .metric-icon {
         width: 40px;
         height: 40px;
@@ -1525,105 +1707,105 @@
         align-items: center;
         justify-content: center;
     }
-    
+
     .metric-icon.today { background: rgba(33, 150, 243, 0.15); color: #2196F3; }
     .metric-icon.pending { background: rgba(255, 152, 0, 0.15); color: #FF9800; }
     .metric-icon.confirmed { background: rgba(76, 175, 80, 0.15); color: #4CAF50; }
     .metric-icon.cancelled { background: rgba(158, 158, 158, 0.15); color: #9E9E9E; }
-    
+
     .metric-content {
         display: flex;
         flex-direction: column;
     }
-    
+
     .metric-value {
         font-size: 1.5rem;
         font-weight: 700;
         line-height: 1.2;
     }
-    
+
     .metric-label {
         font-size: 0.75rem;
         color: rgba(255, 255, 255, 0.6);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
-    
+
     /* ═══════════════ TOOLBAR ═══════════════ */
     .toolbar-card {
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 12px;
     }
-    
+
     .search-input {
         min-width: 280px;
         max-width: 320px;
     }
-    
+
     .date-filter {
         width: 150px;
     }
-    
+
     .status-filter {
         width: 140px;
     }
-    
+
     /* ═══════════════ TABLE ═══════════════ */
     .appointments-table .mud-table-row:hover {
         background: rgba(255, 255, 255, 0.04) !important;
     }
-    
+
     .date-cell {
         display: flex;
         flex-direction: column;
         gap: 2px;
     }
-    
+
     .date-text {
         font-weight: 600;
         color: rgba(255, 255, 255, 0.9);
     }
-    
+
     .time-text {
         font-size: 0.85rem;
         color: rgba(255, 255, 255, 0.6);
     }
-    
+
     .today-badge {
         font-size: 0.65rem !important;
         height: 18px !important;
         padding: 0 6px !important;
         margin-bottom: 2px;
     }
-    
+
     .client-cell {
         display: flex;
         flex-direction: column;
     }
-    
+
     .client-name {
         font-weight: 500;
         color: rgba(255, 255, 255, 0.9);
     }
-    
+
     .client-email {
         font-size: 0.8rem;
         color: rgba(255, 255, 255, 0.5);
     }
-    
+
     .service-name {
         color: rgba(255, 255, 255, 0.85);
     }
-    
+
     .duration-text {
         color: rgba(255, 255, 255, 0.7);
     }
-    
+
     .status-chip {
         font-weight: 500;
     }
-    
+
     /* ═══════════════ EMPTY STATE ═══════════════ */
     .empty-state {
         display: flex;
@@ -1633,7 +1815,7 @@
         padding: 60px 20px;
         text-align: center;
     }
-    
+
     .empty-icon {
         width: 80px;
         height: 80px;
@@ -1644,40 +1826,541 @@
         justify-content: center;
         color: rgba(255, 255, 255, 0.3);
     }
-    
+
     .empty-icon .mud-icon-root {
         font-size: 2.5rem;
     }
-    
+
     /* ═══════════════ PREMIUM TABS ═══════════════ */
     .premium-tabs {
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 12px;
     }
-    
-    /* ═══════════════ RESPONSIVE ═══════════════ */
+
+    /* ═══════════════ APPOINTMENT CARDS (MOBILE) ═══════════════ */
+    .appointments-cards-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .appointment-card {
+        background: linear-gradient(135deg, rgba(22, 34, 52, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(46, 62, 87, 0.5);
+        border-radius: 12px;
+        padding: 0.875rem 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .appointment-card:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+        background: linear-gradient(135deg, rgba(26, 40, 60, 0.95) 0%, rgba(20, 28, 46, 0.98) 100%);
+    }
+
+    .appointment-card:active {
+        transform: scale(0.99);
+    }
+
+    .appointment-card .card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 0.625rem;
+    }
+
+    .date-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 12px;
+        background: rgba(99, 102, 241, 0.15);
+        border-radius: 8px;
+        min-width: 48px;
+    }
+
+    .date-badge.today {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(99, 102, 241, 0.2) 100%);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .date-badge .day {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #818CF8;
+        line-height: 1;
+    }
+
+    .date-badge .month {
+        font-size: 0.625rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.6);
+        letter-spacing: 0.05em;
+    }
+
+    .card-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .card-client-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        margin: 0 0 0.125rem 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .card-service-name {
+        font-size: 0.8125rem;
+        color: rgba(255, 255, 255, 0.6);
+    }
+
+    .status-badge {
+        padding: 0.1875rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        flex-shrink: 0;
+    }
+
+    .status-badge.status-pending {
+        background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        color: white;
+    }
+
+    .status-badge.status-confirmed {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+    }
+
+    .status-badge.status-completed {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        color: white;
+    }
+
+    .status-badge.status-cancelled {
+        background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
+        color: white;
+    }
+
+    .status-badge.status-noshow {
+        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+        color: white;
+    }
+
+    .card-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        margin-bottom: 0.5rem;
+    }
+
+    .card-meta .time {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.8125rem;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .card-meta .time .mud-icon-root {
+        font-size: 0.875rem;
+        opacity: 0.7;
+    }
+
+    .card-meta .duration {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.5);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 0.125rem 0.5rem;
+        border-radius: 4px;
+    }
+
+    .card-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 0.375rem;
+    }
+
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        border: 1px solid #233044;
+        background: #111827;
+        color: #9CA3AF;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+
+    .action-btn:hover {
+        border-color: #2E3E57;
+        color: var(--mud-palette-text-primary);
+        transform: scale(1.1);
+    }
+
+    .action-btn.phone:hover {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: #6366F1;
+        color: #818CF8;
+    }
+
+    .action-btn.whatsapp {
+        background: rgba(16, 185, 129, 0.1);
+        border-color: rgba(16, 185, 129, 0.3);
+        color: #34D399;
+    }
+
+    .action-btn.whatsapp:hover {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: #10B981;
+        color: #6EE7B7;
+    }
+
+    .action-btn.email:hover {
+        background: rgba(59, 130, 246, 0.15);
+        border-color: #3B82F6;
+        color: #60A5FA;
+    }
+
+    .card-chevron {
+        color: var(--mud-palette-text-disabled);
+        transition: transform 0.15s ease;
+    }
+
+    .appointment-card:hover .card-chevron {
+        color: var(--mud-palette-text-secondary);
+        transform: translateX(2px);
+    }
+
+    /* ═══════════════ SERVICE CARDS (MOBILE) ═══════════════ */
+    .services-cards-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .service-card {
+        background: linear-gradient(135deg, rgba(22, 34, 52, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(46, 62, 87, 0.5);
+        border-radius: 12px;
+        padding: 1rem;
+    }
+
+    .service-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+
+    .service-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .service-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        margin: 0 0 0.25rem 0;
+    }
+
+    .service-desc {
+        font-size: 0.8125rem;
+        color: rgba(255, 255, 255, 0.5);
+        margin: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .service-status-badge {
+        padding: 0.1875rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .service-status-badge.active {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        color: white;
+    }
+
+    .service-status-badge.inactive {
+        background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
+        color: white;
+    }
+
+    .service-card-meta {
+        display: flex;
+        gap: 1rem;
+        padding: 0.625rem 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        margin-bottom: 0.75rem;
+    }
+
+    .service-card-meta .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.8125rem;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .service-card-meta .meta-item .mud-icon-root {
+        font-size: 1rem;
+        opacity: 0.7;
+    }
+
+    .service-card-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .service-card-actions .btn-edit,
+    .service-card-actions .btn-delete {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.625rem;
+        border-radius: 8px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .service-card-actions .btn-edit {
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        color: #818CF8;
+    }
+
+    .service-card-actions .btn-edit:hover {
+        background: rgba(99, 102, 241, 0.2);
+    }
+
+    .service-card-actions .btn-delete {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #F87171;
+    }
+
+    .service-card-actions .btn-delete:hover {
+        background: rgba(239, 68, 68, 0.2);
+    }
+
+    /* ═══════════════ TABLET BREAKPOINT (601px - 1024px) ═══════════════ */
+    @@media (max-width: 1024px) and (min-width: 601px) {
+        .desktop-only { display: none !important; }
+        .desktop-table-view { display: none !important; }
+        .mobile-cards-view { display: block !important; }
+        .mobile-toolbar { display: flex !important; }
+
+        .toolbar-card { display: none !important; }
+
+        .appointments-cards-container,
+        .services-cards-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .metrics-row {
+            display: flex !important;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            flex-wrap: nowrap !important;
+            gap: 12px;
+            padding-bottom: 8px;
+        }
+
+        .metric-card {
+            min-width: unset;
+            flex: 0 0 auto;
+        }
+
+        .premium-tabs {
+            overflow: hidden;
+        }
+
+        .premium-tabs ::deep .mud-tabs-header {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+
+    /* ═══════════════ MOBILE BREAKPOINT (max 600px) ═══════════════ */
+    @@media (max-width: 600px) {
+        /* Hide desktop elements */
+        .desktop-only, .desktop-table-view { display: none !important; }
+        .mobile-only, .mobile-cards-view { display: block !important; }
+        .mobile-toolbar { display: flex !important; }
+
+        /* Hide toolbar and page header on mobile - not needed */
+        .toolbar-card { display: none !important; }
+        .page-header { display: none !important; }
+
+        /* Premium tabs - hide header only, keep content */
+        .premium-tabs {
+            max-width: 100% !important;
+            overflow: hidden !important;
+        }
+        
+        .premium-tabs ::deep .mud-tabs-header {
+            display: none !important;
+        }
+
+        .premium-tabs ::deep .mud-tabs-panels {
+            padding: 0 !important;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .premium-tabs ::deep .mud-tabpanel {
+            padding: 0 !important;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        /* Metrics row - horizontal scroll */
+        .metrics-row {
+            display: flex !important;
+            gap: 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
+            flex-wrap: nowrap !important;
+            max-width: 100%;
+            width: 100%;
+        }
+
+        .metric-card {
+            flex: 0 0 auto;
+            min-width: 100px;
+            padding: 10px 14px;
+        }
+
+        /* Cards container */
+        .appointments-cards-container,
+        .services-cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        /* Ensure all cards stay within bounds */
+        .appointment-card,
+        .service-card {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Disponibilidad responsive */
+        .availability-section {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .availability-section .mud-grid {
+            flex-direction: column;
+        }
+
+        .availability-section .mud-grid-item {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex-basis: 100% !important;
+        }
+
+        /* Services tab button */
+        .btn-add-service {
+            width: 100%;
+        }
+
+        /* Empty state */
+        .empty-state {
+            max-width: 100%;
+            padding: 2rem 1rem;
+            box-sizing: border-box;
+        }
+
+        .empty-state .d-flex {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+
+    /* ═══════════════ SMALL MOBILE (max 430px) ═══════════════ */
+    @@media (max-width: 429px) {
+        .appointment-card {
+            padding: 12px;
+        }
+
+        .date-badge {
+            min-width: 42px;
+            padding: 6px 10px;
+        }
+
+        .date-badge .day {
+            font-size: 1.125rem;
+        }
+
+        .card-client-name {
+            font-size: 0.9375rem;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+        }
+    }
+
+    /* ═══════════════ LEGACY RESPONSIVE ═══════════════ */
     @@media (max-width: 960px) {
         .search-input {
             min-width: 100%;
         }
-        
+
         .toolbar-row {
             flex-direction: column;
             align-items: stretch !important;
         }
-        
+
         .quick-filters {
             order: -1;
         }
-        
+
         .date-filter, .status-filter {
             width: 100%;
-        }
-        
-        .metric-card {
-            flex: 1;
-            min-width: 120px;
         }
     }
 </style>

@@ -15,6 +15,69 @@
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet @rendermode="InteractiveServer" />
+    
+    <!-- Global Layout Overrides: Header above Drawer + Overflow Prevention -->
+    <style>
+        /* ═══════════════ GLOBAL OVERFLOW PREVENTION ═══════════════ */
+        html {
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+        
+        body {
+            max-width: 100vw;
+            overflow-x: hidden;
+            background-color: #0B0F14 !important;
+        }
+        
+        /* Force MudLayout to fill viewport exactly */
+        .mud-layout {
+            width: 100% !important;
+            max-width: 100vw !important;
+            overflow-x: hidden !important;
+        }
+        
+        /* Main content area fills available space */
+        .mud-main-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+        
+        /* Prevent any child from causing overflow */
+        .mud-layout * {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* ═══════════════ Z-INDEX LAYERING ═══════════════ */
+        /* Header: always on top */
+        .header-wrapper {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            max-width: 100vw !important;
+            z-index: 1300 !important;
+        }
+        
+        /* MudDrawer: starts below header, lower z-index */
+        .mud-drawer {
+            top: 56px !important;
+            height: calc(100vh - 56px) !important;
+            z-index: 1100 !important;
+        }
+        
+        .mud-drawer-content {
+            z-index: 1100 !important;
+        }
+        
+        /* Overlay for drawer: below header */
+        .mud-overlay {
+            z-index: 1050 !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -27,6 +90,8 @@
     <script src="js/datatouch-map.js"></script>
     <script src="js/datatouch-utils.js"></script>
     <script src="js/chartResizeObserver.js"></script>
+    <script src="js/kpiCarousel.js"></script>
+    <script src="js/swipeNavigation.js"></script>
     <!-- ECharts for analytics charts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="js/echarts-analytics.js"></script>

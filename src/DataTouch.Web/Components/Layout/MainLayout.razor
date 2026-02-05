@@ -1,39 +1,166 @@
 ﻿@inherits LayoutComponentBase
+@implements IAsyncDisposable
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
 <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="_theme" />
 
 <MudLayout>
-    <MudAppBar Elevation="1" Color="Color.Primary" Fixed="true" Dense="false" Class="app-bar-fixed">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-        <MudText Typo="Typo.h6" Class="ml-3 app-title">DataTouch CRM</MudText>
-        <MudSpacer />
-        <AuthorizeView>
-            <Authorized>
-                <MudText Typo="Typo.body2" Class="mr-3 user-name">@context.User.Identity?.Name</MudText>
-                <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Href="/api/auth/logout" />
-            </Authorized>
-        </AuthorizeView>
-        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
-                       Color="Color.Inherit" OnClick="@ToggleDarkMode" />
-    </MudAppBar>
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Class="drawer-dark">
+    <!-- ═══════════════ PREMIUM HEADER ═══════════════ -->
+    <div class="header-wrapper">
+        <header class="premium-header">
+            <!-- Hamburger Menu -->
+            <button class="header-menu-btn" @onclick="ToggleDrawer" aria-label="Toggle menu">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+            
+            <!-- Logo/Title -->
+            <span class="header-logo">DataTouch</span>
+            
+            <!-- Spacer -->
+            <div class="header-spacer"></div>
+            
+            <!-- User Avatar with Popover -->
+            <AuthorizeView>
+                <Authorized>
+                    <div class="header-user-container">
+                        <button class="header-avatar" @onclick="ToggleUserMenu" @onclick:stopPropagation="true">
+                            @GetUserInitials(context.User.Identity?.Name)
+                        </button>
+                        
+                        @if (_userMenuOpen)
+                        {
+                            <div class="header-popover" @onclick:stopPropagation="true">
+                                <div class="popover-arrow"></div>
+                                
+                                <!-- Environment Info -->
+                                <div class="popover-row popover-environment">
+                                    <span class="env-label">Entorno:</span>
+                                    <span class="env-value">@GetDisplayName(context.User.Identity?.Name)</span>
+                                </div>
+                                
+                                <!-- Theme Toggle -->
+                                <div class="popover-row popover-theme">
+                                    <span class="theme-label">Tema</span>
+                                    <div class="theme-toggle">
+                                        <button class="theme-btn @(!_isDarkMode ? "active" : "")" @onclick="() => SetTheme(false)">
+                                            Claro
+                                        </button>
+                                        <button class="theme-btn @(_isDarkMode ? "active" : "")" @onclick="() => SetTheme(true)">
+                                            Oscuro
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Logout -->
+                                <a href="/api/auth/logout" class="popover-row popover-logout">
+                                    Cerrar sesión
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="header-login-btn">Iniciar sesión</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </header>
+    </div>
+    
+    <!-- Click overlay to close popover -->
+    @if (_userMenuOpen)
+    {
+        <div class="popover-overlay" @onclick="CloseUserMenu"></div>
+    }
+    
+    <!-- ═══════════════ DRAWER (Sidebar) ═══════════════ -->
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Never" Elevation="2" Class="drawer-dark drawer-premium">
         <MudNavMenu>
-            <MudNavLink Href="/" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">Panel de Control</MudNavLink>
-            <MudNavLink Href="/leads" Icon="@Icons.Material.Filled.People">Leads</MudNavLink>
-            <MudNavLink Href="/cards/mine" Icon="@Icons.Material.Filled.CreditCard">Mi Tarjeta</MudNavLink>
-            <MudNavLink Href="/appointments" Icon="@Icons.Material.Filled.CalendarMonth">Reservas y Citas</MudNavLink>
-            <MudNavLink Href="/quotes" Icon="@Icons.Material.Filled.RequestQuote">Cotizaciones</MudNavLink>
-            <MudNavLink Href="/templates" Icon="@Icons.Material.Filled.Style">Plantillas</MudNavLink>
+            @foreach (var item in _navItems)
+            {
+                <MudNavLink Href="@item.Href" Icon="@item.MudIcon" Match="@(item.Href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix)">
+                    @item.Label
+                </MudNavLink>
+            }
         </MudNavMenu>
     </MudDrawer>
-    <MudMainContent Class="main-content-wrapper">
-        <div class="page-container">
-            @Body
+    
+    <MudMainContent Class="main-content-wrapper has-bottom-nav">
+        <div class="swipe-navigation-wrapper" id="swipe-nav-wrapper">
+            <div class="page-container">
+                @Body
+            </div>
+        </div>
+        <!-- Peek indicators for swipe navigation -->
+        <div class="swipe-peek-container swipe-peek-left" id="swipe-peek-left">
+            <div class="swipe-peek-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </div>
+        </div>
+        <div class="swipe-peek-container swipe-peek-right" id="swipe-peek-right">
+            <div class="swipe-peek-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </div>
         </div>
     </MudMainContent>
 </MudLayout>
 
+<!-- ═══════════════ MOBILE BOTTOM NAVIGATION (OUTSIDE MudLayout to avoid transform stacking issues) ═══════════════ -->
+<nav class="mobile-bottom-nav">
+    @{ var bottomItems = _navItems.Take(4).ToList(); }
+    @foreach (var item in bottomItems)
+    {
+        <a href="@item.Href" class="nav-item @(IsActive(item.Href) ? "active" : "")">
+            @((MarkupString)item.SvgIcon)
+            <span>@item.ShortLabel</span>
+        </a>
+    }
+    <!-- More Button -->
+    <button class="nav-item @(_moreSheetOpen ? "active" : "")" @onclick="ToggleMoreSheet" @onclick:stopPropagation="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="12" cy="5" r="1"></circle>
+            <circle cx="12" cy="19" r="1"></circle>
+        </svg>
+        <span>Más</span>
+    </button>
+</nav>
+
+<!-- ═══════════════ MORE SHEET (Bottom Sheet) - OUTSIDE MudLayout ═══════════════ -->
+@if (_moreSheetOpen)
+{
+    <div class="more-sheet-overlay" @onclick="CloseMoreSheet"></div>
+    <div class="more-sheet">
+        <div class="more-sheet-handle"></div>
+        <div class="more-sheet-content">
+            @{ var extraItems = _navItems.Skip(4).ToList(); }
+            @foreach (var item in extraItems)
+            {
+                <a href="@item.Href" class="more-sheet-item @(IsActive(item.Href) ? "active" : "")" @onclick="CloseMoreSheet">
+                    @((MarkupString)item.SvgIcon)
+                    <span>@item.Label</span>
+                </a>
+            }
+        </div>
+    </div>
+}
+
 <style>
+    /* ═══════════════ CONTENT WRAPPERS ═══════════════ */
+    .swipe-navigation-wrapper {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
     /* ═══════════════ PAGE CONTAINER (Premium Layout) ═══════════════ */
     .page-container {
         max-width: 1500px;
@@ -41,6 +168,7 @@
         padding: 24px 32px;
         width: 100%;
         box-sizing: border-box;
+        overflow-x: hidden;
     }
     
     /* Medium screens (tablets, smaller laptops) */
@@ -55,12 +183,18 @@
         .page-container {
             padding: 16px 20px;
         }
+        
+        /* Add bottom padding for bottom nav */
+        .has-bottom-nav .page-container {
+            padding-bottom: 100px;
+        }
     }
     
     /* Mobile */
     @@media (max-width: 600px) {
         .page-container {
             padding: 12px 16px;
+            padding-bottom: 100px;
         }
     }
     
@@ -70,6 +204,141 @@
             max-width: 1600px;
             padding: 28px 40px;
         }
+    }
+    
+    /* ═══════════════ MOBILE BOTTOM NAVIGATION ═══════════════ */
+    .mobile-bottom-nav {
+        display: none;
+    }
+    
+    @@media (max-width: 960px) {
+        .mobile-bottom-nav {
+            display: flex;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            max-width: 100vw;
+            height: 64px;
+            background: #0E141B;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 8px;
+            padding-bottom: env(safe-area-inset-bottom, 0);
+            z-index: 1200;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+            box-sizing: border-box;
+        }
+        
+        .mobile-bottom-nav .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 12px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            text-decoration: none;
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 56px;
+        }
+        
+        .mobile-bottom-nav .nav-item svg {
+            width: 22px;
+            height: 22px;
+            transition: all 0.2s ease;
+        }
+        
+        .mobile-bottom-nav .nav-item.active {
+            color: #6366F1;
+        }
+        
+        .mobile-bottom-nav .nav-item.active svg {
+            stroke: #6366F1;
+        }
+        
+        .mobile-bottom-nav .nav-item:hover:not(.active) {
+            color: rgba(255, 255, 255, 0.8);
+        }
+    }
+    
+    /* ═══════════════ MORE SHEET (Bottom Sheet) ═══════════════ */
+    .more-sheet-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1300;
+        animation: fadeIn 0.2s ease;
+    }
+    
+    .more-sheet {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #1A1F2B;
+        border-radius: 20px 20px 0 0;
+        padding: 12px 16px 24px;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
+        z-index: 1400;
+        animation: slideUp 0.25s ease-out;
+    }
+    
+    .more-sheet-handle {
+        width: 40px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+        margin: 0 auto 16px;
+    }
+    
+    .more-sheet-content {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .more-sheet-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 16px;
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        font-size: 15px;
+        font-weight: 500;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    
+    .more-sheet-item svg {
+        width: 22px;
+        height: 22px;
+    }
+    
+    .more-sheet-item:hover,
+    .more-sheet-item.active {
+        background: rgba(99, 102, 241, 0.15);
+        color: #818CF8;
+    }
+    
+    .more-sheet-item.active svg {
+        stroke: #818CF8;
+    }
+    
+    @@keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @@keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
     }
 </style>
 
@@ -81,40 +350,245 @@
 
 @code {
     private bool _drawerOpen = true;
-    private bool _isDarkMode = false;
+    private bool _isDarkMode = true;
+    private bool _userMenuOpen = false;
+    private bool _moreSheetOpen = false;
+    private string _currentUrl = "/";
+
+    // ═══════════════ SWIPE NAVIGATION STATE ═══════════════
+    private int _currentNavIndex = 0;
+    private readonly string[] _swipeRoutes = { "/", "/leads", "/appointments", "/quotes" };
+    private DotNetObjectReference<MainLayout>? _dotNetRef;
+    private bool _jsInitialized = false;
+    
+    // ═══════════════ SINGLE SOURCE OF TRUTH FOR NAVIGATION ═══════════════
+    private readonly List<NavItem> _navItems = new()
+    {
+        new NavItem
+        {
+            Href = "/",
+            Label = "Panel de Control",
+            ShortLabel = "Inicio",
+            MudIcon = Icons.Material.Filled.Dashboard,
+            SvgIcon = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"></path><polyline points=\"9 22 9 12 15 12 15 22\"></polyline></svg>"
+        },
+        new NavItem
+        {
+            Href = "/leads",
+            Label = "Leads",
+            ShortLabel = "Leads",
+            MudIcon = Icons.Material.Filled.People,
+            SvgIcon = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2\"></path><circle cx=\"9\" cy=\"7\" r=\"4\"></circle><path d=\"M23 21v-2a4 4 0 0 0-3-3.87\"></path><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"></path></svg>"
+        },
+        new NavItem
+        {
+            Href = "/appointments",
+            Label = "Reservas y Citas",
+            ShortLabel = "Agenda",
+            MudIcon = Icons.Material.Filled.CalendarMonth,
+            SvgIcon = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\" ry=\"2\"></rect><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"></line><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"></line><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"></line></svg>"
+        },
+        new NavItem
+        {
+            Href = "/quotes",
+            Label = "Cotizaciones",
+            ShortLabel = "Cotiz",
+            MudIcon = Icons.Material.Filled.RequestQuote,
+            SvgIcon = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"></path><polyline points=\"14 2 14 8 20 8\"></polyline><line x1=\"16\" y1=\"13\" x2=\"8\" y2=\"13\"></line><line x1=\"16\" y1=\"17\" x2=\"8\" y2=\"17\"></line></svg>"
+        },
+        new NavItem
+        {
+            Href = "/cards/mine",
+            Label = "Mi Tarjeta",
+            ShortLabel = "Tarjeta",
+            MudIcon = Icons.Material.Filled.CreditCard,
+            SvgIcon = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"1\" y=\"4\" width=\"22\" height=\"16\" rx=\"2\" ry=\"2\"></rect><line x1=\"1\" y1=\"10\" x2=\"23\" y2=\"10\"></line></svg>"
+        },
+        new NavItem
+        {
+            Href = "/templates",
+            Label = "Plantillas",
+            ShortLabel = "Plantillas",
+            MudIcon = Icons.Material.Filled.Style,
+            SvgIcon = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" ry=\"2\"></rect><line x1=\"3\" y1=\"9\" x2=\"21\" y2=\"9\"></line><line x1=\"9\" y1=\"21\" x2=\"9\" y2=\"9\"></line></svg>"
+        }
+    };
+    
+    protected override void OnInitialized()
+    {
+        _currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        _currentNavIndex = GetNavIndexFromUrl(_currentUrl);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("SwipeNavigation.init", _dotNetRef, _swipeRoutes, _currentNavIndex);
+                _jsInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SwipeNavigation init failed: {ex.Message}");
+            }
+        }
+    }
+    
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        _currentNavIndex = GetNavIndexFromUrl(_currentUrl);
+        _moreSheetOpen = false;
+        _drawerOpen = false;
+
+        // Update JS with new index
+        if (_jsInitialized)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("SwipeNavigation.updateIndex", _currentNavIndex);
+            }
+            catch { /* Ignore if JS not available */ }
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private int GetNavIndexFromUrl(string url)
+    {
+        var path = "/" + url.TrimStart('/');
+        for (int i = 0; i < _swipeRoutes.Length; i++)
+        {
+            if (_swipeRoutes[i] == "/" && (path == "/" || path == "/dashboard"))
+                return i;
+            if (_swipeRoutes[i] != "/" && path.StartsWith(_swipeRoutes[i], StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+        // Pages in "More" section - don't highlight any swipe dot
+        // Return -1 to indicate no active swipe nav item
+        return -1;
+    }
+
+    // ═══════════════ SWIPE NAVIGATION CALLBACKS ═══════════════
+    [JSInvokable]
+    public void NavigateToIndex(int index)
+    {
+        // Only navigate to the 4 main modules (0-3)
+        // "Más" (index 4+) is excluded from swipe - only accessible by tap
+        if (index >= 0 && index < _swipeRoutes.Length)
+        {
+            _currentNavIndex = index;
+            NavigationManager.NavigateTo(_swipeRoutes[index]);
+        }
+        // Do nothing for invalid indices - swipe should not open "Más"
+    }
+
+    private bool IsActive(string href)
+    {
+        var path = "/" + _currentUrl.TrimStart('/');
+        if (href == "/")
+            return path == "/" || path == "/dashboard";
+        return path.StartsWith(href, StringComparison.OrdinalIgnoreCase);
+    }
+    
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+    private void ToggleUserMenu() => _userMenuOpen = !_userMenuOpen;
+    private void CloseUserMenu() => _userMenuOpen = false;
+    private void ToggleMoreSheet() => _moreSheetOpen = !_moreSheetOpen;
+    private void CloseMoreSheet() => _moreSheetOpen = false;
+    
+    private void SetTheme(bool isDark)
+    {
+        _isDarkMode = isDark;
+    }
+    
+    private string GetUserInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "U";
+        
+        var parts = name.Split(new[] { ' ', '@', '.' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        
+        return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+    }
+    
+    private string GetDisplayName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "Usuario";
+        
+        if (name.Contains("@"))
+        {
+            var namePart = name.Split('@')[0];
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(namePart.Replace(".", " "));
+        }
+        
+        return name;
+    }
+    
+    public async ValueTask DisposeAsync()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+
+        if (_jsInitialized)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("SwipeNavigation.destroy");
+            }
+            catch { /* Ignore if JS not available */ }
+        }
+
+        _dotNetRef?.Dispose();
+    }
+    
+    // Navigation Item Model
+    private class NavItem
+    {
+        public string Href { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string ShortLabel { get; set; } = "";
+        public string MudIcon { get; set; } = "";
+        public string SvgIcon { get; set; } = "";
+    }
 
     private MudTheme _theme = new()
     {
-        // We only use Dark palette for enterprise dark design system
         PaletteLight = new PaletteLight()
         {
-            Primary = "#4F46E5",        // dt-primary-600
-            Secondary = "#14B8A6",      // dt-accent-teal-500
-            AppbarBackground = "#111827", // dt-surface-1
-            Background = "#0B0F14",     // dt-bg-app
-            Surface = "#162234",        // dt-surface-2
-            DrawerBackground = "#0E141B", // dt-bg-subtle
-            AppbarText = "#E5E7EB",     // dt-text-primary
-            TextPrimary = "#E5E7EB",    // dt-text-primary
-            TextSecondary = "#9CA3AF",  // dt-text-secondary
-            TextDisabled = "#6B7280",   // dt-text-muted
-            ActionDefault = "#9CA3AF",  // dt-text-secondary
-            ActionDisabled = "#6B7280", // dt-text-muted
-            ActionDisabledBackground = "#0E141B", // dt-disabled-bg
-            DrawerText = "#E5E7EB",     // dt-text-primary
-            DrawerIcon = "#9CA3AF",     // dt-text-secondary
-            Divider = "#233044",        // dt-border-default
-            DividerLight = "#233044",   // dt-border-default
-            LinesDefault = "#233044",   // dt-border-default
-            LinesInputs = "#233044",    // dt-border-default
-            TableLines = "#233044",     // dt-border-default
-            TableStriped = "#0E141B",   // dt-bg-subtle
-            TableHover = "#17243A",     // dt-hover-surface
-            Info = "#2563EB",           // dt-info
-            Success = "#16A34A",        // dt-success
-            Warning = "#D97706",        // dt-warning
-            Error = "#DC2626",          // dt-danger
-            Dark = "#0B0F14",           // dt-bg-app
+            Primary = "#4F46E5",
+            Secondary = "#14B8A6",
+            AppbarBackground = "#111827",
+            Background = "#0B0F14",
+            Surface = "#162234",
+            DrawerBackground = "#0E141B",
+            AppbarText = "#E5E7EB",
+            TextPrimary = "#E5E7EB",
+            TextSecondary = "#9CA3AF",
+            TextDisabled = "#6B7280",
+            ActionDefault = "#9CA3AF",
+            ActionDisabled = "#6B7280",
+            ActionDisabledBackground = "#0E141B",
+            DrawerText = "#E5E7EB",
+            DrawerIcon = "#9CA3AF",
+            Divider = "#233044",
+            DividerLight = "#233044",
+            LinesDefault = "#233044",
+            LinesInputs = "#233044",
+            TableLines = "#233044",
+            TableStriped = "#0E141B",
+            TableHover = "#17243A",
+            Info = "#2563EB",
+            Success = "#16A34A",
+            Warning = "#D97706",
+            Error = "#DC2626",
+            Dark = "#0B0F14",
             HoverOpacity = 0.08,
             GrayDefault = "#9CA3AF",
             GrayLight = "#6B7280",
@@ -126,33 +600,33 @@
         },
         PaletteDark = new PaletteDark()
         {
-            Primary = "#4F46E5",        // dt-primary-600
-            Secondary = "#14B8A6",      // dt-accent-teal-500
-            AppbarBackground = "#111827", // dt-surface-1
-            Background = "#0B0F14",     // dt-bg-app
-            Surface = "#162234",        // dt-surface-2
-            DrawerBackground = "#0E141B", // dt-bg-subtle
-            AppbarText = "#E5E7EB",     // dt-text-primary
-            TextPrimary = "#E5E7EB",    // dt-text-primary
-            TextSecondary = "#9CA3AF",  // dt-text-secondary
-            TextDisabled = "#6B7280",   // dt-text-muted
-            ActionDefault = "#9CA3AF",  // dt-text-secondary
-            ActionDisabled = "#6B7280", // dt-text-muted
-            ActionDisabledBackground = "#0E141B", // dt-disabled-bg
-            DrawerText = "#E5E7EB",     // dt-text-primary
-            DrawerIcon = "#9CA3AF",     // dt-text-secondary
-            Divider = "#233044",        // dt-border-default
-            DividerLight = "#233044",   // dt-border-default
-            LinesDefault = "#233044",   // dt-border-default
-            LinesInputs = "#233044",    // dt-border-default
-            TableLines = "#233044",     // dt-border-default
-            TableStriped = "#0E141B",   // dt-bg-subtle
-            TableHover = "#17243A",     // dt-hover-surface
-            Info = "#2563EB",           // dt-info
-            Success = "#16A34A",        // dt-success
-            Warning = "#D97706",        // dt-warning
-            Error = "#DC2626",          // dt-danger
-            Dark = "#0B0F14",           // dt-bg-app
+            Primary = "#4F46E5",
+            Secondary = "#14B8A6",
+            AppbarBackground = "#111827",
+            Background = "#0B0F14",
+            Surface = "#162234",
+            DrawerBackground = "#0E141B",
+            AppbarText = "#E5E7EB",
+            TextPrimary = "#E5E7EB",
+            TextSecondary = "#9CA3AF",
+            TextDisabled = "#6B7280",
+            ActionDefault = "#9CA3AF",
+            ActionDisabled = "#6B7280",
+            ActionDisabledBackground = "#0E141B",
+            DrawerText = "#E5E7EB",
+            DrawerIcon = "#9CA3AF",
+            Divider = "#233044",
+            DividerLight = "#233044",
+            LinesDefault = "#233044",
+            LinesInputs = "#233044",
+            TableLines = "#233044",
+            TableStriped = "#0E141B",
+            TableHover = "#17243A",
+            Info = "#2563EB",
+            Success = "#16A34A",
+            Warning = "#D97706",
+            Error = "#DC2626",
+            Dark = "#0B0F14",
             HoverOpacity = 0.08,
             GrayDefault = "#9CA3AF",
             GrayLight = "#6B7280",
@@ -174,8 +648,5 @@
             }
         }
     };
-
-    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
-    
-    private void ToggleDarkMode() => _isDarkMode = !_isDarkMode;
 }
+
