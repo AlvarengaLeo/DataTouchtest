@@ -934,6 +934,19 @@
     opacity: 1;
 }
 
+/* ─── Mobile-only elements: hidden on desktop ─── */
+.analytics-conv-badge {
+    display: none;
+}
+
+.kpi-change-compact {
+    display: none;
+}
+
+.kpi-change-full {
+    display: inline;
+}
+
 /* Legend */
 .analytics-legend {
     display: flex;
@@ -2682,7 +2695,7 @@
         padding: 0;
         padding-bottom: 80px;
         /* Space for bottom nav */
-        background: linear-gradient(180deg, #0B0F14 0%, #111827 50%, #0B0F14 100%);
+        background: var(--dt-bg-app, #0B0F14);
         min-height: 100vh;
         overflow-x: hidden !important;
     }
@@ -2901,6 +2914,13 @@
         max-width: 320px;
         min-height: 150px;
         height: auto;
+        border-radius: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.10);
+        box-shadow:
+            0 2px 4px rgba(0, 0, 0, 0.20),
+            0 8px 24px rgba(0, 0, 0, 0.28),
+            0 20px 48px rgba(0, 0, 0, 0.18),
+            0 0 0 0.5px rgba(255, 255, 255, 0.04);
     }
 
     .kpi-header {
@@ -2985,10 +3005,16 @@
     /* Chart Panel Mobile */
     .chart-panel {
         padding: 16px !important;
-        border-radius: 16px !important;
-        background: rgba(22, 34, 52, 0.6) !important;
-        backdrop-filter: blur(10px) !important;
-        border: 1px solid rgba(99, 102, 241, 0.15) !important;
+        border-radius: 20px !important;
+        background: linear-gradient(145deg, rgba(22, 30, 45, 0.85) 0%, rgba(13, 18, 28, 0.92) 100%) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.06) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+        box-shadow:
+            0 2px 4px rgba(0, 0, 0, 0.20),
+            0 8px 24px rgba(0, 0, 0, 0.28),
+            0 20px 48px rgba(0, 0, 0, 0.18),
+            0 0 0 0.5px rgba(255, 255, 255, 0.04) !important;
         overflow: visible !important;
         display: flex !important;
         flex-direction: column !important;
@@ -3127,7 +3153,7 @@
 
     /* Mobile Chart Toggle - Centered pill buttons */
     .mobile-chart-toggle {
-        display: flex !important;
+        display: none !important;
         justify-content: center !important;
         align-items: center !important;
         gap: 0 !important;
@@ -3173,27 +3199,28 @@
         border: 1px solid rgba(255, 255, 255, 0.06) !important;
     }
 
-    /* Header - title left, dropdown right */
+    /* Header - title centered top, controls row below */
     .analytics-header {
         display: flex !important;
-        flex-direction: row !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        margin-bottom: 20px !important;
-        gap: 12px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        margin-bottom: 16px !important;
+        gap: 8px !important;
     }
 
     .analytics-header-left {
-        flex: 1 !important;
+        width: 100% !important;
+        text-align: center !important;
         min-width: 0 !important;
     }
 
     .analytics-title {
-        font-size: 1.125rem !important;
-        font-weight: 600 !important;
-        color: #F3F4F6 !important;
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+        color: rgba(255, 255, 255, 0.7) !important;
         margin: 0 !important;
-        white-space: nowrap !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.06em !important;
     }
 
     .analytics-subtitle {
@@ -3202,7 +3229,10 @@
 
     .analytics-header-right {
         display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
         gap: 8px !important;
+        width: 100% !important;
     }
 
     .range-pill {
@@ -3223,37 +3253,71 @@
         display: none !important;
     }
 
-    /* ─── KPI Cards - Vertical Stack, Mockup Style ─── */
+    /* ─── Conversion Badge in Header ─── */
+    .analytics-conv-badge {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        padding: 5px 10px !important;
+        border-radius: 20px !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        background: rgba(99, 102, 241, 0.12) !important;
+        border: 1px solid rgba(99, 102, 241, 0.2) !important;
+    }
+
+    .conv-badge-label {
+        font-size: 9px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.05em !important;
+        color: rgba(255, 255, 255, 0.6) !important;
+    }
+
+    .conv-badge-value {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        color: #E5E7EB !important;
+    }
+
+    /* ─── KPI Cards: 2 Horizontal Mini-Cards ─── */
     .analytics-kpis {
         display: flex !important;
-        flex-direction: column !important;
-        gap: 12px !important;
-        margin-bottom: 24px !important;
+        flex-direction: row !important;
+        gap: 10px !important;
+        margin-bottom: 16px !important;
     }
 
     .analytics-kpi-card {
+        flex: 1 !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: flex-start !important;
-        padding: 16px 18px !important;
+        padding: 14px 16px !important;
         background: rgba(22, 34, 52, 0.5) !important;
         border: 1px solid rgba(255, 255, 255, 0.06) !important;
         border-radius: 12px !important;
-        gap: 6px !important;
+        gap: 4px !important;
+        min-height: 0 !important;
     }
 
-    .kpi-title {
-        font-size: 11px !important;
+    /* Hide 3rd card (Conversión) — now lives as badge in header */
+    .analytics-kpi-conversion {
+        display: none !important;
+    }
+
+    .analytics-kpi-card .kpi-title {
+        font-size: 10px !important;
         font-weight: 600 !important;
         color: rgba(255, 255, 255, 0.5) !important;
         text-transform: uppercase !important;
         letter-spacing: 0.5px !important;
         order: 1 !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 2px !important;
     }
 
-    .kpi-number {
-        font-size: 2rem !important;
+    .analytics-kpi-card .kpi-number {
+        font-size: 1.75rem !important;
         font-weight: 700 !important;
         color: #F3F4F6 !important;
         line-height: 1.1 !important;
@@ -3261,31 +3325,30 @@
         margin: 0 !important;
     }
 
-    .kpi-change {
+    /* Show compact delta, hide full text */
+    .kpi-change-compact {
+        display: inline !important;
+    }
+
+    .kpi-change-full {
+        display: none !important;
+    }
+
+    .analytics-kpi-card .kpi-change {
         font-size: 12px !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
         order: 3 !important;
         display: flex !important;
         align-items: center !important;
-        gap: 4px !important;
-        flex-wrap: wrap !important;
+        gap: 2px !important;
     }
 
-    .kpi-change.positive {
+    .analytics-kpi-card .kpi-change.positive {
         color: #22C55E !important;
     }
 
-    .kpi-change.negative {
+    .analytics-kpi-card .kpi-change.negative {
         color: #EF4444 !important;
-    }
-
-    .kpi-change .info-icon {
-        margin-left: 4px !important;
-    }
-
-    .kpi-change .info-icon svg {
-        width: 14px !important;
-        height: 14px !important;
     }
 
     /* ─── Chart Container ─── */
@@ -3590,10 +3653,16 @@
     /* Locations Panel Mobile */
     .locations-panel {
         padding: 16px !important;
-        border-radius: 16px !important;
-        background: rgba(22, 34, 52, 0.6) !important;
-        backdrop-filter: blur(10px) !important;
-        border: 1px solid rgba(99, 102, 241, 0.15) !important;
+        border-radius: 20px !important;
+        background: linear-gradient(145deg, rgba(22, 30, 45, 0.85) 0%, rgba(13, 18, 28, 0.92) 100%) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.06) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+        box-shadow:
+            0 2px 4px rgba(0, 0, 0, 0.20),
+            0 8px 24px rgba(0, 0, 0, 0.28),
+            0 20px 48px rgba(0, 0, 0, 0.18),
+            0 0 0 0.5px rgba(255, 255, 255, 0.04) !important;
         overflow: visible !important;
         min-height: 400px !important;
         width: 100% !important;
@@ -3793,12 +3862,18 @@
 
     .panel {
         padding: 12px;
-        border-radius: 16px;
-        background: rgba(22, 34, 52, 0.5);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(99, 102, 241, 0.12);
+        border-radius: 20px;
+        background: linear-gradient(145deg, rgba(22, 30, 45, 0.85) 0%, rgba(13, 18, 28, 0.92) 100%);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-top: 1px solid rgba(255, 255, 255, 0.10);
         overflow: hidden;
         max-width: 100%;
+        box-shadow:
+            0 2px 4px rgba(0, 0, 0, 0.20),
+            0 8px 24px rgba(0, 0, 0, 0.28),
+            0 20px 48px rgba(0, 0, 0, 0.18),
+            0 0 0 0.5px rgba(255, 255, 255, 0.04);
     }
 
     .panel-title {
@@ -4440,7 +4515,7 @@
     }
 
     .analytics-title {
-        font-size: 1.05rem !important;
+        font-size: 0.8rem !important;
     }
 
     .range-pill {
@@ -4448,19 +4523,30 @@
         font-size: 11px !important;
     }
 
+    .analytics-conv-badge {
+        padding: 4px 8px !important;
+    }
+    .conv-badge-label { font-size: 8px !important; }
+    .conv-badge-value { font-size: 11px !important; }
+
     .analytics-kpi-card {
-        padding: 12px 16px !important;
+        padding: 10px 12px !important;
     }
 
-    .kpi-title {
-        font-size: 10px !important;
+    .analytics-kpi-card .kpi-title {
+        font-size: 9px !important;
     }
 
-    .kpi-number {
-        font-size: 1.6rem !important;
+    .analytics-kpi-card .kpi-number {
+        font-size: 1.5rem !important;
     }
 
-    .kpi-change {
+    .analytics-kpi-card .kpi-change {
+        font-size: 11px !important;
+    }
+
+    .mobile-chart-toggle .toggle-btn {
+        padding: 6px 14px !important;
         font-size: 11px !important;
     }
 
@@ -4510,7 +4596,7 @@
     }
 
     .analytics-title {
-        font-size: 1rem !important;
+        font-size: 0.75rem !important;
     }
 
     .range-pill {
@@ -4518,19 +4604,29 @@
         font-size: 10px !important;
     }
 
+    .analytics-conv-badge { padding: 3px 6px !important; gap: 2px !important; }
+    .conv-badge-label { font-size: 7px !important; }
+    .conv-badge-value { font-size: 10px !important; }
+
     .analytics-kpi-card {
-        padding: 10px 12px !important;
+        padding: 8px 10px !important;
+        gap: 2px !important;
     }
 
-    .kpi-title {
-        font-size: 9px !important;
+    .analytics-kpi-card .kpi-title {
+        font-size: 8px !important;
     }
 
-    .kpi-number {
-        font-size: 1.4rem !important;
+    .analytics-kpi-card .kpi-number {
+        font-size: 1.3rem !important;
     }
 
-    .kpi-change {
+    .analytics-kpi-card .kpi-change {
+        font-size: 10px !important;
+    }
+
+    .mobile-chart-toggle .toggle-btn {
+        padding: 5px 12px !important;
         font-size: 10px !important;
     }
 
@@ -4583,7 +4679,7 @@
     }
 
     .analytics-title {
-        font-size: 0.9rem !important;
+        font-size: 0.7rem !important;
     }
 
     .range-pill {
@@ -4591,19 +4687,28 @@
         font-size: 9px !important;
     }
 
+    .conv-badge-label { display: none !important; }
+    .conv-badge-value { font-size: 9px !important; }
+
     .analytics-kpi-card {
-        padding: 8px 10px !important;
+        padding: 6px 8px !important;
+        gap: 2px !important;
     }
 
-    .kpi-title {
-        font-size: 8px !important;
+    .analytics-kpi-card .kpi-title {
+        font-size: 7px !important;
     }
 
-    .kpi-number {
-        font-size: 1.2rem !important;
+    .analytics-kpi-card .kpi-number {
+        font-size: 1.1rem !important;
     }
 
-    .kpi-change {
+    .analytics-kpi-card .kpi-change {
+        font-size: 9px !important;
+    }
+
+    .mobile-chart-toggle .toggle-btn {
+        padding: 4px 10px !important;
         font-size: 9px !important;
     }
 
