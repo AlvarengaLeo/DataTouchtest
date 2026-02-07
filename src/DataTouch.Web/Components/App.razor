@@ -34,19 +34,26 @@
         .mud-layout {
             width: 100% !important;
             max-width: 100vw !important;
-            overflow-x: hidden !important;
+            overflow: hidden !important;
         }
         
-        /* Main content area fills available space */
+        /* Main content area fills available space (flex shrinks with drawer push) */
         .mud-main-content {
-            width: 100% !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
             max-width: 100% !important;
             overflow-x: hidden !important;
         }
         
-        /* Prevent any child from causing overflow */
-        .mud-layout * {
+        /* Prevent media elements from causing overflow */
+        .mud-layout img,
+        .mud-layout video,
+        .mud-layout canvas,
+        .mud-layout svg {
             max-width: 100%;
+        }
+        /* Global box-sizing (does not interfere with CSS Grid intrinsic sizing) */
+        .mud-layout * {
             box-sizing: border-box;
         }
         

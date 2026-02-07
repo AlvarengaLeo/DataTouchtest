@@ -78,7 +78,7 @@
     }
     
     <!-- ═══════════════ DRAWER (Sidebar) ═══════════════ -->
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Never" Elevation="2" Class="drawer-dark drawer-premium">
+    <MudDrawer @bind-Open="_drawerOpen" Variant="@DrawerVariant.Responsive" ClipMode="DrawerClipMode.Never" Elevation="2" Class="drawer-dark drawer-premium">
         <MudNavMenu>
             @foreach (var item in _navItems)
             {
@@ -90,26 +90,28 @@
     </MudDrawer>
     
     <MudMainContent Class="main-content-wrapper has-bottom-nav">
-        <div class="swipe-navigation-wrapper" id="swipe-nav-wrapper">
-            <div class="page-container">
-                @Body
+        <CascadingValue Value="_drawerOpen" Name="IsDrawerOpen">
+            <div class="swipe-navigation-wrapper" id="swipe-nav-wrapper">
+                <div class="page-container">
+                    @Body
+                </div>
             </div>
-        </div>
-        <!-- Peek indicators for swipe navigation -->
-        <div class="swipe-peek-container swipe-peek-left" id="swipe-peek-left">
-            <div class="swipe-peek-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
+            <!-- Peek indicators for swipe navigation -->
+            <div class="swipe-peek-container swipe-peek-left" id="swipe-peek-left">
+                <div class="swipe-peek-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </div>
             </div>
-        </div>
-        <div class="swipe-peek-container swipe-peek-right" id="swipe-peek-right">
-            <div class="swipe-peek-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
+            <div class="swipe-peek-container swipe-peek-right" id="swipe-peek-right">
+                <div class="swipe-peek-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
             </div>
-        </div>
+        </CascadingValue>
     </MudMainContent>
 </MudLayout>
 
@@ -163,8 +165,8 @@
     
     /* ═══════════════ PAGE CONTAINER (Premium Layout) ═══════════════ */
     .page-container {
-        max-width: 1500px;
-        margin: 0 auto;
+        max-width: 100%;
+        margin: 0;
         padding: 24px 32px;
         width: 100%;
         box-sizing: border-box;
@@ -201,7 +203,7 @@
     /* Extra wide screens - add more breathing room */
     @@media (min-width: 1920px) {
         .page-container {
-            max-width: 1600px;
+            max-width: 100%;
             padding: 28px 40px;
         }
     }
@@ -349,7 +351,7 @@
 </div>
 
 @code {
-    private bool _drawerOpen = true;
+    private bool _drawerOpen = false;
     private bool _isDarkMode = true;
     private bool _userMenuOpen = false;
     private bool _moreSheetOpen = false;

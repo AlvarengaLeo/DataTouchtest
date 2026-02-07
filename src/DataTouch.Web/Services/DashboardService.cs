@@ -175,6 +175,31 @@ public class DashboardService
     public enum ChartAggregation { Day, Week, Month, Total }
     public enum LocationSortBy { Conversion, Leads, Interactions }
 
+    // ───── Resumen Inteligente (Smart Summary) ─────
+
+    public enum DataQuality { Alta, Media, Baja }
+
+    public record SmartSummaryMetrics(
+        int V, int AC, int IC, int CC, int AE, int AT,
+        decimal TC, decimal TI, DataQuality Quality,
+        int PrevV, int PrevAC, int PrevAE, int PrevAT);
+
+    public record SmartSummaryCard(
+        string Chip, string ChipColor, string Title,
+        string Description, string BaseLine,
+        string? CtaText, string? CtaRoute, string ScenarioKey);
+
+    public record ChannelBreakdown(
+        string ChannelName, string ChannelType, int Count, decimal Percent);
+
+    public record SmartSummaryData(
+        SmartSummaryMetrics Metrics,
+        SmartSummaryCard Rendimiento, SmartSummaryCard CanalPrincipal,
+        SmartSummaryCard Friccion, SmartSummaryCard ProximoPaso,
+        List<ChannelBreakdown> TopChannels,
+        List<ChannelBreakdown> AllChannels,
+        bool HasData);
+
     #endregion
 
     #region Main Dashboard Data
@@ -1454,6 +1479,352 @@ public class DashboardService
     public static DateRangeFilter GetCustomDateRange(DateTime customStart, DateTime customEnd)
     {
         return new DateRangeFilter(customStart.Date, customEnd.Date);
+    }
+
+    #endregion
+
+    #region Smart Summary
+
+    public async Task<SmartSummaryData> GetSmartSummaryAsync(Guid organizationId, DateRangeFilter dateRange)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var cardIds = await GetOrganizationCardIdsInternal(context, organizationId);
+
+        if (!cardIds.Any())
+            return EmptySmartSummary();
+
+        var prevPeriod = dateRange.GetPreviousPeriod();
+        var endDate = dateRange.End.AddDays(1);
+        var prevEndDate = prevPeriod.End.AddDays(1);
+
+        // Single query: all events in current period
+        var currentEvents = await context.CardAnalytics
+            .Where(a => cardIds.Contains(a.CardId))
+            .Where(a => a.Timestamp >= dateRange.Start && a.Timestamp < endDate)
+            .ToListAsync();
+
+        // Single query: all events in previous period
+        var prevEvents = await context.CardAnalytics
+            .Where(a => cardIds.Contains(a.CardId))
+            .Where(a => a.Timestamp >= prevPeriod.Start && a.Timestamp < prevEndDate)
+            .ToListAsync();
+
+        if (!currentEvents.Any())
+            return EmptySmartSummary();
+
+        var metrics = CalculateSmartMetrics(currentEvents, prevEvents);
+        var channelBreakdown = BuildChannelBreakdown(currentEvents);
+
+        var rendimiento = DetermineRendimiento(metrics);
+        var canalPrincipal = DetermineCanalPrincipal(metrics, channelBreakdown);
+        var friccion = DetermineFriccion(metrics, currentEvents);
+        var proximoPaso = DetermineProximoPaso(friccion.ScenarioKey, metrics);
+
+        // Build TopChannels: top 2 + "Otros" aggregate
+        var top2 = channelBreakdown.Take(2).ToList();
+        var otrosChannels = channelBreakdown.Skip(2).ToList();
+        var topChannelsForCard = new List<ChannelBreakdown>(top2);
+
+        if (otrosChannels.Any())
+        {
+            var otrosCount = otrosChannels.Sum(c => c.Count);
+            var otrosPercent = otrosChannels.Sum(c => c.Percent);
+            topChannelsForCard.Add(new ChannelBreakdown("Otros", "mixed", otrosCount, Math.Round(otrosPercent, 1)));
+        }
+
+        return new SmartSummaryData(
+            metrics, rendimiento, canalPrincipal, friccion, proximoPaso,
+            topChannelsForCard,
+            channelBreakdown,
+            HasData: true);
+    }
+
+    // ───── Metric Calculation ─────
+
+    private static SmartSummaryMetrics CalculateSmartMetrics(
+        List<CardAnalytics> current, List<CardAnalytics> previous)
+    {
+        // Current period
+        int V = current.Count(e => e.EventType == "page_view");
+
+        int whatsapp = CountCtaByButton(current, "whatsapp");
+        int call = CountCtaByButton(current, "call", "phone");
+        int email = CountCtaByButton(current, "email");
+        int contactSave = current.Count(e => e.EventType == "contact_save");
+        int formSubmit = current.Count(e => e.EventType == "form_submit");
+
+        int IC = whatsapp + call + email + contactSave; // Intents
+        int CC = formSubmit; // Confirmed contacts (only completions)
+        int AC = IC + CC;
+
+        int socialClicks = CountCtaByButton(current, "linkedin", "instagram", "facebook", "youtube", "twitter", "x");
+        int webClicks = CountCtaByButton(current, "website", "portfolio");
+        int AE = socialClicks + webClicks;
+        int AT = AC + AE;
+
+        decimal TC = V > 0 ? Math.Round((decimal)CC / V * 100, 2) : 0;
+        decimal TI = V > 0 ? Math.Round((decimal)IC / V * 100, 2) : 0;
+
+        DataQuality quality;
+        if (V >= 200 || AT >= 80) quality = DataQuality.Alta;
+        else if (V >= 80 || AT >= 30) quality = DataQuality.Media;
+        else quality = DataQuality.Baja;
+
+        // Previous period
+        int prevV = previous.Count(e => e.EventType == "page_view");
+        int prevWhatsapp = CountCtaByButton(previous, "whatsapp");
+        int prevCall = CountCtaByButton(previous, "call", "phone");
+        int prevEmail = CountCtaByButton(previous, "email");
+        int prevContactSave = previous.Count(e => e.EventType == "contact_save");
+        int prevFormSubmit = previous.Count(e => e.EventType == "form_submit");
+        int prevIC = prevWhatsapp + prevCall + prevEmail + prevContactSave;
+        int prevCC = prevFormSubmit;
+        int prevAC = prevIC + prevCC;
+        int prevSocial = CountCtaByButton(previous, "linkedin", "instagram", "facebook", "youtube", "twitter", "x");
+        int prevWeb = CountCtaByButton(previous, "website", "portfolio");
+        int prevAE = prevSocial + prevWeb;
+        int prevAT = prevAC + prevAE;
+
+        return new SmartSummaryMetrics(V, AC, IC, CC, AE, AT, TC, TI, quality,
+            prevV, prevAC, prevAE, prevAT);
+    }
+
+    private static int CountCtaByButton(List<CardAnalytics> events, params string[] buttons)
+    {
+        return events.Count(e =>
+            e.EventType == "cta_click" &&
+            e.MetadataJson != null &&
+            buttons.Any(b => e.MetadataJson.Contains(b, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    // ───── Channel Breakdown ─────
+
+    private static List<ChannelBreakdown> BuildChannelBreakdown(List<CardAnalytics> events)
+    {
+        var channelDefs = new (string Name, string Type, string[] Keywords)[]
+        {
+            ("WhatsApp", "contact", new[] { "whatsapp" }),
+            ("Llamada", "contact", new[] { "call", "phone" }),
+            ("Email", "contact", new[] { "email" }),
+            ("LinkedIn", "exploration", new[] { "linkedin" }),
+            ("Instagram", "exploration", new[] { "instagram" }),
+            ("Facebook", "exploration", new[] { "facebook" }),
+            ("YouTube", "exploration", new[] { "youtube" }),
+            ("X/Twitter", "exploration", new[] { "twitter", "x" }),
+            ("Website", "exploration", new[] { "website" }),
+            ("Portfolio", "exploration", new[] { "portfolio" }),
+        };
+
+        var ctaEvents = events.Where(e => e.EventType == "cta_click" && e.MetadataJson != null).ToList();
+        var results = new List<ChannelBreakdown>();
+
+        foreach (var (name, type, keywords) in channelDefs)
+        {
+            var count = ctaEvents.Count(e =>
+                keywords.Any(k => e.MetadataJson!.Contains(k, StringComparison.OrdinalIgnoreCase)));
+            if (count > 0)
+                results.Add(new ChannelBreakdown(name, type, count, 0));
+        }
+
+        // contact_save and form_submit as channels
+        var contactSaves = events.Count(e => e.EventType == "contact_save");
+        if (contactSaves > 0)
+            results.Add(new ChannelBreakdown("Guardar Contacto", "contact", contactSaves, 0));
+
+        var formSubmits = events.Count(e => e.EventType == "form_submit");
+        if (formSubmits > 0)
+            results.Add(new ChannelBreakdown("Formulario", "contact", formSubmits, 0));
+
+        var total = results.Sum(r => r.Count);
+
+        return results
+            .Select(r => r with { Percent = total > 0 ? Math.Round((decimal)r.Count / total * 100, 1) : 0 })
+            .OrderByDescending(r => r.Count)
+            .ToList();
+    }
+
+    // ───── Scenario Determination ─────
+
+    private static SmartSummaryCard DetermineRendimiento(SmartSummaryMetrics m)
+    {
+        // P1: Quality Baja
+        if (m.Quality == DataQuality.Baja)
+            return MakeCard("RENDIMIENTO", "chip-perf",
+                "Aún hay poca información",
+                $"Con {m.V} visitas y {m.AT} acciones, aún no hay suficiente volumen para un diagnóstico confiable.",
+                $"Base: {m.V} visitas · {m.AT} acciones totales", "Compartir Tarjeta", "/cards/mine", "low-data");
+
+        // P2: Strong decline (V or AC drop >= 30%)
+        decimal vDelta = m.PrevV > 0 ? (decimal)(m.V - m.PrevV) / m.PrevV * 100 : 0;
+        decimal acDelta = m.PrevAC > 0 ? (decimal)(m.AC - m.PrevAC) / m.PrevAC * 100 : 0;
+        if (vDelta <= -30 || acDelta <= -30)
+            return MakeCard("RENDIMIENTO", "chip-perf",
+                "Rendimiento en baja",
+                $"Las visitas o acciones cayeron significativamente ({FormatDelta(Math.Min(vDelta, acDelta))}) respecto al período anterior.",
+                $"{m.V} visitas ({FormatDelta(vDelta)}) · {m.AC} acciones ({FormatDelta(acDelta)})",
+                "Ver Detalle", "/cards/mine", "decline");
+
+        // P3: Exploration dominates (AE >= 55% of AT and CC very low)
+        decimal aePercent = m.AT > 0 ? (decimal)m.AE / m.AT * 100 : 0;
+        if (aePercent >= 55 && m.CC <= 2)
+            return MakeCard("RENDIMIENTO", "chip-perf",
+                "Se quedan explorando",
+                $"El {aePercent:F0}% de las acciones son exploración (redes/web) pero casi nadie deja datos de contacto.",
+                $"{m.AE} exploraciones ({aePercent:F0}%) · {m.CC} contactos confirmados", "Ver Detalle", "/cards/mine", "exploring");
+
+        // P4: Interest without contact (AC high but CC low)
+        if (m.AC > 10 && m.CC <= 2)
+            return MakeCard("RENDIMIENTO", "chip-perf",
+                "Hay interés, pero no contactan",
+                $"Se registraron {m.AC} acciones de contacto pero solo {m.CC} confirmaron. La intención existe pero algo frena la conversión.",
+                $"{m.AC} acciones · {m.CC} contactos · {m.TC:F1}% conversión", "Ver Detalle", "/cards/mine", "interest-no-contact");
+
+        // P5: Good performance (default)
+        return MakeCard("RENDIMIENTO", "chip-perf",
+            "Buen rendimiento",
+            $"Tu tarjeta funciona bien con {m.V} visitas, {m.AC} acciones de contacto y una tasa de {m.TC:F1}%.",
+            $"Base: {m.V} visitas · {m.AC} acciones · {m.CC} contactos", "Ver Detalle", "/cards/mine", "good");
+    }
+
+    private static SmartSummaryCard DetermineCanalPrincipal(
+        SmartSummaryMetrics m, List<ChannelBreakdown> channels)
+    {
+        if (!channels.Any() || m.AT == 0)
+            return MakeCard("CANAL PRINCIPAL", "chip-channel",
+                "Sin datos de canal",
+                "No hay suficientes acciones para identificar un canal dominante.",
+                "Sin acciones registradas", null, null, "no-channel");
+
+        var top1 = channels[0];
+        var top2 = channels.Count > 1 ? channels[1] : null;
+
+        // Healthy distribution
+        if (top1.Percent < 45 && top2 != null && (top1.Percent - top2.Percent) < 15)
+            return MakeCard("CANAL PRINCIPAL", "chip-channel",
+                "Distribución saludable",
+                $"No hay un canal dominante. {top1.ChannelName} ({top1.Percent:F0}%) y {top2.ChannelName} ({top2.Percent:F0}%) están equilibrados.",
+                $"{top1.ChannelName}: {top1.Count} clics · {top2.ChannelName}: {top2.Count} clics",
+                null, null, "balanced");
+
+        // Single dominant channel
+        string typeLabel = top1.ChannelType == "contact" ? "Contacto" : "Exploración";
+        return MakeCard("CANAL PRINCIPAL", "chip-channel",
+            top1.ChannelName,
+            $"Es tu canal principal ({top1.Percent:F0}% del total de acciones). Tipo: {typeLabel}.",
+            $"{top1.ChannelName}: {top1.Count} clics ({top1.Percent:F0}%)",
+            null, null, "dominant");
+    }
+
+    private static SmartSummaryCard DetermineFriccion(
+        SmartSummaryMetrics m, List<CardAnalytics> events)
+    {
+        // P1: Quality Baja
+        if (m.Quality == DataQuality.Baja)
+            return MakeCard("FRICCIÓN", "chip-friction",
+                "No hay suficiente data",
+                "Se necesitan más interacciones para detectar puntos de fricción.",
+                $"{m.V} visitas · {m.AT} acciones totales", null, null, "no-data");
+
+        // P2: Form abandonment (future-proof — form_start not tracked yet)
+        int formStart = 0; // Will be > 0 once tracked
+        int formSubmit = events.Count(e => e.EventType == "form_submit");
+        if (formStart > 0)
+        {
+            decimal abandonRate = 1m - ((decimal)formSubmit / formStart);
+            if (abandonRate >= 0.40m)
+                return MakeCard("FRICCIÓN", "chip-friction",
+                    "El formulario se abandona",
+                    $"El {abandonRate * 100:F0}% de quienes abren el formulario no lo completan.",
+                    $"Iniciados: {formStart} · Enviados: {formSubmit}",
+                    "Editar Formulario", "/cards/mine", "form-abandon");
+        }
+
+        // P3: High exploration, no contact
+        decimal aePercent = m.AT > 0 ? (decimal)m.AE / m.AT * 100 : 0;
+        if (aePercent >= 50 && m.AC <= 3)
+            return MakeCard("FRICCIÓN", "chip-friction",
+                "Se quedan explorando",
+                $"El {aePercent:F0}% de las acciones son exploratorias. Ven tus redes pero no te contactan.",
+                $"{m.AE} exploraciones · {m.AC} acciones de contacto", "Revisar CTAs", "/cards/mine", "explore-friction");
+
+        // P4: Clicks without capture (ratio-based: capture rate < 15%)
+        if (m.IC > 5 && (m.CC == 0 || (decimal)m.CC / m.IC < 0.15m))
+            return MakeCard("FRICCIÓN", "chip-friction",
+                "Hay clics, pero pocos contactos",
+                $"Hay {m.IC} intenciones de contacto pero solo {m.CC} se confirman.",
+                $"{m.IC} intenciones · {m.CC} contactos confirmados", "Revisar Embudo", "/cards/mine", "click-no-capture");
+
+        // P5: No significant friction detected
+        return MakeCard("FRICCIÓN", "chip-friction",
+            "Sin fricción relevante",
+            "No se detectaron cuellos de botella significativos en este período.",
+            $"{m.IC} intenciones · {m.CC} contactos · {m.AE} exploraciones", "Ver Formulario", "/cards/mine", "no-friction");
+    }
+
+    private static SmartSummaryCard DetermineProximoPaso(
+        string frictionScenario, SmartSummaryMetrics m)
+    {
+        return frictionScenario switch
+        {
+            "no-data" => MakeCard("PRÓXIMO PASO", "chip-action",
+                "Comparte tu tarjeta",
+                "Necesitas más tráfico. Comparte en redes, firma de email o en persona con QR.",
+                "Objetivo: 80+ visitas", "Compartir", "/cards/mine", "action-share"),
+
+            "form-abandon" => MakeCard("PRÓXIMO PASO", "chip-action",
+                "Simplifica tu formulario",
+                "Reduce los campos a nombre, email y mensaje. Menos campos = más envíos.",
+                "3 campos convierten 2x más", "Editar Tarjeta", "/cards/mine", "action-form"),
+
+            "explore-friction" => MakeCard("PRÓXIMO PASO", "chip-action",
+                "Agrega un CTA de contacto",
+                "Tus visitantes exploran pero no tienen un botón claro para contactarte.",
+                "Un CTA visible duplica contactos", "Editar Tarjeta", "/cards/mine", "action-cta"),
+
+            "click-no-capture" => MakeCard("PRÓXIMO PASO", "chip-action",
+                "Revisa tu embudo",
+                "La intención existe pero no se convierte. Verifica que WhatsApp, email y formulario funcionen.",
+                $"Meta: convertir {Math.Max(3, m.IC / 3)} de {m.IC} intenciones",
+                "Revisar Tarjeta", "/cards/mine", "action-funnel"),
+
+            "no-friction" => MakeCard("PRÓXIMO PASO", "chip-action",
+                "Mantén el ritmo",
+                "Todo funciona bien. Sigue compartiendo tu tarjeta y considera agregar nuevos servicios.",
+                m.PrevV > 0
+                    ? $"Meta sugerida: +20% vs período anterior ({m.PrevV} → {(int)(m.PrevV * 1.2)})"
+                    : "Objetivo: aumentar visitas esta semana",
+                "Compartir Tarjeta", "/cards/mine", "action-maintain"),
+
+            _ => MakeCard("PRÓXIMO PASO", "chip-action",
+                "Optimiza tu tarjeta",
+                "Revisa que todos los enlaces y CTAs estén actualizados y funcionando.",
+                "Revisa enlaces cada 2 semanas", "Editar Tarjeta", "/cards/mine", "action-optimize")
+        };
+    }
+
+    // ───── Smart Summary Helpers ─────
+
+    private static SmartSummaryCard MakeCard(
+        string chip, string chipColor, string title, string description,
+        string baseLine, string? ctaText, string? ctaRoute, string scenarioKey)
+    {
+        return new SmartSummaryCard(chip, chipColor, title, description, baseLine,
+            ctaText, ctaRoute, scenarioKey);
+    }
+
+    private static string FormatDelta(decimal delta)
+    {
+        var sign = delta >= 0 ? "+" : "";
+        return $"{sign}{delta:F0}%";
+    }
+
+    private static SmartSummaryData EmptySmartSummary()
+    {
+        var emptyMetrics = new SmartSummaryMetrics(0, 0, 0, 0, 0, 0, 0, 0,
+            DataQuality.Baja, 0, 0, 0, 0);
+        var emptyCard = MakeCard("", "", "", "", "", null, null, "empty");
+        return new SmartSummaryData(emptyMetrics, emptyCard, emptyCard, emptyCard, emptyCard,
+            new List<ChannelBreakdown>(), new List<ChannelBreakdown>(), HasData: false);
     }
 
     #endregion

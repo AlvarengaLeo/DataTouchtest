@@ -1,0 +1,317 @@
+@* ═══════════════════════════════════════════════════════════════════════════════
+   CHANNEL BREAKDOWN DIALOG — Quick channel distribution summary
+   Opened from Dashboard "Resumen Inteligente" → Canal Principal → "Ver Canales"
+   Non-repetitive: does NOT show conversion/trend (that's in "Enlaces Principales")
+   ═══════════════════════════════════════════════════════════════════════════════ *@
+
+@using DataTouch.Web.Services
+@using static DataTouch.Web.Services.DashboardService
+
+<MudDialog>
+    <TitleContent>
+        <div class="cbd-header">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.Hub" Color="Color.Primary" />
+                <MudText Typo="Typo.h6">CANALES (RESUMEN)</MudText>
+            </div>
+            <div class="cbd-subtitle">@DateRangeLabel &middot; Distribución de acciones</div>
+            <div class="cbd-chips">
+                <span class="cbd-chip cbd-chip-contact">Contacto: @ContactPercent%</span>
+                <span class="cbd-chip cbd-chip-exploration">Exploración: @ExplorationPercent%</span>
+            </div>
+            @if (Metrics?.Quality == DataQuality.Baja)
+            {
+                <div class="cbd-quality-note">Muestra pequeña, puede variar</div>
+            }
+        </div>
+    </TitleContent>
+
+    <DialogContent>
+        @* ── Section 1: CONTACTO (Alta Intención) ── *@
+        <div class="cbd-section">
+            <div class="cbd-section-title">CONTACTO (alta intención)</div>
+            @{ var contactChannels = GetContactChannels(); }
+            @if (contactChannels.Any())
+            {
+                @foreach (var ch in contactChannels)
+                {
+                    <div class="cbd-row">
+                        <div class="cbd-icon-badge @GetBadgeClass(ch.ChannelName)">
+                            <span class="cbd-icon-text">@GetIcon(ch.ChannelName)</span>
+                        </div>
+                        <span class="cbd-name">@ch.ChannelName</span>
+                        <span class="cbd-count">@ch.Count</span>
+                        <span class="cbd-pct">@ch.Percent.ToString("F0")%</span>
+                        <div class="cbd-bar-track">
+                            <div class="cbd-bar-fill cbd-fill-contact" style="width:@(ch.Percent.ToString("F0"))%"></div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="cbd-empty">Sin acciones de contacto en este período</div>
+            }
+        </div>
+
+        <MudDivider Class="my-3" />
+
+        @* ── Section 2: EXPLORACIÓN (redes / web) ── *@
+        <div class="cbd-section">
+            <div class="cbd-section-title">EXPLORACIÓN (redes / web)</div>
+            @{ var explorationChannels = GetExplorationChannels(); }
+            @if (explorationChannels.Any())
+            {
+                @foreach (var ch in explorationChannels)
+                {
+                    <div class="cbd-row">
+                        <div class="cbd-icon-badge @GetBadgeClass(ch.ChannelName)">
+                            <span class="cbd-icon-text">@GetIcon(ch.ChannelName)</span>
+                        </div>
+                        <span class="cbd-name">@ch.ChannelName</span>
+                        <span class="cbd-count">@ch.Count</span>
+                        <span class="cbd-pct">@ch.Percent.ToString("F0")%</span>
+                        <div class="cbd-bar-track">
+                            <div class="cbd-bar-fill cbd-fill-exploration" style="width:@(ch.Percent.ToString("F0"))%"></div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="cbd-empty">Sin acciones de exploración en este período</div>
+            }
+        </div>
+
+        @* ── Footer: Navigate to Enlaces Principales ── *@
+        <div class="cbd-footer-nav">
+            <span class="cbd-footer-text">Para ver conversión y tendencia, revisa Enlaces Principales.</span>
+            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="Close">
+                Ir a Enlaces Principales
+            </MudButton>
+        </div>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Text">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public List<ChannelBreakdown> Channels { get; set; } = new();
+    [Parameter] public SmartSummaryMetrics? Metrics { get; set; }
+    [Parameter] public string DateRangeLabel { get; set; } = "";
+
+    private decimal ContactPercent => Channels.Any()
+        ? Math.Round(Channels.Where(c => c.ChannelType == "contact").Sum(c => c.Percent), 0)
+        : 0;
+
+    private decimal ExplorationPercent => Channels.Any()
+        ? Math.Round(Channels.Where(c => c.ChannelType == "exploration").Sum(c => c.Percent), 0)
+        : 0;
+
+    private List<ChannelBreakdown> GetContactChannels() =>
+        Channels.Where(c => c.ChannelType == "contact").OrderByDescending(c => c.Count).ToList();
+
+    private List<ChannelBreakdown> GetExplorationChannels() =>
+        Channels.Where(c => c.ChannelType == "exploration").OrderByDescending(c => c.Count).ToList();
+
+    private void Close() => MudDialog.Close();
+
+    private static string GetIcon(string name) => name.ToLower() switch
+    {
+        "whatsapp" => "\U0001F4AC",
+        "llamada" => "\U0001F4DE",
+        "email" => "\U0001F4E7",
+        "linkedin" => "\U0001F4BC",
+        "instagram" => "\U0001F4F7",
+        "facebook" => "\U0001F464",
+        "youtube" => "\u25B6\uFE0F",
+        "x/twitter" => "\U0001F426",
+        "website" or "página web" => "\U0001F310",
+        "portfolio" => "\U0001F310",
+        "guardar contacto" => "\U0001F4BE",
+        "formulario" => "\U0001F4CB",
+        _ => "\U0001F517"
+    };
+
+    private static string GetBadgeClass(string name) => name.ToLower() switch
+    {
+        "whatsapp" => "cbd-badge-whatsapp",
+        "llamada" => "cbd-badge-call",
+        "email" => "cbd-badge-email",
+        "linkedin" => "cbd-badge-linkedin",
+        "instagram" => "cbd-badge-instagram",
+        "facebook" => "cbd-badge-facebook",
+        "youtube" => "cbd-badge-youtube",
+        "x/twitter" => "cbd-badge-twitter",
+        "website" or "portfolio" => "cbd-badge-website",
+        "guardar contacto" => "cbd-badge-contact",
+        "formulario" => "cbd-badge-form",
+        _ => "cbd-badge-default"
+    };
+}
+
+<style>
+    /* ══════════════════════════════════════════════════════════════════════════
+       CHANNEL BREAKDOWN DIALOG — Dark theme matching Dashboard
+       MudDialog renders outside component DOM → scoped CSS doesn't work
+       ══════════════════════════════════════════════════════════════════════════ */
+
+    .cbd-header {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .cbd-subtitle {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
+        letter-spacing: 0.3px;
+    }
+
+    .cbd-chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .cbd-chip {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 10px;
+        letter-spacing: 0.3px;
+    }
+
+    .cbd-chip-contact {
+        background: rgba(129, 140, 248, 0.15);
+        color: #A5B4FC;
+        border: 1px solid rgba(129, 140, 248, 0.2);
+    }
+
+    .cbd-chip-exploration {
+        background: rgba(167, 139, 250, 0.15);
+        color: #C4B5FD;
+        border: 1px solid rgba(167, 139, 250, 0.2);
+    }
+
+    .cbd-quality-note {
+        font-size: 10px;
+        font-style: italic;
+        color: rgba(251, 191, 36, 0.7);
+    }
+
+    .cbd-section {
+        margin-bottom: 4px;
+    }
+
+    .cbd-section-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: rgba(255, 255, 255, 0.45);
+        margin-bottom: 10px;
+    }
+
+    .cbd-row {
+        display: grid;
+        grid-template-columns: 28px 1fr auto auto 80px;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+    }
+
+    .cbd-icon-badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Badge color variants */
+    .cbd-badge-whatsapp { background: rgba(37, 211, 102, 0.15); }
+    .cbd-badge-call { background: rgba(59, 130, 246, 0.15); }
+    .cbd-badge-email { background: rgba(239, 68, 68, 0.15); }
+    .cbd-badge-linkedin { background: rgba(10, 102, 194, 0.15); }
+    .cbd-badge-instagram { background: rgba(228, 64, 95, 0.15); }
+    .cbd-badge-facebook { background: rgba(66, 103, 178, 0.15); }
+    .cbd-badge-youtube { background: rgba(255, 0, 0, 0.15); }
+    .cbd-badge-twitter { background: rgba(29, 161, 242, 0.15); }
+    .cbd-badge-website { background: rgba(107, 114, 128, 0.15); }
+    .cbd-badge-contact { background: rgba(20, 184, 166, 0.15); }
+    .cbd-badge-form { background: rgba(139, 92, 246, 0.15); }
+    .cbd-badge-default { background: rgba(107, 114, 128, 0.1); }
+
+    .cbd-name {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+    }
+
+    .cbd-count {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        text-align: right;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    .cbd-pct {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.5);
+        text-align: right;
+        min-width: 30px;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    .cbd-bar-track {
+        height: 4px;
+        background: rgba(107, 114, 128, 0.15);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .cbd-bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.4s ease;
+    }
+
+    .cbd-fill-contact {
+        background: #818CF8;
+    }
+
+    .cbd-fill-exploration {
+        background: #A78BFA;
+    }
+
+    .cbd-empty {
+        color: rgba(255, 255, 255, 0.35);
+        font-style: italic;
+        padding: 8px 0;
+        font-size: 12px;
+    }
+
+    .cbd-footer-nav {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .cbd-footer-text {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.45);
+        text-align: center;
+    }
+</style>

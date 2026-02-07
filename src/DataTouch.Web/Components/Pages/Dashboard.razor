@@ -8,12 +8,13 @@
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
 @using static DataTouch.Web.Services.DashboardService
 @implements IAsyncDisposable
 
 <PageTitle>Panel de Control - DataTouch</PageTitle>
 
-<div class="dashboard-page">
+<div class="dashboard-page @(IsDrawerOpen ? "drawer-open" : "")">
     @* ═══════════════════════════════════════════════════════════════
        HEADER WITH DATE RANGE SELECTOR (Desktop)
        ═══════════════════════════════════════════════════════════════ *@
@@ -224,7 +225,12 @@
                     </span>
                 </div>
                 <div class="analytics-header-right">
-                    @* Range Dropdown Pill (único control de rango) *@
+                    @* ─── Conversion Badge (hidden on desktop, left on mobile) ─── *@
+                    <div class="analytics-conv-badge">
+                        <span class="conv-badge-label">CONV.</span>
+                        <span class="conv-badge-value">@GetConversionRate().ToString("0.00")%</span>
+                    </div>
+                    @* Range Dropdown Pill (right on mobile) *@
                     <div class="analytics-range-dropdown">
                         <button class="range-pill" @onclick="ToggleRangeDropdown">
                             <span>@GetRangeLabel()</span>
@@ -245,7 +251,7 @@
                             </div>
                         }
                     </div>
-                    @* Export Menu *@
+                    @* Export Menu (hidden on mobile) *@
                     <div class="analytics-export">
                         <button class="export-btn" @onclick="ToggleExportMenu" title="Exportar datos">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -273,11 +279,6 @@
                                 </button>
                             </div>
                         }
-                    </div>
-                    @* ─── Mobile: Conversion Badge (hidden on desktop) ─── *@
-                    <div class="analytics-conv-badge">
-                        <span class="conv-badge-label">CONV.</span>
-                        <span class="conv-badge-value">@GetConversionRate().ToString("0.00")%</span>
                     </div>
                 </div>
             </div>
@@ -484,88 +485,130 @@
        ROW 3: INSIGHTS + TOP LINKS + HIGH-INTENT
        ═══════════════════════════════════════════════════════════════ *@
     <div class="insights-row">
-        @* Insights Panel (LEFT) - NO High-Intent summary here *@
-        <div class="panel insights-panel">
-            <h2 class="section-title">Perspectivas</h2>
-            <div class="panel-content">
-                
-                @* Top CTA *@
-                <div class="insight-item">
-                    <div class="insight-icon-wrapper @GetCtaBadgeClass(_insights?.TopCta)">
-                        <IconRegistry Type="@(_insights?.HasTopCta == true ? _insights?.TopCta?.ToLowerInvariant() ?? "link" : "link")" Size="20" />
-                    </div>
-                    <div class="insight-content">
-                        <span class="insight-label">@(_insights?.HasTopCta == true ? _insights?.TopCta : "N/A")</span>
-                        <span class="insight-sublabel">CTA Principal</span>
-                    </div>
-                    <div class="insight-stats">
-                        @if (_insights?.HasTopCta == true)
-                        {
-                            <span class="insight-value">@((_insights?.TopCtaConversion ?? 0).ToString("F1"))%</span>
-                            <span class="insight-delta @((_insights?.TopCtaDelta ?? 0) >= 0 ? "positive" : "negative")">
-                                @FormatDelta(_insights?.TopCtaDelta ?? 0) vs período
-                            </span>
-                        }
-                        else
-                        {
-                            <span class="insight-value insight-na">—</span>
-                            <span class="insight-sublabel">Sin clics de CTA aún</span>
-                        }
-                    </div>
-                </div>
-
-                @* Median Time to Lead *@
-                <div class="insight-item">
-                    <div class="insight-icon time">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                    </div>
-                    <div class="insight-content">
-                        <span class="insight-label">Tiempo Promedio a Lead</span>
-                        @if (_insights?.HasMedianTime == true)
-                        {
-                            <span class="insight-sublabel">@((_insights?.MedianTimeDelta ?? 0) >= 0 ? "Más lento" : "Más rápido") vs período</span>
-                        }
-                        else
-                        {
-                            <span class="insight-sublabel">Datos insuficientes</span>
-                        }
-                    </div>
-                    <div class="insight-stats">
-                        @if (_insights?.HasMedianTime == true)
-                        {
-                            <span class="insight-value">@(_insights?.MedianTimeToLeadMinutes ?? 0) min</span>
-                            <span class="insight-delta @((_insights?.MedianTimeDelta ?? 0) <= 0 ? "positive" : "negative")">
-                                @FormatDelta(Math.Abs(_insights?.MedianTimeDelta ?? 0)) vs período
-                            </span>
-                        }
-                        else
-                        {
-                            <span class="insight-value insight-na">N/A</span>
-                        }
-                    </div>
-                </div>
-
-                @* Inactive Cards *@
-                <div class="insight-item">
-                    <div class="insight-icon inactive">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="9" y1="9" x2="15" y2="15"></line>
-                            <line x1="15" y1="9" x2="9" y2="15"></line>
-                        </svg>
-                    </div>
-                    <div class="insight-content">
-                        <span class="insight-label">Tarjetas Inactivas: @(_insights?.InactiveCardsCount ?? 0)</span>
-                        <span class="insight-sublabel">@((_insights?.InactiveCardsPercent ?? 0).ToString("F0"))% del total</span>
-                    </div>
-                    <div class="insight-stats">
-                        <span class="insight-sublabel potential-loss">Pérdida potencial: ~@(_insights?.PotentialLossInteractions ?? 0) interacciones</span>
-                    </div>
-                </div>
+        @* Smart Summary Panel (LEFT) - "Resumen Inteligente" *@
+        <div class="panel smart-summary-panel">
+            <div class="ss-header">
+                <span class="ss-header-spacer">
+                    @if (_smartSummary?.HasData == true)
+                    {
+                        <span class="ss-quality-badge" style="visibility:hidden;">@_smartSummary.Metrics.Quality</span>
+                    }
+                </span>
+                <h2 class="section-title">Resumen Inteligente</h2>
+                @if (_smartSummary?.HasData == true)
+                {
+                    <span class="ss-quality-badge ss-quality-@(_smartSummary.Metrics.Quality.ToString().ToLowerInvariant())">
+                        @_smartSummary.Metrics.Quality
+                    </span>
+                }
             </div>
+
+            @if (_isLoading)
+            {
+                <div class="ss-loading">
+                    <div class="ss-skeleton ss-skeleton-full"></div>
+                    <div class="ss-skeleton-row">
+                        <div class="ss-skeleton ss-skeleton-half"></div>
+                        <div class="ss-skeleton ss-skeleton-half"></div>
+                    </div>
+                    <div class="ss-skeleton ss-skeleton-full"></div>
+                </div>
+            }
+            else if (_smartSummaryError)
+            {
+                <div class="ss-error">
+                    <span class="ss-error-text">No pudimos cargar el resumen</span>
+                    <button class="ss-retry-btn" @onclick="ReloadSmartSummary">Reintentar</button>
+                </div>
+            }
+            else if (_smartSummary?.HasData != true)
+            {
+                <div class="ss-empty">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="ss-empty-icon">
+                        <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="ss-empty-text">No hay actividad</span>
+                    <span class="ss-empty-sub">Comparte tu tarjeta para comenzar a recibir datos</span>
+                </div>
+            }
+            else
+            {
+                <div class="ss-cards">
+                    @* Card 1: RENDIMIENTO (full-width) *@
+                    <div class="ss-card ss-card-full ss-scenario-@_smartSummary!.Rendimiento.ScenarioKey">
+                        <span class="ss-chip @_smartSummary.Rendimiento.ChipColor">@_smartSummary.Rendimiento.Chip</span>
+                        <h3 class="ss-card-title">@_smartSummary.Rendimiento.Title</h3>
+                        <p class="ss-card-desc">@_smartSummary.Rendimiento.Description</p>
+                        <span class="ss-card-base" title="@GetTechnicalTooltip(_smartSummary.Rendimiento, _smartSummary.Metrics)">@_smartSummary.Rendimiento.BaseLine</span>
+                        @if (_smartSummary.Rendimiento.CtaText != null)
+                        {
+                            <button class="ss-cta-btn" @onclick="() => NavigateToRoute(_smartSummary.Rendimiento.CtaRoute)">
+                                @_smartSummary.Rendimiento.CtaText
+                            </button>
+                        }
+                    </div>
+
+                    @* Cards 2 & 3: CANAL + FRICCIÓN (side-by-side when wide) *@
+                    <div class="ss-card-pair">
+                        <div class="ss-card ss-card-half ss-scenario-@_smartSummary.CanalPrincipal.ScenarioKey">
+                            <span class="ss-chip @_smartSummary.CanalPrincipal.ChipColor">@_smartSummary.CanalPrincipal.Chip</span>
+                            <h3 class="ss-card-title">@_smartSummary.CanalPrincipal.Title</h3>
+                            <p class="ss-card-desc">@_smartSummary.CanalPrincipal.Description</p>
+                            @if (_smartSummary.TopChannels.Any())
+                            {
+                                <div class="ss-mini-breakdown">
+                                    @foreach (var ch in _smartSummary.TopChannels)
+                                    {
+                                        <div class="ss-mini-bar">
+                                            <span class="ss-mini-label">@ch.ChannelName</span>
+                                            <div class="ss-mini-track">
+                                                <div class="ss-mini-fill ss-type-@ch.ChannelType" style="width:@(ch.Percent.ToString("F0"))%"></div>
+                                            </div>
+                                            <span class="ss-mini-pct">@ch.Percent.ToString("F0")%</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            @if (_smartSummary.TopChannels.Any(c => c.ChannelName == "Otros"))
+                            {
+                                <span class="ss-otros-hint">Otros agrupa: llamadas, guardar, formulario y redes/web.</span>
+                            }
+                            <span class="ss-microcopy">Acciones = clics en botones + redes/web + formulario + guardar contacto</span>
+                            @if (_smartSummary.AllChannels.Any())
+                            {
+                                <button class="ss-cta-btn" @onclick="OpenChannelBreakdownDialog">Ver Canales</button>
+                            }
+                        </div>
+
+                        <div class="ss-card ss-card-half ss-scenario-@_smartSummary.Friccion.ScenarioKey">
+                            <span class="ss-chip @_smartSummary.Friccion.ChipColor">@_smartSummary.Friccion.Chip</span>
+                            <h3 class="ss-card-title">@_smartSummary.Friccion.Title</h3>
+                            <p class="ss-card-desc">@_smartSummary.Friccion.Description</p>
+                            <span class="ss-card-base" title="@GetTechnicalTooltip(_smartSummary.Friccion, _smartSummary.Metrics)">@_smartSummary.Friccion.BaseLine</span>
+                            @if (_smartSummary.Friccion.CtaText != null)
+                            {
+                                <button class="ss-cta-btn" @onclick="() => NavigateToRoute(_smartSummary.Friccion.CtaRoute)">
+                                    @_smartSummary.Friccion.CtaText
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    @* Card 4: PRÓXIMO PASO (full-width) *@
+                    <div class="ss-card ss-card-full ss-scenario-@_smartSummary.ProximoPaso.ScenarioKey">
+                        <span class="ss-chip @_smartSummary.ProximoPaso.ChipColor">@_smartSummary.ProximoPaso.Chip</span>
+                        <h3 class="ss-card-title">@_smartSummary.ProximoPaso.Title</h3>
+                        <p class="ss-card-desc">@_smartSummary.ProximoPaso.Description</p>
+                        <span class="ss-card-base" title="@GetTechnicalTooltip(_smartSummary.ProximoPaso, _smartSummary.Metrics)">@_smartSummary.ProximoPaso.BaseLine</span>
+                        @if (_smartSummary.ProximoPaso.CtaText != null)
+                        {
+                            <button class="ss-cta-btn" @onclick="() => NavigateToRoute(_smartSummary.ProximoPaso.CtaRoute)">
+                                @_smartSummary.ProximoPaso.CtaText
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
         </div>
 
         @* Top Links Panel (CENTER) *@
@@ -728,6 +771,9 @@
 </div>
 
 @code {
+    [CascadingParameter(Name = "IsDrawerOpen")]
+    private bool IsDrawerOpen { get; set; }
+
     private bool _isLoading = true;
     private string _selectedDateRange = "today";  // Default to Today
     private bool _mapExpanded = false;
@@ -755,7 +801,8 @@
     private GroupedChartData? _groupedChartData;  // Enterprise grouping data
     private TopLocationsResult? _topLocations;
     private List<LinkPerformance> _topLinks = new();
-    private InsightsData? _insights;
+    private SmartSummaryData? _smartSummary;
+    private bool _smartSummaryError = false;
     private HighIntentData? _highIntent;
 
     // Filters
@@ -1004,16 +1051,17 @@
             var chartTask = DashboardService.GetGroupedChartDataAsync(orgId.Value, dateRange, _selectedDateRange);
             var locationsTask = DashboardService.GetTopLocationsAsync(orgId.Value, dateRange, _locationSortBy);
             var linksTask = DashboardService.GetTopLinksAsync(orgId.Value, dateRange);
-            var insightsTask = DashboardService.GetInsightsAsync(orgId.Value, dateRange);
+            var smartSummaryTask = DashboardService.GetSmartSummaryAsync(orgId.Value, dateRange);
             var highIntentTask = DashboardService.GetHighIntentDataAsync(orgId.Value, dateRange);
 
-            await Task.WhenAll(kpisTask, chartTask, locationsTask, linksTask, insightsTask, highIntentTask);
+            await Task.WhenAll(kpisTask, chartTask, locationsTask, linksTask, smartSummaryTask, highIntentTask);
 
             _kpis = await kpisTask;
             _groupedChartData = await chartTask;
             _topLocations = await locationsTask;
             _topLinks = await linksTask;
-            _insights = await insightsTask;
+            try { _smartSummary = await smartSummaryTask; _smartSummaryError = false; }
+            catch { _smartSummaryError = true; }
             _highIntent = await highIntentTask;
             _lastDataUpdate = DateTime.UtcNow;
 
@@ -1509,20 +1557,77 @@
         return $"{sign}{delta:F1}%";
     }
 
-    private string GetCtaBadgeClass(string? cta)
+    private async Task ReloadSmartSummary()
     {
-        if (string.IsNullOrEmpty(cta)) return "badge-inactive";
-        return cta.ToLower() switch
+        _smartSummaryError = false;
+        StateHasChanged();
+        try
         {
-            "whatsapp" => "badge-whatsapp",
-            "email" or "gmail" => "badge-email",
-            "linkedin" => "badge-linkedin",
-            "call" or "phone" => "badge-call",
-            "calendar" or "meeting" or "booking" => "badge-calendar",
-            "instagram" => "badge-instagram",
-            "facebook" => "badge-facebook",
-            _ => "badge-default"
+            var orgId = AuthService.GetCurrentOrganizationId();
+            if (!orgId.HasValue) return;
+            var dateRange = _selectedDateRange == "custom"
+                ? DashboardService.GetCustomDateRange(_customStartDate, _customEndDate)
+                : DashboardService.GetDateRangeFromOption(_selectedDateRange);
+            _smartSummary = await DashboardService.GetSmartSummaryAsync(orgId.Value, dateRange);
+        }
+        catch
+        {
+            _smartSummaryError = true;
+        }
+        StateHasChanged();
+    }
+
+    private void NavigateToRoute(string? route)
+    {
+        if (!string.IsNullOrEmpty(route))
+            NavigationManager.NavigateTo(route);
+    }
+
+    private string GetTechnicalTooltip(SmartSummaryCard card, SmartSummaryMetrics m)
+    {
+        return card.ScenarioKey switch
+        {
+            // Rendimiento
+            "low-data" => $"V={m.V} · AT={m.AT}",
+            "decline" => $"V={m.V} · AC={m.AC} · PrevV={m.PrevV} · PrevAC={m.PrevAC}",
+            "exploring" => $"AE={m.AE} · CC={m.CC} · AT={m.AT}",
+            "interest-no-contact" => $"AC={m.AC} · CC={m.CC} · TC={m.TC:F1}%",
+            "good" => $"V={m.V} · AC={m.AC} · TC={m.TC:F1}%",
+            // Canal
+            "no-channel" => $"AT={m.AT}",
+            "balanced" or "dominant" => $"AC={m.AC} · AE={m.AE} · AT={m.AT}",
+            // Fricción
+            "no-data" => $"V={m.V} · AT={m.AT}",
+            "form-abandon" => $"IC={m.IC} · CC={m.CC}",
+            "explore-friction" => $"AE={m.AE} · AC={m.AC}",
+            "click-no-capture" => $"IC={m.IC} · CC={m.CC}",
+            "no-friction" => $"IC={m.IC} · CC={m.CC} · AE={m.AE}",
+            // Próximo Paso
+            _ => ""
         };
+    }
+
+    private async Task OpenChannelBreakdownDialog()
+    {
+        if (_smartSummary == null) return;
+
+        var parameters = new DialogParameters<DataTouch.Web.Components.Shared.ChannelBreakdownDialog>
+        {
+            { x => x.Channels, _smartSummary.AllChannels },
+            { x => x.Metrics, _smartSummary.Metrics },
+            { x => x.DateRangeLabel, GetRangeLabel() }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true,
+            CloseButton = true
+        };
+
+        await DialogService.ShowAsync<DataTouch.Web.Components.Shared.ChannelBreakdownDialog>(
+            "Canales y Enlaces", parameters, options);
     }
 
     private string GetLinkBadgeClass(string linkName)

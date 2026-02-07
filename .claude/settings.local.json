@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\leo-e\\\\.claude-worktrees\\\\Datatouch1\\\\friendly-booth\\\\src\\\\DataTouch.Web\\\\wwwroot\\\\css\"\" 2>nul || echo \"Directory not found \")",
+      "Bash(grep:*)",
+      "Bash(findstr:*)"
+    ]
+  }
+}

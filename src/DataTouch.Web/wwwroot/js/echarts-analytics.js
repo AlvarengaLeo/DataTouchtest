@@ -42,6 +42,25 @@ window.EChartsAnalytics = {
      * Set chart options with the provided data
      */
     setOptions: function (chart, data) {
+        // ─── Smart axis calculation: round ticks, start at 0, 3-8 labels ───
+        function calcNiceAxis(dataArr, preferredSteps) {
+            const maxVal = Math.max(...dataArr, 0);
+            if (maxVal === 0) return { min: 0, max: preferredSteps[0] * 5, interval: preferredSteps[0] };
+            for (const step of preferredSteps) {
+                const niceMax = Math.ceil(maxVal / step) * step;
+                const labelCount = (niceMax / step) + 1;
+                if (labelCount >= 3 && labelCount <= 8) {
+                    return { min: 0, max: niceMax, interval: step };
+                }
+            }
+            const step = preferredSteps[preferredSteps.length - 1];
+            const niceMax = Math.ceil(maxVal / step) * step;
+            return { min: 0, max: niceMax || step, interval: step };
+        }
+
+        const interAxis = calcNiceAxis(data.interactions || [0], [5, 10, 20, 50, 100, 200, 500]);
+        const leadsAxis = calcNiceAxis(data.leads || [0], [0.5, 1, 2, 5, 10, 20, 50]);
+
         const options = {
             backgroundColor: 'transparent',
             tooltip: {
@@ -121,13 +140,11 @@ window.EChartsAnalytics = {
                     type: 'value',
                     name: '',
                     position: 'left',
-                    alignTicks: true,
-                    axisLine: {
-                        show: false
-                    },
-                    axisTick: {
-                        show: false
-                    },
+                    min: interAxis.min,
+                    max: interAxis.max,
+                    interval: interAxis.interval,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
                     splitLine: {
                         lineStyle: {
                             color: 'rgba(255, 255, 255, 0.06)'
@@ -143,16 +160,12 @@ window.EChartsAnalytics = {
                     type: 'value',
                     name: '',
                     position: 'right',
-                    alignTicks: true,
-                    axisLine: {
-                        show: false
-                    },
-                    axisTick: {
-                        show: false
-                    },
-                    splitLine: {
-                        show: false
-                    },
+                    min: leadsAxis.min,
+                    max: leadsAxis.max,
+                    interval: leadsAxis.interval,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    splitLine: { show: false },
                     axisLabel: {
                         color: 'rgba(94, 234, 212, 0.9)',
                         fontSize: 11,
