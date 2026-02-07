@@ -169,7 +169,11 @@ window.EChartsAnalytics = {
                     axisLabel: {
                         color: 'rgba(94, 234, 212, 0.9)',
                         fontSize: 11,
-                        fontWeight: 500
+                        fontWeight: 500,
+                        formatter: function (value) {
+                            // Format leads axis: show .0 for whole numbers, .5 for halves
+                            return value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
+                        }
                     }
                 }
             ],

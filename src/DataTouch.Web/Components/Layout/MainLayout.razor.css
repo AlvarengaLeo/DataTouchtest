@@ -294,6 +294,38 @@ main {
     z-index: 1000 !important;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   MOBILE DRAWER - Hide completely on mobile/tablet (bottom nav replaces it)
+   ══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 960px) {
+    /* Hide the entire MudDrawer container on mobile */
+    ::deep .mud-drawer {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        visibility: hidden !important;
+    }
+
+    /* Hide drawer content (the ghost element) */
+    ::deep .mud-drawer-content {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        visibility: hidden !important;
+    }
+
+    /* Ensure main content takes full width without drawer offset */
+    ::deep .mud-main-content {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+
+    /* Fix bottom nav 1px gap */
+    .mobile-bottom-nav {
+        bottom: -1px !important;
+    }
+}
+
 .sidebar {
     background: var(--dt-bg-subtle, #0E141B);
 }
