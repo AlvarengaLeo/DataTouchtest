@@ -1,0 +1,1344 @@
+@* ═══════════════════════════════════════════════════════════════
+   PublicReservationModal — 4-step reservation wizard (centered modal).
+   Pattern: same as PublicAppointmentModal.razor (centered, not bottom-sheet).
+   All colors via --dt-* CSS variables.
+   Steps: 1) Fechas  2) Huéspedes  3) Extras/Políticas  4) Confirmar
+   ═══════════════════════════════════════════════════════════════ *@
+@using DataTouch.Web.Models
+@using DataTouch.Web.Services
+@using DataTouch.Domain.Entities
+@inject ReservationService ReservationService
+
+@if (IsOpen)
+{
+    <div class="prm-overlay" @onclick="HandleOverlayClick" @onkeydown="HandleKeyDown" tabindex="-1">
+        <div class="prm-modal" @onclick:stopPropagation="true">
+            @* ── HEADER ── *@
+            <div class="prm-header">
+                <div class="prm-header-left">
+                    <h2 class="prm-header-title">@GetStepTitle()</h2>
+                    <p class="prm-header-subtitle">@GetStepSubtitle()</p>
+                </div>
+                <button class="prm-close" @onclick="Close" aria-label="Cerrar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            @* ── PROGRESS INDICATOR ── *@
+            @if (!_submitted)
+            {
+                <div class="prm-progress">
+                    @for (int i = 1; i <= 4; i++)
+                    {
+                        var step = i;
+                        <div class="prm-step @(step == _currentStep ? "prm-step--active" : "") @(step < _currentStep ? "prm-step--done" : "")">
+                            <span class="prm-step-num">@step</span>
+                            <span class="prm-step-label">@GetStepLabel(step)</span>
+                        </div>
+                    }
+                </div>
+            }
+
+            @* ── BODY ── *@
+            <div class="prm-body">
+                @if (_submitted)
+                {
+                    @* SUCCESS SCREEN *@
+                    <div class="prm-success">
+                        <div class="prm-success-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <h3 class="prm-success-title">¡Solicitud enviada!</h3>
+                        <p class="prm-success-text">@(Settings?.SuccessMessage ?? "Te confirmaremos pronto.")</p>
+                        @if (!string.IsNullOrEmpty(_requestNumber))
+                        {
+                            <p class="prm-success-ref">Referencia: <strong>@_requestNumber</strong></p>
+                        }
+                        @if (!string.IsNullOrEmpty(WhatsAppUrl))
+                        {
+                            <a href="@WhatsAppUrl" target="_blank" class="prm-btn-wa">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                Escribir por WhatsApp
+                            </a>
+                        }
+                        <button class="prm-btn-close-success" @onclick="Close">Cerrar</button>
+                    </div>
+                }
+                else if (_currentStep == 1)
+                {
+                    @* STEP 1: FECHAS — Inline calendar with blocked dates *@
+                    <div class="prm-step-content">
+                        @* Selected range summary *@
+                        <div class="prm-range-summary">
+                            <div class="prm-range-chip @(_selectingField == "from" ? "prm-range-chip--active" : "") @(_fromDate.HasValue ? "prm-range-chip--filled" : "")" @onclick="SelectFromField">
+                                <span class="prm-range-chip-label">Llegada</span>
+                                <span class="prm-range-chip-value">@(_fromDate?.ToString("dd MMM") ?? "Seleccionar")</span>
+                            </div>
+                            <svg class="prm-range-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            <div class="prm-range-chip @(_selectingField == "to" ? "prm-range-chip--active" : "") @(_toDate.HasValue ? "prm-range-chip--filled" : "")" @onclick="SelectToField">
+                                <span class="prm-range-chip-label">Salida</span>
+                                <span class="prm-range-chip-value">@(_toDate?.ToString("dd MMM") ?? "Seleccionar")</span>
+                            </div>
+                        </div>
+
+                        @* Calendar navigation *@
+                        <div class="prm-cal-nav">
+                            <button class="prm-cal-nav-btn" @onclick="PrevMonth" aria-label="Mes anterior">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <span class="prm-cal-month">@_calendarMonth.ToString("MMMM yyyy")</span>
+                            <button class="prm-cal-nav-btn" @onclick="NextMonth" aria-label="Mes siguiente">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
+
+                        @* Calendar grid *@
+                        <div class="prm-cal-grid">
+                            @foreach (var dow in _dayHeaders)
+                            {
+                                <div class="prm-cal-dow">@dow</div>
+                            }
+                            @foreach (var day in GetCalendarDays())
+                            {
+                                @if (day == null)
+                                {
+                                    <div class="prm-cal-cell prm-cal-cell--empty"></div>
+                                }
+                                else
+                                {
+                                    var d = day.Value;
+                                    var isBlocked = BlockedDates?.Contains(d) == true;
+                                    var isTooSoon = d < _minDate;
+                                    var isPast = d < DateTime.Today;
+                                    var isDisabled = isBlocked || isTooSoon || isPast;
+                                    var isFrom = _fromDate.HasValue && d == _fromDate.Value.Date;
+                                    var isTo = _toDate.HasValue && d == _toDate.Value.Date;
+                                    var isInRange = _fromDate.HasValue && _toDate.HasValue && d > _fromDate.Value.Date && d < _toDate.Value.Date;
+                                    var isToday = d == DateTime.Today;
+                                    var css = "prm-cal-cell";
+                                    if (isDisabled) css += " prm-cal-cell--disabled";
+                                    if (isBlocked) css += " prm-cal-cell--blocked";
+                                    if (isFrom) css += " prm-cal-cell--from";
+                                    if (isTo) css += " prm-cal-cell--to";
+                                    if (isInRange) css += " prm-cal-cell--inrange";
+                                    if (isToday && !isFrom && !isTo) css += " prm-cal-cell--today";
+                                    var title = isBlocked ? "No disponible" : (isTooSoon && !isPast ? "Muy pronto" : "");
+                                    <button class="@css" disabled="@isDisabled" title="@title"
+                                            aria-disabled="@(isDisabled ? "true" : "false")"
+                                            @onclick="() => OnCalendarDayClick(d)">
+                                        @d.Day
+                                    </button>
+                                }
+                            }
+                        </div>
+
+                        @if (_fromDate.HasValue && _toDate.HasValue)
+                        {
+                            <div class="prm-nights-badge">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                                @_nights noche@(_nights != 1 ? "s" : "")
+                            </div>
+                        }
+                        @if (Settings?.MinNights > 1 && !(_fromDate.HasValue && _toDate.HasValue && _nights >= Settings.MinNights))
+                        {
+                            <p class="prm-microcopy">Mínimo @Settings.MinNights noches</p>
+                        }
+                        @if (!string.IsNullOrEmpty(_dateError))
+                        {
+                            <p class="prm-error">@_dateError</p>
+                        }
+                    </div>
+                }
+                else if (_currentStep == 2)
+                {
+                    @* STEP 2: HUÉSPEDES *@
+                    <div class="prm-step-content">
+                        <p class="prm-microcopy">Ajusta la cantidad de huéspedes.</p>
+                        <div class="prm-stepper-row">
+                            <span class="prm-stepper-label">Adultos</span>
+                            <div class="prm-stepper">
+                                <button class="prm-stepper-btn" @onclick="() => AdjustGuests(ref _guestsAdults, -1)" disabled="@(_guestsAdults <= 1)">−</button>
+                                <span class="prm-stepper-value">@_guestsAdults</span>
+                                <button class="prm-stepper-btn" @onclick="() => AdjustGuests(ref _guestsAdults, 1)" disabled="@(TotalGuests >= MaxGuests)">+</button>
+                            </div>
+                        </div>
+                        @if (Settings?.SeparateChildCount == true)
+                        {
+                            <div class="prm-stepper-row">
+                                <span class="prm-stepper-label">Niños</span>
+                                <div class="prm-stepper">
+                                    <button class="prm-stepper-btn" @onclick="() => AdjustGuests(ref _guestsChildren, -1)" disabled="@(_guestsChildren <= 0)">−</button>
+                                    <span class="prm-stepper-value">@_guestsChildren</span>
+                                    <button class="prm-stepper-btn" @onclick="() => AdjustGuests(ref _guestsChildren, 1)" disabled="@(TotalGuests >= MaxGuests)">+</button>
+                                </div>
+                            </div>
+                        }
+                        <p class="prm-capacity-info">Capacidad máxima: @MaxGuests</p>
+                    </div>
+                }
+                else if (_currentStep == 3)
+                {
+                    @* STEP 3: EXTRAS & POLÍTICAS *@
+                    <div class="prm-step-content">
+                        <p class="prm-microcopy">Personaliza tu reserva.</p>
+                        @if (_availableExtras.Any())
+                        {
+                            <div class="prm-extras-grid">
+                                @foreach (var extra in _availableExtras.Take(6))
+                                {
+                                    var isSelected = _selectedExtras.Contains(extra.Name);
+                                    <button class="prm-extra-pill @(isSelected ? "prm-extra-pill--active" : "")"
+                                            @onclick="() => ToggleExtra(extra.Name)">
+                                        @extra.Name
+                                        @if (extra.Price.HasValue)
+                                        {
+                                            <span class="prm-extra-price">+ $@extra.Price.Value.ToString("N0")</span>
+                                        }
+                                    </button>
+                                }
+                            </div>
+                            @if (_availableExtras.Count > 6)
+                            {
+                                <button class="prm-show-more" @onclick="() => _showAllExtras = !_showAllExtras">
+                                    @(_showAllExtras ? "Ver menos" : $"Ver más ({_availableExtras.Count - 6})")
+                                </button>
+                                @if (_showAllExtras)
+                                {
+                                    <div class="prm-extras-grid">
+                                        @foreach (var extra in _availableExtras.Skip(6))
+                                        {
+                                            var isSelected = _selectedExtras.Contains(extra.Name);
+                                            <button class="prm-extra-pill @(isSelected ? "prm-extra-pill--active" : "")"
+                                                    @onclick="() => ToggleExtra(extra.Name)">
+                                                @extra.Name
+                                                @if (extra.Price.HasValue)
+                                                {
+                                                    <span class="prm-extra-price">+ $@extra.Price.Value.ToString("N0")</span>
+                                                }
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            }
+                            <p class="prm-microcopy" style="margin-top:8px;">Algunos extras pueden tener costo adicional.</p>
+                        }
+                        else
+                        {
+                            <p class="prm-microcopy">No hay extras disponibles.</p>
+                        }
+
+                        @if (Settings?.ShowPolicies == true && !string.IsNullOrEmpty(Settings.PoliciesText))
+                        {
+                            <div class="prm-policies-block">
+                                <h4 class="prm-policies-title">Políticas</h4>
+                                <p class="prm-policies-text">@Settings.PoliciesText</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else if (_currentStep == 4)
+                {
+                    @* STEP 4: CONFIRMAR *@
+                    <div class="prm-step-content">
+                        @* Summary card *@
+                        <div class="prm-summary-card">
+                            <div class="prm-summary-row">
+                                <span>Fechas</span>
+                                <strong>@_fromDate?.ToString("dd MMM") — @_toDate?.ToString("dd MMM yyyy")</strong>
+                            </div>
+                            <div class="prm-summary-row">
+                                <span>Noches</span>
+                                <strong>@_nights</strong>
+                            </div>
+                            <div class="prm-summary-row">
+                                <span>Huéspedes</span>
+                                <strong>@_guestsAdults adulto@(_guestsAdults != 1 ? "s" : "")@(Settings?.SeparateChildCount == true && _guestsChildren > 0 ? $", {_guestsChildren} niño{(_guestsChildren != 1 ? "s" : "")}" : "")</strong>
+                            </div>
+                            @if (_selectedExtras.Any())
+                            {
+                                <div class="prm-summary-row">
+                                    <span>Extras</span>
+                                    <strong>@string.Join(", ", _selectedExtras)</strong>
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(Settings?.CheckInInfo) || !string.IsNullOrEmpty(Settings?.CheckOutInfo))
+                            {
+                                <div class="prm-summary-row prm-summary-info">
+                                    @if (!string.IsNullOrEmpty(Settings?.CheckInInfo)) { <span>@Settings.CheckInInfo</span> }
+                                    @if (!string.IsNullOrEmpty(Settings?.CheckOutInfo)) { <span>@Settings.CheckOutInfo</span> }
+                                </div>
+                            }
+                            <div class="prm-summary-row prm-summary-total">
+                                <span>Total</span>
+                                <strong>Te confirmaremos el total</strong>
+                            </div>
+                        </div>
+
+                        @* Contact form *@
+                        <div class="prm-form">
+                            <div class="prm-field">
+                                <label class="prm-field-label">Nombre *</label>
+                                <input type="text" class="prm-input" @bind="_contactName" placeholder="Tu nombre completo" />
+                            </div>
+                            <div class="prm-field">
+                                <label class="prm-field-label">Teléfono / WhatsApp @(Settings?.PhoneRequired == true ? "*" : "")</label>
+                                <input type="tel" class="prm-input" @bind="_contactPhone" placeholder="+52 000 000 0000" />
+                            </div>
+                            <div class="prm-field">
+                                <label class="prm-field-label">Email @(Settings?.EmailRequired == true ? "*" : "(opcional)")</label>
+                                <input type="email" class="prm-input" @bind="_contactEmail" placeholder="tu@email.com" />
+                            </div>
+                            <div class="prm-field">
+                                <label class="prm-field-label">Detalles adicionales (opcional)</label>
+                                <textarea class="prm-input prm-textarea" @bind="_notes" placeholder="¿Algún detalle especial?" rows="2"></textarea>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_submitError))
+                        {
+                            <p class="prm-error">@_submitError</p>
+                        }
+                    </div>
+                }
+            </div>
+
+            @* ── FOOTER ── *@
+            @if (!_submitted)
+            {
+                <div class="prm-footer">
+                    @if (_currentStep > 1)
+                    {
+                        <button class="prm-btn-back" @onclick="PrevStep">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                            Atrás
+                        </button>
+                    }
+                    else
+                    {
+                        <span></span>
+                    }
+
+                    <div class="prm-footer-right">
+                        @if (!CanAdvance())
+                        {
+                            <span class="prm-footer-hint">@GetDisabledHint()</span>
+                        }
+                        <button class="prm-btn-next" @onclick="NextStep" disabled="@(!CanAdvance() || _submitting)">
+                            @if (_submitting)
+                            {
+                                <span>Enviando...</span>
+                            }
+                            else if (_currentStep == 4)
+                            {
+                                <span>Enviar solicitud</span>
+                            }
+                            else
+                            {
+                                <span>Continuar</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            }
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public ReservationSettingsModel? Settings { get; set; }
+    [Parameter] public Guid CardId { get; set; }
+    [Parameter] public Guid OrganizationId { get; set; }
+    [Parameter] public string? WhatsAppUrl { get; set; }
+    [Parameter] public HashSet<DateTime>? BlockedDates { get; set; }
+    [Parameter] public EventCallback<DateTime> OnMonthChanged { get; set; }
+
+    private int _currentStep = 1;
+    private bool _submitted = false;
+    private bool _submitting = false;
+    private string? _requestNumber;
+
+    // Step 1: Dates
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+    private int _nights = 0;
+    private string? _dateError;
+    private DateTime _minDate => DateTime.Today.AddDays(Settings?.MinAdvanceDays ?? 0);
+
+    // Calendar state
+    private DateTime _calendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private string _selectingField = "from"; // "from" or "to"
+    private static readonly string[] _dayHeaders = { "Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do" };
+
+    // Step 2: Guests
+    private int _guestsAdults = 1;
+    private int _guestsChildren = 0;
+    private int TotalGuests => _guestsAdults + _guestsChildren;
+    private int MaxGuests => Settings?.MaxGuests ?? 10;
+
+    // Step 3: Extras
+    private List<ExtraItem> _availableExtras = new();
+    private HashSet<string> _selectedExtras = new();
+    private bool _showAllExtras = false;
+
+    // Step 4: Contact
+    private string _contactName = "";
+    private string _contactPhone = "";
+    private string _contactEmail = "";
+    private string _notes = "";
+    private string? _submitError;
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && Settings != null && !_availableExtras.Any())
+        {
+            ParseExtras();
+        }
+    }
+
+    private void ParseExtras()
+    {
+        if (string.IsNullOrEmpty(Settings?.ExtrasJson)) return;
+        try
+        {
+            _availableExtras = System.Text.Json.JsonSerializer.Deserialize<List<ExtraItem>>(Settings.ExtrasJson) ?? new();
+        }
+        catch { _availableExtras = new(); }
+    }
+
+    private void SelectFromField() => _selectingField = "from";
+    private void SelectToField() => _selectingField = "to";
+
+    private List<DateTime?> GetCalendarDays()
+    {
+        var days = new List<DateTime?>();
+        var firstDay = _calendarMonth;
+        // Monday = 0 offset for ISO weeks
+        var startOffset = ((int)firstDay.DayOfWeek + 6) % 7;
+        for (int i = 0; i < startOffset; i++) days.Add(null);
+        var daysInMonth = DateTime.DaysInMonth(firstDay.Year, firstDay.Month);
+        for (int d = 1; d <= daysInMonth; d++) days.Add(new DateTime(firstDay.Year, firstDay.Month, d));
+        return days;
+    }
+
+    private void OnCalendarDayClick(DateTime d)
+    {
+        _dateError = null;
+        if (_selectingField == "from")
+        {
+            _fromDate = d;
+            // Auto-clear toDate if now invalid
+            if (_toDate.HasValue && _toDate.Value <= d)
+                _toDate = null;
+            _selectingField = "to"; // auto-advance to selecting end date
+        }
+        else
+        {
+            if (_fromDate.HasValue && d <= _fromDate.Value)
+            {
+                // If user picks a date before/equal to fromDate, treat as new fromDate
+                _fromDate = d;
+                _toDate = null;
+                _selectingField = "to";
+            }
+            else
+            {
+                _toDate = d;
+                _selectingField = "from"; // reset for next interaction
+            }
+        }
+        RecalcNights();
+        ValidateRangeBlocked();
+    }
+
+    private async Task PrevMonth()
+    {
+        var prev = _calendarMonth.AddMonths(-1);
+        if (prev >= new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1))
+        {
+            _calendarMonth = prev;
+            if (OnMonthChanged.HasDelegate)
+                await OnMonthChanged.InvokeAsync(_calendarMonth);
+        }
+    }
+
+    private async Task NextMonth()
+    {
+        _calendarMonth = _calendarMonth.AddMonths(1);
+        if (OnMonthChanged.HasDelegate)
+            await OnMonthChanged.InvokeAsync(_calendarMonth);
+    }
+
+    private void RecalcNights()
+    {
+        if (_fromDate.HasValue && _toDate.HasValue)
+        {
+            _nights = (int)(_toDate.Value.Date - _fromDate.Value.Date).TotalDays;
+            if (_nights < (Settings?.MinNights ?? 1))
+            {
+                _dateError = $"Mínimo {Settings?.MinNights ?? 1} noches";
+            }
+        }
+        else
+        {
+            _nights = 0;
+        }
+    }
+
+    private void ValidateRangeBlocked()
+    {
+        if (_fromDate.HasValue && _toDate.HasValue && BlockedDates != null && BlockedDates.Count > 0)
+        {
+            for (var d = _fromDate.Value.Date; d < _toDate.Value.Date; d = d.AddDays(1))
+            {
+                if (BlockedDates.Contains(d))
+                {
+                    _dateError = "Ese rango incluye fechas no disponibles.";
+                    return;
+                }
+            }
+        }
+    }
+
+    private void AdjustGuests(ref int value, int delta)
+    {
+        var newVal = value + delta;
+        if (newVal < 0) return;
+        if (delta > 0 && TotalGuests >= MaxGuests) return;
+        value = newVal;
+    }
+
+    private void ToggleExtra(string name)
+    {
+        if (!_selectedExtras.Remove(name))
+            _selectedExtras.Add(name);
+    }
+
+    private bool CanAdvance() => _currentStep switch
+    {
+        1 => _fromDate.HasValue && _toDate.HasValue && _nights >= (Settings?.MinNights ?? 1) && string.IsNullOrEmpty(_dateError),
+        2 => _guestsAdults >= 1 && TotalGuests <= MaxGuests,
+        3 => true,
+        4 => !string.IsNullOrEmpty(_contactName.Trim())
+             && (Settings?.PhoneRequired != true || !string.IsNullOrEmpty(_contactPhone.Trim()))
+             && (Settings?.EmailRequired != true || !string.IsNullOrEmpty(_contactEmail.Trim())),
+        _ => false
+    };
+
+    private string GetDisabledHint() => _currentStep switch
+    {
+        1 => "Selecciona un rango válido.",
+        2 => "Ajusta los huéspedes.",
+        4 => "Completa los campos requeridos.",
+        _ => ""
+    };
+
+    private async Task NextStep()
+    {
+        if (!CanAdvance()) return;
+        if (_currentStep < 4)
+        {
+            _currentStep++;
+        }
+        else
+        {
+            await SubmitReservation();
+        }
+    }
+
+    private void PrevStep()
+    {
+        if (_currentStep > 1) _currentStep--;
+    }
+
+    private async Task SubmitReservation()
+    {
+        _submitting = true;
+        _submitError = null;
+        StateHasChanged();
+
+        try
+        {
+            var extrasJson = _selectedExtras.Any()
+                ? System.Text.Json.JsonSerializer.Serialize(_selectedExtras.ToList())
+                : null;
+
+            var result = await ReservationService.SubmitReservationAsync(
+                CardId, OrganizationId,
+                _fromDate!.Value, _toDate!.Value,
+                _guestsAdults, _guestsChildren,
+                null, // resourceId — future multi-resource
+                extrasJson,
+                _contactName.Trim(), _contactPhone.Trim(), null,
+                string.IsNullOrWhiteSpace(_contactEmail) ? null : _contactEmail.Trim(),
+                string.IsNullOrWhiteSpace(_notes) ? null : _notes.Trim(),
+                null, null, Guid.NewGuid().ToString());
+
+            _requestNumber = result.RequestNumber;
+            _submitted = true;
+        }
+        catch (Exception ex)
+        {
+            _submitError = $"Error al enviar: {ex.Message}";
+        }
+        finally
+        {
+            _submitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetStepTitle() => _submitted ? "¡Listo!" : _currentStep switch
+    {
+        1 => "Fechas",
+        2 => "Huéspedes",
+        3 => "Extras y Políticas",
+        4 => "Confirmar",
+        _ => ""
+    };
+
+    private string GetStepSubtitle() => _submitted ? "" : _currentStep switch
+    {
+        1 => "Selecciona llegada y salida.",
+        2 => "Ajusta la cantidad de huéspedes.",
+        3 => "Personaliza tu reserva.",
+        4 => "Revisa y envía tu solicitud.",
+        _ => ""
+    };
+
+    private string GetStepLabel(int step) => step switch
+    {
+        1 => "Fechas",
+        2 => "Huéspedes",
+        3 => "Extras",
+        4 => "Confirmar",
+        _ => ""
+    };
+
+    private async Task Close()
+    {
+        _currentStep = 1;
+        _submitted = false;
+        _submitting = false;
+        _fromDate = null;
+        _toDate = null;
+        _nights = 0;
+        _guestsAdults = 1;
+        _guestsChildren = 0;
+        _selectedExtras.Clear();
+        _contactName = "";
+        _contactPhone = "";
+        _contactEmail = "";
+        _notes = "";
+        _dateError = null;
+        _submitError = null;
+        _requestNumber = null;
+        _calendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        _selectingField = "from";
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private void HandleOverlayClick()
+    {
+        // Don't close if there's data entered (prevent accidental loss)
+        if (!HasData())
+        {
+            _ = Close();
+        }
+    }
+
+    private bool HasData() => _fromDate.HasValue || _toDate.HasValue || !string.IsNullOrEmpty(_contactName) || _selectedExtras.Any();
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _ = Close();
+    }
+
+    public class ExtraItem
+    {
+        public string Name { get; set; } = "";
+        public decimal? Price { get; set; }
+    }
+}
+
+<style>
+    /* ═══════════════════════════════════════════════════════════
+       PublicReservationModal — Centered modal, --dt-* theming
+       ═══════════════════════════════════════════════════════════ */
+    .prm-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        animation: prmFadeIn 0.18s ease-out;
+        padding: 16px;
+    }
+
+    @@keyframes prmFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .prm-modal {
+        background: var(--dt-surface-card, #FFFFFF);
+        border: 1px solid var(--dt-surface-card-border, rgba(0,0,0,0.1));
+        border-radius: 20px;
+        width: 100%;
+        max-width: 480px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        animation: prmSlideIn 0.2s ease-out;
+    }
+
+    @@keyframes prmSlideIn {
+        from { opacity: 0; transform: scale(0.98) translateY(8px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* HEADER */
+    .prm-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 20px 20px 12px;
+        border-bottom: 1px solid var(--dt-surface-divider, rgba(0,0,0,0.06));
+    }
+
+    .prm-header-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--dt-text-primary, #78350F);
+        margin: 0;
+    }
+
+    .prm-header-subtitle {
+        font-size: 0.8rem;
+        color: var(--dt-text-secondary, #92400E);
+        margin: 2px 0 0;
+    }
+
+    .prm-close {
+        background: none;
+        border: none;
+        color: var(--dt-text-muted, #B45309);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 8px;
+        transition: background 0.15s;
+    }
+
+    .prm-close:hover {
+        background: var(--dt-surface-chip, rgba(0,0,0,0.05));
+    }
+
+    /* PROGRESS */
+    .prm-progress {
+        display: flex;
+        gap: 4px;
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--dt-surface-divider, rgba(0,0,0,0.06));
+    }
+
+    .prm-step {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex: 1;
+        padding: 4px 0;
+    }
+
+    .prm-step-num {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        font-weight: 700;
+        background: var(--dt-surface-chip, rgba(0,0,0,0.06));
+        color: var(--dt-text-muted, #B45309);
+        flex-shrink: 0;
+        transition: all 0.2s;
+    }
+
+    .prm-step--active .prm-step-num {
+        background: var(--dt-accent-primary, #D97706);
+        color: var(--dt-button-primary-text, #FFFFFF);
+    }
+
+    .prm-step--done .prm-step-num {
+        background: var(--dt-accent-soft, rgba(217,119,6,0.15));
+        color: var(--dt-accent-primary, #D97706);
+    }
+
+    .prm-step-label {
+        font-size: 0.65rem;
+        color: var(--dt-text-muted, #B45309);
+        display: none;
+    }
+
+    .prm-step--active .prm-step-label {
+        display: inline;
+        color: var(--dt-text-primary, #78350F);
+        font-weight: 600;
+    }
+
+    /* BODY */
+    .prm-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .prm-step-content {
+        min-height: 180px;
+    }
+
+    /* INPUTS */
+    .prm-field {
+        margin-bottom: 12px;
+    }
+
+    .prm-field-label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--dt-text-secondary, #92400E);
+        margin-bottom: 4px;
+    }
+
+    .prm-input {
+        width: 100%;
+        padding: 10px 12px;
+        background: var(--dt-surface-input, #FEF3C7);
+        border: 1px solid var(--dt-surface-input-border, rgba(217,119,6,0.2));
+        border-radius: 10px;
+        font-size: 0.88rem;
+        color: var(--dt-text-primary, #78350F);
+        outline: none;
+        transition: border-color 0.15s;
+        box-sizing: border-box;
+    }
+
+    .prm-input:focus {
+        border-color: var(--dt-surface-input-focus, #D97706);
+        box-shadow: 0 0 0 3px var(--dt-focus-ring, rgba(217,119,6,0.3));
+    }
+
+    .prm-input::placeholder {
+        color: var(--dt-text-muted, #B45309);
+        opacity: 0.6;
+    }
+
+    .prm-textarea {
+        resize: vertical;
+        min-height: 60px;
+    }
+
+    .prm-date-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .prm-nights-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        padding: 6px 12px;
+        background: var(--dt-accent-soft, rgba(217,119,6,0.15));
+        color: var(--dt-accent-primary, #D97706);
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .prm-microcopy {
+        font-size: 0.75rem;
+        color: var(--dt-text-muted, #B45309);
+        margin: 6px 0;
+    }
+
+    .prm-error {
+        font-size: 0.78rem;
+        color: #DC2626;
+        margin: 6px 0;
+        padding: 6px 10px;
+        background: rgba(220,38,38,0.08);
+        border-radius: 8px;
+    }
+
+    /* STEPPER */
+    .prm-stepper-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--dt-surface-divider, rgba(0,0,0,0.06));
+    }
+
+    .prm-stepper-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--dt-text-primary, #78350F);
+    }
+
+    .prm-stepper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .prm-stepper-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 1px solid var(--dt-surface-input-border, rgba(217,119,6,0.2));
+        background: var(--dt-surface-input, #FEF3C7);
+        color: var(--dt-text-primary, #78350F);
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+    }
+
+    .prm-stepper-btn:hover:not(:disabled) {
+        background: var(--dt-accent-soft, rgba(217,119,6,0.15));
+        border-color: var(--dt-accent-primary, #D97706);
+    }
+
+    .prm-stepper-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+
+    .prm-stepper-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--dt-text-primary, #78350F);
+        min-width: 24px;
+        text-align: center;
+    }
+
+    .prm-capacity-info {
+        font-size: 0.75rem;
+        color: var(--dt-text-muted, #B45309);
+        margin-top: 8px;
+    }
+
+    /* EXTRAS */
+    .prm-extras-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 10px 0;
+    }
+
+    .prm-extra-pill {
+        padding: 7px 14px;
+        border-radius: 20px;
+        border: 1px solid var(--dt-surface-chip-border, rgba(217,119,6,0.2));
+        background: var(--dt-surface-chip, rgba(217,119,6,0.1));
+        color: var(--dt-text-secondary, #92400E);
+        font-size: 0.78rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .prm-extra-pill:hover {
+        border-color: var(--dt-accent-primary, #D97706);
+    }
+
+    .prm-extra-pill--active {
+        background: var(--dt-accent-primary, #D97706);
+        color: var(--dt-button-primary-text, #FFFFFF);
+        border-color: var(--dt-accent-primary, #D97706);
+    }
+
+    .prm-extra-price {
+        font-size: 0.68rem;
+        opacity: 0.8;
+    }
+
+    .prm-show-more {
+        background: none;
+        border: none;
+        color: var(--dt-accent-primary, #D97706);
+        font-size: 0.75rem;
+        cursor: pointer;
+        text-decoration: underline;
+        padding: 4px 0;
+    }
+
+    /* POLICIES */
+    .prm-policies-block {
+        margin-top: 16px;
+        padding: 12px;
+        background: var(--dt-surface-chip, rgba(217,119,6,0.1));
+        border-radius: 10px;
+    }
+
+    .prm-policies-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--dt-text-primary, #78350F);
+        margin: 0 0 6px;
+    }
+
+    .prm-policies-text {
+        font-size: 0.75rem;
+        color: var(--dt-text-secondary, #92400E);
+        margin: 0;
+        line-height: 1.5;
+        white-space: pre-line;
+    }
+
+    /* SUMMARY */
+    .prm-summary-card {
+        background: var(--dt-surface-chip, rgba(217,119,6,0.1));
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 16px;
+    }
+
+    .prm-summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        font-size: 0.82rem;
+    }
+
+    .prm-summary-row span {
+        color: var(--dt-text-secondary, #92400E);
+    }
+
+    .prm-summary-row strong {
+        color: var(--dt-text-primary, #78350F);
+        text-align: right;
+    }
+
+    .prm-summary-total {
+        border-top: 1px solid var(--dt-surface-divider, rgba(0,0,0,0.06));
+        margin-top: 6px;
+        padding-top: 10px;
+    }
+
+    .prm-summary-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        font-size: 0.72rem;
+    }
+
+    /* FORM (step 4) */
+    .prm-form {
+        margin-top: 4px;
+    }
+
+    /* FOOTER */
+    .prm-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px;
+        border-top: 1px solid var(--dt-surface-divider, rgba(0,0,0,0.06));
+        background: var(--dt-surface-card, #FFFFFF);
+    }
+
+    .prm-footer-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .prm-footer-hint {
+        font-size: 0.68rem;
+        color: var(--dt-text-muted, #B45309);
+        max-width: 140px;
+        text-align: right;
+    }
+
+    .prm-btn-back {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 14px;
+        background: none;
+        border: 1px solid var(--dt-surface-input-border, rgba(217,119,6,0.2));
+        border-radius: 10px;
+        color: var(--dt-text-secondary, #92400E);
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .prm-btn-back:hover {
+        background: var(--dt-surface-chip, rgba(217,119,6,0.1));
+    }
+
+    .prm-btn-next {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 20px;
+        background: var(--dt-button-primary-bg, #D97706);
+        color: var(--dt-button-primary-text, #FFFFFF);
+        border: none;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .prm-btn-next:hover:not(:disabled) {
+        background: var(--dt-button-primary-hover, #B45309);
+    }
+
+    .prm-btn-next:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    /* SUCCESS */
+    .prm-success {
+        text-align: center;
+        padding: 20px 0;
+    }
+
+    .prm-success-icon {
+        color: var(--dt-accent-primary, #D97706);
+        margin-bottom: 12px;
+    }
+
+    .prm-success-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--dt-text-primary, #78350F);
+        margin: 0 0 8px;
+    }
+
+    .prm-success-text {
+        font-size: 0.85rem;
+        color: var(--dt-text-secondary, #92400E);
+        margin: 0 0 6px;
+    }
+
+    .prm-success-ref {
+        font-size: 0.78rem;
+        color: var(--dt-text-muted, #B45309);
+        margin: 0 0 16px;
+    }
+
+    .prm-btn-wa {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: #25D366;
+        color: #FFFFFF;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        margin-bottom: 10px;
+        transition: background 0.15s;
+    }
+
+    .prm-btn-wa:hover {
+        background: #1DA851;
+    }
+
+    .prm-btn-close-success {
+        display: block;
+        margin: 10px auto 0;
+        padding: 8px 20px;
+        background: none;
+        border: 1px solid var(--dt-surface-input-border, rgba(217,119,6,0.2));
+        border-radius: 10px;
+        color: var(--dt-text-secondary, #92400E);
+        font-size: 0.82rem;
+        cursor: pointer;
+    }
+
+    /* RANGE SUMMARY CHIPS */
+    .prm-range-summary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .prm-range-chip {
+        flex: 1;
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--dt-surface-input-border, rgba(217,119,6,0.2));
+        background: var(--dt-surface-input, #FEF3C7);
+        cursor: pointer;
+        text-align: center;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .prm-range-chip--active {
+        border-color: var(--dt-accent-primary, #D97706);
+        box-shadow: 0 0 0 2px var(--dt-focus-ring, rgba(217,119,6,0.25));
+    }
+
+    .prm-range-chip--filled .prm-range-chip-value {
+        color: var(--dt-text-primary, #78350F);
+        font-weight: 600;
+    }
+
+    .prm-range-chip-label {
+        display: block;
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: var(--dt-text-muted, #B45309);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 2px;
+    }
+
+    .prm-range-chip-value {
+        font-size: 0.85rem;
+        color: var(--dt-text-muted, #B45309);
+    }
+
+    .prm-range-arrow {
+        color: var(--dt-text-muted, #B45309);
+        flex-shrink: 0;
+    }
+
+    /* CALENDAR NAV */
+    .prm-cal-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .prm-cal-nav-btn {
+        background: none;
+        border: 1px solid var(--dt-surface-input-border, rgba(217,119,6,0.2));
+        border-radius: 8px;
+        padding: 6px;
+        cursor: pointer;
+        color: var(--dt-text-secondary, #92400E);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+    }
+
+    .prm-cal-nav-btn:hover {
+        background: var(--dt-surface-chip, rgba(217,119,6,0.1));
+    }
+
+    .prm-cal-month {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--dt-text-primary, #78350F);
+        text-transform: capitalize;
+    }
+
+    /* CALENDAR GRID */
+    .prm-cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+        margin-bottom: 10px;
+    }
+
+    .prm-cal-dow {
+        text-align: center;
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: var(--dt-text-muted, #B45309);
+        padding: 4px 0;
+        text-transform: uppercase;
+    }
+
+    .prm-cal-cell {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.78rem;
+        border: none;
+        border-radius: 8px;
+        background: none;
+        color: var(--dt-text-primary, #78350F);
+        cursor: pointer;
+        transition: background 0.12s, color 0.12s;
+        padding: 0;
+        min-height: 32px;
+    }
+
+    .prm-cal-cell:hover:not(:disabled) {
+        background: var(--dt-surface-chip, rgba(217,119,6,0.1));
+    }
+
+    .prm-cal-cell--empty {
+        cursor: default;
+    }
+
+    .prm-cal-cell--today {
+        font-weight: 700;
+        border: 1px solid var(--dt-accent-primary, #D97706);
+    }
+
+    .prm-cal-cell--from,
+    .prm-cal-cell--to {
+        background: var(--dt-accent-primary, #D97706) !important;
+        color: var(--dt-button-primary-text, #FFFFFF) !important;
+        font-weight: 700;
+        border-radius: 8px;
+    }
+
+    .prm-cal-cell--inrange {
+        background: var(--dt-accent-soft, rgba(217,119,6,0.15));
+        border-radius: 4px;
+    }
+
+    .prm-cal-cell--disabled {
+        color: var(--dt-text-muted, #B45309);
+        opacity: 0.35;
+        cursor: default;
+    }
+
+    .prm-cal-cell--blocked {
+        text-decoration: line-through;
+        opacity: 0.4;
+    }
+
+    /* MOBILE */
+    @@media (max-width: 480px) {
+        .prm-modal {
+            max-height: 95vh;
+            border-radius: 16px;
+        }
+        .prm-step-label {
+            display: none !important;
+        }
+    }
+</style>

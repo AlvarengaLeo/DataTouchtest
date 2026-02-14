@@ -1,0 +1,226 @@
+@using DataTouch.Web.Models
+
+@* ═══════════════════════════════════════════════════════════════════════════
+   PORTFOLIO GALLERY BLOCK — Shared component for Photos & Videos carousels
+   Used by: PublicCard, MyCard (Live Preview), TemplateLibrary
+   ═══════════════════════════════════════════════════════════════════════════ *@
+
+@if (EnablePhotos && Photos != null && Photos.Any())
+{
+    <div class="pgb-section">
+        <h4 class="pgb-title">FOTOS</h4>
+        <div class="pgb-carousel @(Compact ? "pgb-carousel--compact" : "")">
+            @foreach (var photo in Photos.OrderBy(p => p.Order))
+            {
+                <div class="pgb-card pgb-card--photo @(Compact ? "" : "pgb-card--interactive")"
+                     @onclick="() => HandlePhotoClick(photo)">
+                    <img src="@photo.Url" alt="@(photo.Title ?? "Foto")" loading="lazy" />
+                    @if (!string.IsNullOrEmpty(photo.Title))
+                    {
+                        <div class="pgb-card-overlay">
+                            <span>@photo.Title</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@if (EnableVideos && Videos != null && Videos.Any())
+{
+    <div class="pgb-section">
+        <h4 class="pgb-title">VIDEOS</h4>
+        <div class="pgb-carousel @(Compact ? "pgb-carousel--compact" : "")">
+            @foreach (var video in Videos.OrderBy(v => v.Order))
+            {
+                <div class="pgb-card pgb-card--video @(Compact ? "" : "pgb-card--interactive")"
+                     @onclick="() => HandleVideoClick(video)">
+                    @if (!string.IsNullOrEmpty(video.ThumbnailUrl))
+                    {
+                        <img src="@video.ThumbnailUrl" alt="@(video.Title ?? "Video")" loading="lazy" />
+                    }
+                    else
+                    {
+                        <div class="pgb-video-placeholder">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <rect x="2" y="4" width="20" height="16" rx="2" />
+                                <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none" />
+                            </svg>
+                        </div>
+                    }
+                    <div class="pgb-play-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                            <polygon points="8,5 19,12 8,19" />
+                        </svg>
+                    </div>
+                    @if (!string.IsNullOrEmpty(video.Title))
+                    {
+                        <div class="pgb-card-overlay">
+                            <span>@video.Title</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public List<GalleryItemModel>? Photos { get; set; }
+    [Parameter] public List<GalleryItemModel>? Videos { get; set; }
+    [Parameter] public bool EnablePhotos { get; set; } = true;
+    [Parameter] public bool EnableVideos { get; set; } = false;
+    [Parameter] public bool Compact { get; set; } = false;
+    [Parameter] public EventCallback<GalleryItemModel> OnPhotoClick { get; set; }
+    [Parameter] public EventCallback<GalleryItemModel> OnVideoClick { get; set; }
+
+    private async Task HandlePhotoClick(GalleryItemModel item)
+    {
+        if (!Compact && OnPhotoClick.HasDelegate)
+            await OnPhotoClick.InvokeAsync(item);
+    }
+
+    private async Task HandleVideoClick(GalleryItemModel item)
+    {
+        if (!Compact && OnVideoClick.HasDelegate)
+            await OnVideoClick.InvokeAsync(item);
+    }
+}
+
+<style>
+    /* ═══════════════════════════════════════════════════════════════
+       PORTFOLIO GALLERY BLOCK (pgb-*)
+       Shared carousel component — all colors via var(--dt-*)
+       ═══════════════════════════════════════════════════════════════ */
+
+    .pgb-section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--dt-surface-divider, rgba(139, 92, 246, 0.15));
+    }
+
+    .pgb-title {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.5));
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 0 0 10px;
+        text-align: center;
+    }
+
+    /* Horizontal carousel with snap */
+    .pgb-carousel {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 6px;
+        scrollbar-width: none;
+    }
+
+    .pgb-carousel::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Cards */
+    .pgb-card {
+        flex: 0 0 65%;
+        scroll-snap-align: start;
+        aspect-ratio: 4 / 3;
+        border-radius: var(--dt-button-radius, 12px);
+        overflow: hidden;
+        position: relative;
+        background: var(--dt-surface-input, rgba(30, 41, 59, 0.5));
+    }
+
+    .pgb-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .pgb-card--interactive {
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .pgb-card--interactive:hover {
+        transform: scale(1.03);
+        box-shadow: 0 6px 20px var(--dt-accent-soft, rgba(139, 92, 246, 0.25));
+    }
+
+    /* Compact mode (Live Preview / Template Preview) */
+    .pgb-carousel--compact .pgb-card {
+        flex: 0 0 55%;
+        aspect-ratio: 1;
+    }
+
+    /* Overlay for titles */
+    .pgb-card-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 8px 10px;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 500;
+    }
+
+    /* Video play icon */
+    .pgb-play-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        transition: background 0.2s;
+    }
+
+    .pgb-card--interactive:hover .pgb-play-icon {
+        background: var(--dt-accent-primary, rgba(139, 92, 246, 0.85));
+    }
+
+    .pgb-play-icon svg {
+        margin-left: 2px;
+    }
+
+    /* Video placeholder (no thumbnail) */
+    .pgb-video-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--dt-surface-input, rgba(30, 41, 59, 0.5));
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.4));
+    }
+
+    /* Compact overrides */
+    .pgb-carousel--compact .pgb-play-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .pgb-carousel--compact .pgb-play-icon svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .pgb-carousel--compact .pgb-card-overlay {
+        font-size: 0.55rem;
+        padding: 4px 6px;
+    }
+</style>

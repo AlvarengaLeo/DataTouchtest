@@ -1,15 +1,20 @@
 @page "/p/{OrgSlug}/{CardSlug}"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout EmptyLayout
 @inject DataTouchDbContext DbContext
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject IDialogService DialogService
+@inject DataTouch.Web.Services.CardAnalyticsService AnalyticsService
+@inject DataTouch.Web.Services.QuoteService QuoteService
+@inject DataTouch.Web.Services.AppointmentService AppointmentService
+@inject DataTouch.Web.Services.ReservationService ReservationService
+@inject ILogger<PublicCard> Logger
 @using DataTouch.Web.Models
 @using DataTouch.Web.Components.Shared
 
-<MudThemeProvider Theme="_theme" IsDarkMode="true" />
-<MudSnackbarProvider />
+<MudThemeProvider IsDarkMode="@_themeTokens.BgIsDark" Theme="@_theme" />
 
 <PageTitle>@(_card?.FullName ?? "Tarjeta") - DataTouch</PageTitle>
 
@@ -53,8 +58,7 @@ else
                     else
                     {
                         @* Custom avatar div - bypasses MudBlazor internal styles *@
-                        <div class="profile-avatar profile-avatar-initials" 
-                             style="background: @_themeTokens.AccentPrimary; color: @_themeTokens.TextOnAccent; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                        <div class="profile-avatar profile-avatar-initials">
                             @_card.FullName?.FirstOrDefault()
                         </div>
                     }
@@ -73,32 +77,14 @@ else
                     <MudText Typo="Typo.body2" Class="profile-bio">@_card.Bio</MudText>
                 }
 
-                @* Links y Redes Sociales *@
-                @if (_socialLinks != null && _socialLinks.HasAnyLink())
-                {
-                    <div class="social-row">
-                        @if (!string.IsNullOrEmpty(_socialLinks.LinkedIn))
-                        {
-                            <MudIconButton Icon="@Icons.Custom.Brands.LinkedIn" Size="Size.Medium" 
-                                           Class="social-icon" OnClick="@(() => OpenSocialLink(_socialLinks.LinkedIn))" />
-                        }
-                        @if (!string.IsNullOrEmpty(_socialLinks.Instagram))
-                        {
-                            <MudIconButton Icon="@Icons.Custom.Brands.Instagram" Size="Size.Medium" 
-                                           Class="social-icon" OnClick="@(() => OpenSocialLink(_socialLinks.Instagram))" />
-                        }
-                        @if (!string.IsNullOrEmpty(_socialLinks.Twitter))
-                        {
-                            <MudIconButton Icon="@Icons.Custom.Brands.Twitter" Size="Size.Medium" 
-                                           Class="social-icon" OnClick="@(() => OpenSocialLink(_socialLinks.Twitter))" />
-                        }
-                        @if (!string.IsNullOrEmpty(_socialLinks.YouTube))
-                        {
-                            <MudIconButton Icon="@Icons.Custom.Brands.YouTube" Size="Size.Medium" 
-                                           Class="social-icon" OnClick="@(() => OpenSocialLink(_socialLinks.YouTube))" />
-                        }
-                    </div>
-                }
+                @* Links y Redes Sociales — Shared Component *@
+                <SocialLinksRow
+                    LinkedIn="@_socialLinks?.LinkedIn"
+                    Instagram="@_socialLinks?.Instagram"
+                    Facebook="@_socialLinks?.Facebook"
+                    YouTube="@_socialLinks?.YouTube"
+                    Twitter="@_socialLinks?.Twitter"
+                    Website="@_socialLinks?.Website" />
 
                 @* Status Chips *@
                 <div class="status-chips">
@@ -117,28 +103,15 @@ else
                     </div>
 
                 @* ─────────────────────────────────────────────────────────────────────
-                   PORTFOLIO GALLERY (Conditional - Only if has gallery images)
+                   PORTFOLIO GALLERY (Conditional) — Shared Component
                    ───────────────────────────────────────────────────────────────────── *@
-                @if (_galleryImages.Any())
-                {
-                    <div class="public-gallery-section">
-                        <h3 class="gallery-section-title">Mi Trabajo</h3>
-                        <div class="public-gallery-grid">
-                            @foreach (var image in _galleryImages.OrderBy(i => i.Order))
-                            {
-                                <div class="public-gallery-item" @onclick="() => OpenLightbox(image)">
-                                    <img src="@image.Url" alt="@(image.Title ?? "Portfolio")" loading="lazy" />
-                                    @if (!string.IsNullOrEmpty(image.Title))
-                                    {
-                                        <div class="gallery-image-overlay">
-                                            <span>@image.Title</span>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
+                <PortfolioGalleryBlock
+                    Photos="@_portfolioGallery.Photos"
+                    Videos="@_portfolioGallery.Videos"
+                    EnablePhotos="@_portfolioGallery.EnablePhotos"
+                    EnableVideos="@_portfolioGallery.EnableVideos"
+                    OnPhotoClick="OnGalleryPhotoClick"
+                    OnVideoClick="OnGalleryVideoClick" />
 
                 @* ─────────────────────────────────────────────────────────────────────
                    SERVICES SECTION (Services Template) - Matches TemplateLibrary Preview
@@ -242,6 +215,46 @@ else
                 }
 
                 @* ─────────────────────────────────────────────────────────────────────
+                   QUOTE REQUEST BLOCK (Quote Request Template)
+                   ───────────────────────────────────────────────────────────────────── *@
+                @if (_isQuoteRequestTemplate)
+                {
+                    <QuoteRequestBlock
+                        Title="@_quoteSettings.BlockTitle"
+                        Subtitle="@_quoteSettings.BlockSubtitle"
+                        CtaLabel="@_quoteSettings.BlockTitle"
+                        ShowLegalText="@_quoteSettings.ShowLegalText"
+                        LegalText="@_quoteSettings.LegalText"
+                        OnCtaClick="OpenPublicQuoteModal" />
+                }
+
+                @* ─────────────────────────────────────────────────────────────────────
+                   APPOINTMENT BOOKING BLOCK (Appointments Template)
+                   ───────────────────────────────────────────────────────────────────── *@
+                @if (_isAppointmentsTemplate)
+                {
+                    <AppointmentBookingBlock
+                        Services="@_services.Select(s => new AppointmentBookingBlock.ServiceDisplayItem { Name = s.Name, DurationMinutes = s.DurationMinutes, Price = s.PriceFrom }).ToList()"
+                        OnBookClick="OpenSchedulerModal" />
+                }
+
+                @* ─────────────────────────────────────────────────────────────────────
+                   RESERVATION BOOKING BLOCK (Reservations Template)
+                   ───────────────────────────────────────────────────────────────────── *@
+                @if (_isReservationsTemplate)
+                {
+                    <ReservationBookingBlock
+                        Title="@_reservationSettings.BlockTitle"
+                        Subtitle="@_reservationSettings.BlockSubtitle"
+                        MaxGuests="@_reservationSettings.MaxGuests"
+                        ConfirmationText="@_reservationSettings.ConfirmationTimeText"
+                        PoliciesLabel="@(_reservationSettings.ShowPolicies ? "Políticas" : null)"
+                        OnReserveClick="OpenReservationModal"
+                        OnFromClick="OpenReservationModal"
+                        OnToClick="OpenReservationModal" />
+                }
+
+                @* ─────────────────────────────────────────────────────────────────────
                    BLOQUE 2: CTAs / ACCIONES RÁPIDAS - Hide for services template
                    Integrados DENTRO de la card, no como sección aparte
                    ───────────────────────────────────────────────────────────────────── *@
@@ -288,9 +301,11 @@ else
         </div>
 
         @* ─────────────────────────────────────────────────────────────────────────
-           BLOQUE 3: FORMULARIO DE LEAD PREMIUM
+           BLOQUE 3: FORMULARIO DE LEAD PREMIUM (Hidden for quote-request template)
            Diseño enterprise-grade con validación avanzada de teléfono
            ───────────────────────────────────────────────────────────────────────── *@
+        @if (!_isQuoteRequestTemplate && !_isAppointmentsTemplate && !_isReservationsTemplate)
+        {
         <div class="lead-form-card @GetCardContrastClass() @(_showSuccess ? "success-state" : "")" style="@GetCardBackgroundStyle()">
             @if (_showSuccess)
             {
@@ -428,6 +443,35 @@ else
                 </EditForm>
             }
         </div>
+        } @* End !_isQuoteRequestTemplate lead form *@
+
+        @* ─────────────────────────────────────────────────────────
+           APPOINTMENT BOOKING MODAL (Appointments Template)
+           ───────────────────────────────────────────────────────── *@
+        @if (_isAppointmentsTemplate && _card != null)
+        {
+            <PublicAppointmentModal
+                @bind-IsOpen="_appointmentModalOpen"
+                CardId="_card.Id"
+                Services="_services"
+                WhatsAppNumber="@(_card.WhatsAppCountryCode + _card.WhatsAppNumber)" />
+        }
+
+        @* ─────────────────────────────────────────────────────────
+           RESERVATION MODAL (Reservations Template)
+           ───────────────────────────────────────────────────────── *@
+        @if (_isReservationsTemplate && _card != null)
+        {
+            <PublicReservationModal
+                @bind-IsOpen="_reservationModalOpen"
+                Settings="_reservationSettings"
+                CardId="_card.Id"
+                OrganizationId="_card.OrganizationId"
+                BlockedDates="_reservationBlockedDates"
+                OnMonthChanged="LoadBlockedDatesForMonth"
+                WhatsAppUrl="@(!string.IsNullOrEmpty(_card.WhatsAppNumber) ? $"https://wa.me/{_card.WhatsAppCountryCode}{_card.WhatsAppNumber}" : null)" />
+        }
+
         @* ─────────────────────────────────────────────────────────
            LIGHTBOX MODAL (Gallery Image)
            ───────────────────────────────────────────────────────── *@
@@ -459,6 +503,210 @@ else
             </div>
         }
 
+        @* ─────────────────────────────────────────────────────────
+           INLINE QUOTE REQUEST MODAL — Enterprise UX
+           ───────────────────────────────────────────────────────── *@
+        @if (_quoteModalOpen)
+        {
+            <div class="quote-modal-overlay" @onclick="CloseQuoteModal">
+                <div class="quote-modal-content" @onclick:stopPropagation="true">
+                    @* Header *@
+                    <div class="quote-modal-header">
+                        <div class="quote-modal-header-left">
+                            <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Size="Size.Small" Style="color: var(--mud-palette-primary); opacity: 0.85;" />
+                            <div>
+                                <MudText Typo="Typo.subtitle1" Style="font-weight: 600; line-height: 1.3;">Solicitar cotización</MudText>
+                                <MudText Typo="Typo.caption" Class="qm-text-muted" Style="line-height: 1.3;">Describe tu necesidad y te responderé con una propuesta.</MudText>
+                            </div>
+                        </div>
+                        <button class="quote-modal-close" @onclick="CloseQuoteModal">&times;</button>
+                    </div>
+
+                    @* Body *@
+                    <div class="quote-modal-body">
+                        @if (_quoteSubmitting)
+                        {
+                            <div class="quote-modal-state">
+                                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+                                <MudText Typo="Typo.body1" Class="mt-3 qm-text-secondary">Enviando tu solicitud...</MudText>
+                            </div>
+                        }
+                        else if (_quoteSuccess)
+                        {
+                            <div class="quote-modal-state quote-success-state">
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Style="font-size: 3rem;" />
+                                <MudText Typo="Typo.h6" Class="mt-4" Style="font-weight: 600;">@_quoteSettings.SuccessMessage</MudText>
+                                @if (!string.IsNullOrEmpty(_quoteRequestNumber))
+                                {
+                                    <span class="quote-ref-pill">@_quoteRequestNumber</span>
+                                }
+                                <div class="quote-success-actions">
+                                    @if (!string.IsNullOrEmpty(_card?.WhatsAppNumber) && _qPreferredContact == "WhatsApp")
+                                    {
+                                        <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                                   StartIcon="@Icons.Custom.Brands.WhatsApp"
+                                                   Href="@($"https://wa.me/{GetFullWhatsAppForLink()}?text=Hola, acabo de enviar una solicitud de cotización ({_quoteRequestNumber}).")"
+                                                   Target="_blank"
+                                                   Style="text-transform: none; font-weight: 500;">
+                                            Abrir WhatsApp
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Text" OnClick="CloseQuoteModal" Class="qm-btn-ghost"
+                                                   Style="text-transform: none;">
+                                            Cerrar
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CloseQuoteModal"
+                                                   Style="text-transform: none; font-weight: 500;">
+                                            Cerrar
+                                        </MudButton>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        else if (!string.IsNullOrEmpty(_quoteError))
+                        {
+                            <div class="quote-modal-state">
+                                <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" Style="font-size: 2.5rem;" />
+                                <MudText Typo="Typo.body1" Class="mt-3">@_quoteError</MudText>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="ClearQuoteError"
+                                           Style="text-transform: none;">
+                                    Intentar de nuevo
+                                </MudButton>
+                            </div>
+                        }
+                        else
+                        {
+                            @* ── Section 1: Contacto ── *@
+                            <div class="quote-subcard">
+                                <span class="quote-section-label">Contacto</span>
+
+                                <MudTextField @bind-Value="_qFullName"
+                                              Label="Nombre"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              OnFocus="TrackQuoteFormStart"
+                                              Class="mb-3" />
+
+                                <MudTextField @bind-Value="_qEmail"
+                                              Label="Email"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              InputType="InputType.Email"
+                                              Class="mb-3" />
+
+                                <div class="mb-2">
+                                    <CountryPhoneInput @bind-Value="_qPhone"
+                                                       @bind-CountryCode="_qPhoneCountryCode"
+                                                       @bind-E164Value="_qPhoneE164"
+                                                       Required="false"
+                                                       @bind-IsValid="_qPhoneValid" />
+                                </div>
+
+                                <MudText Typo="Typo.caption" Class="qm-text-muted" Style="margin-top: 4px;">
+                                    Necesitamos un email o teléfono para contactarte.
+                                </MudText>
+                            </div>
+
+                            @* ── Section 2: Tu solicitud ── *@
+                            <div class="quote-subcard">
+                                <span class="quote-section-label">Tu solicitud</span>
+
+                                <MudTextField @bind-Value="_qDetails"
+                                              Label="Detalles"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Lines="4"
+                                              Placeholder="Incluye alcance, cantidad, ubicación y cualquier requisito clave." />
+                            </div>
+
+                            @if (_quoteSettings.ShowBudgetField || _quoteSettings.ShowDeadlineField || _quoteSettings.ShowPreferredContactField)
+                            {
+                                @* ── Section 3: Contexto (opcional) ── *@
+                                <div class="quote-subcard">
+                                    <span class="quote-section-label">Contexto <span style="font-weight: 400; opacity: 0.5;">(opcional)</span></span>
+
+                                    @if (_quoteSettings.ShowBudgetField)
+                                    {
+                                        <MudSelect T="string" @bind-Value="_qBudget"
+                                                   Label="Presupuesto (opcional)"
+                                                   Variant="Variant.Outlined"
+                                                   Margin="Margin.Dense"
+                                                   Class="mb-3">
+                                            <MudSelectItem T="string" Value="@("")">Sin especificar</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("A convenir")">A convenir</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("$1–$500")">$1–$500</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("$500–$2,000")">$500–$2,000</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("$2,000–$5,000")">$2,000–$5,000</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("$5,000–$10,000")">$5,000–$10,000</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("$10,000+")">$10,000+</MudSelectItem>
+                                        </MudSelect>
+                                    }
+
+                                    @if (_quoteSettings.ShowDeadlineField)
+                                    {
+                                        <MudSelect T="string" @bind-Value="_qDeadline"
+                                                   Label="Plazo (opcional)"
+                                                   Variant="Variant.Outlined"
+                                                   Margin="Margin.Dense"
+                                                   Class="mb-3">
+                                            <MudSelectItem T="string" Value="@("")">Sin especificar</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("Lo antes posible")">Lo antes posible</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("Esta semana")">Esta semana</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("2 semanas")">2 semanas</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("1 mes")">1 mes</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("Sin prisa")">Sin prisa</MudSelectItem>
+                                        </MudSelect>
+                                    }
+
+                                    @if (_quoteSettings.ShowPreferredContactField)
+                                    {
+                                        <MudSelect T="string" @bind-Value="_qPreferredContact"
+                                                   Label="Canal (opcional)"
+                                                   Variant="Variant.Outlined"
+                                                   Margin="Margin.Dense"
+                                                   Class="mb-3">
+                                            <MudSelectItem T="string" Value="@("")">Sin preferencia</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("WhatsApp")">WhatsApp</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("Llamada")">Llamada</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@("Email")">Email</MudSelectItem>
+                                        </MudSelect>
+                                    }
+                                </div>
+                            }
+
+                            @if (_quoteSettings.ShowLegalText && !string.IsNullOrEmpty(_quoteSettings.LegalText))
+                            {
+                                <MudText Typo="Typo.caption" Class="qm-text-muted" Style="font-style: italic; margin-top: 2px; padding: 0 4px;">
+                                    @_quoteSettings.LegalText
+                                </MudText>
+                            }
+
+                            <div class="quote-modal-actions">
+                                <MudButton OnClick="CloseQuoteModal" Variant="Variant.Text" Class="qm-btn-ghost"
+                                           Style="text-transform: none; font-weight: 400;">
+                                    Cerrar
+                                </MudButton>
+                                <MudButton OnClick="SubmitQuoteRequest" Variant="Variant.Filled" Color="Color.Primary"
+                                           Disabled="@(!QuoteCanSubmit)"
+                                           StartIcon="@Icons.Material.Filled.Send"
+                                           Style="text-transform: none; font-weight: 500; letter-spacing: 0.01em;">
+                                    Enviar solicitud
+                                </MudButton>
+                            </div>
+                            @if (!QuoteCanSubmit)
+                            {
+                                <MudText Typo="Typo.caption" Class="qm-text-muted" Style="text-align: right; margin-top: 6px;">
+                                    Completa nombre, solicitud y un medio de contacto.
+                                </MudText>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
         @* Footer mínimo *@
         <div class="footer-minimal">
             <MudText Typo="Typo.caption">Powered by <strong>DataTouch</strong></MudText>
@@ -471,7 +719,7 @@ else
        ESTILOS GLOBALES - GRADIENT CONTINUO SIN CORTES
        ═══════════════════════════════════════════════════════════════════════════ */
     
-    /* FORCE WHITE TEXT IN ALL MUDBLAZOR INPUTS - HIGHEST PRIORITY */
+    /* FORCE THEME-AWARE TEXT IN ALL MUDBLAZOR INPUTS */
     .landing-wrapper .mud-input-slot,
     .landing-wrapper .mud-input > input,
     .landing-wrapper .mud-input-text > input,
@@ -495,8 +743,8 @@ else
     .premium-form .mud-input-slot,
     .compact-input .mud-input-root input,
     .compact-input .mud-input-root textarea {
-        color: var(--surface-input-text, #FFFFFF) !important;
-        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
+        color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
+        -webkit-text-fill-color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
         caret-color: var(--dt-accent-primary, #A78BFA) !important;
         opacity: 1 !important;
     }
@@ -505,9 +753,9 @@ else
     .landing-wrapper,
     .lead-form-card,
     .premium-form {
-        --mud-palette-text-primary: var(--surface-input-text, #FFFFFF) !important;
-        --mud-palette-text-secondary: var(--surface-text-secondary, #FFFFFF) !important;
-        --mud-palette-action-default: var(--surface-icon, #FFFFFF) !important;
+        --mud-palette-text-primary: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
+        --mud-palette-text-secondary: var(--surface-text-secondary, var(--dt-text-secondary, #FFFFFF)) !important;
+        --mud-palette-action-default: var(--surface-icon, var(--dt-text-secondary, #FFFFFF)) !important;
     }
     
     /* ULTRA-SPECIFIC MUDBLAZOR INPUT TEXT COLOR OVERRIDE */
@@ -525,8 +773,8 @@ else
     .premium-form .mud-input,
     .premium-form .mud-input-text,
     .premium-form .mud-input-root {
-        color: var(--surface-input-text, #FFFFFF) !important;
-        --mud-palette-text-primary: var(--surface-input-text, #FFFFFF) !important;
+        color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
+        --mud-palette-text-primary: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
     }
     
     /* Target the actual input and textarea elements INSIDE MudBlazor components */
@@ -544,8 +792,8 @@ else
     .premium-form .mud-input-control textarea.mud-input-slot,
     .compact-input input.mud-input-slot,
     .compact-input textarea.mud-input-slot {
-        color: var(--surface-input-text, #FFFFFF) !important;
-        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
+        color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
+        -webkit-text-fill-color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
         caret-color: var(--dt-accent-primary, #A78BFA) !important;
         opacity: 1 !important;
     }
@@ -558,8 +806,8 @@ else
     .lead-form-card textarea.mud-input-slot,
     .premium-form input.mud-input-slot,
     .premium-form textarea.mud-input-slot {
-        color: var(--surface-input-text, #FFFFFF) !important;
-        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
+        color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
+        -webkit-text-fill-color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
     }
     
     /* Fix for autofill styles that override text color */
@@ -575,9 +823,9 @@ else
     .premium-form input:-webkit-autofill:hover,
     .premium-form input:-webkit-autofill:focus,
     .premium-form input:-webkit-autofill:active {
-        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
-        -webkit-box-shadow: 0 0 0 1000px var(--surface-input-bg, rgba(25, 18, 45, 0.95)) inset !important;
-        box-shadow: 0 0 0 1000px var(--surface-input-bg, rgba(25, 18, 45, 0.95)) inset !important;
+        -webkit-text-fill-color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
+        -webkit-box-shadow: 0 0 0 1000px var(--surface-input-bg, var(--dt-modal-surface, rgba(25, 18, 45, 0.95))) inset !important;
+        box-shadow: 0 0 0 1000px var(--surface-input-bg, var(--dt-modal-surface, rgba(25, 18, 45, 0.95))) inset !important;
         transition: background-color 5000s ease-in-out 0s !important;
         caret-color: var(--dt-accent-primary, #A78BFA) !important;
     }
@@ -589,8 +837,8 @@ else
     .lead-form-card .mud-select-input,
     .country-selector-wrapper .mud-select-input,
     .country-selector-wrapper .mud-input-slot {
-        color: var(--surface-input-text, #FFFFFF) !important;
-        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
+        color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
+        -webkit-text-fill-color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
     }
     
     /* ═══════════════════════════════════════════════════════════════════════════
@@ -625,8 +873,8 @@ else
     .compact-input textarea.mud-input-slot {
         position: relative !important;
         z-index: 10 !important;
-        color: var(--surface-input-text, #FFFFFF) !important;
-        -webkit-text-fill-color: var(--surface-input-text, #FFFFFF) !important;
+        color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
+        -webkit-text-fill-color: var(--surface-input-text, var(--dt-text-primary, #FFFFFF)) !important;
     }
     
     /* Ensure the fieldset stays behind the input */
@@ -670,8 +918,8 @@ else
         overflow: hidden;
     }
 
-    /* Aurora glow effect at bottom */
-    .landing-wrapper::before {
+    /* Aurora glow effect at bottom (dark themes only) */
+    .landing-wrapper.contrast-dark::before {
         content: '';
         position: absolute;
         bottom: 0;
@@ -748,19 +996,25 @@ else
     .profile-avatar.profile-avatar-initials {
         background: var(--dt-accent-primary) !important;
         color: var(--dt-text-on-accent, #FFFFFF) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 50% !important;
+        font-size: 2.5rem;
+        font-weight: 700;
     }
 
     /* Info - White text for dark theme */
     .profile-name {
         font-weight: 700 !important;
         font-size: 2rem !important;
-        color: #FFFFFF !important;
+        color: var(--dt-text-primary, #FFFFFF) !important;
         margin-bottom: 8px !important;
         letter-spacing: -0.02em;
     }
 
     .profile-title {
-        color: rgba(255, 255, 255, 0.7) !important;
+        color: var(--dt-text-secondary, rgba(255, 255, 255, 0.7)) !important;
         font-size: 1.125rem !important;
         font-weight: 400 !important;
         margin-bottom: 10px !important;
@@ -771,7 +1025,7 @@ else
         align-items: center;
         justify-content: center;
         gap: 6px;
-        color: rgba(255, 255, 255, 0.6);
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.6));
         font-size: 0.875rem;
         margin: 0 0 16px;
     }
@@ -782,7 +1036,7 @@ else
     }
 
     .profile-bio {
-        color: rgba(255, 255, 255, 0.85) !important;
+        color: var(--dt-text-secondary, rgba(255, 255, 255, 0.85)) !important;
         font-size: 0.9375rem !important;
         line-height: 1.6 !important;
         max-width: 340px;
@@ -798,15 +1052,15 @@ else
     }
 
     .social-icon {
-        background: rgba(255, 255, 255, 0.1) !important;
-        color: rgba(255, 255, 255, 0.8) !important;
+        background: var(--dt-surface-chip, rgba(255, 255, 255, 0.1)) !important;
+        color: var(--dt-text-secondary, rgba(255, 255, 255, 0.8)) !important;
         transition: all 0.2s ease !important;
         border-radius: 12px !important;
     }
 
     .social-icon:hover {
         background: var(--dt-accent-soft) !important;
-        color: #fff !important;
+        color: var(--dt-text-primary) !important;
         transform: scale(1.05);
     }
 
@@ -826,11 +1080,11 @@ else
         align-items: center;
         gap: clamp(3px, 1vw, 6px);
         padding: clamp(4px, 1.5vw, 6px) clamp(6px, 2vw, 12px);
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--dt-surface-chip, rgba(255, 255, 255, 0.08));
         border-radius: 20px;
         font-size: clamp(0.65rem, 2vw, 0.75rem);
-        color: rgba(255, 255, 255, 0.75);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--dt-text-secondary, rgba(255, 255, 255, 0.75));
+        border: 1px solid var(--dt-surface-chip-border, rgba(255, 255, 255, 0.1));
         white-space: nowrap;
         flex-shrink: 1;
         flex-grow: 0;
@@ -958,66 +1212,168 @@ else
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
-       PORTFOLIO GALLERY SECTION
+       INLINE QUOTE REQUEST MODAL — Enterprise (Theme-aware)
        ═══════════════════════════════════════════════════════════════════════════ */
-    .public-gallery-section {
-        margin-top: 24px;
-        padding-top: 24px;
-        border-top: 1px solid rgba(139, 92, 246, 0.2);
-    }
-    
-    .gallery-section-title {
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.6);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin: 0 0 16px;
-        text-align: center;
-    }
-    
-    .public-gallery-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-    
-    .public-gallery-item {
-        position: relative;
-        aspect-ratio: 1;
-        border-radius: 16px;
-        overflow: hidden;
-        cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        background: rgba(30, 41, 59, 0.5);
-    }
-    
-    .public-gallery-item:hover {
-        transform: scale(1.03);
-        box-shadow: 0 8px 24px var(--dt-accent-soft);
-    }
-    
-    .public-gallery-item img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    
-    .gallery-image-overlay {
-        position: absolute;
-        bottom: 0;
+    .quote-modal-overlay {
+        position: fixed;
+        top: 0;
         left: 0;
         right: 0;
-        padding: 12px;
-        background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+        bottom: 0;
+        background: var(--dt-modal-overlay, rgba(0, 0, 0, 0.7));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+        padding: 16px;
+        backdrop-filter: blur(4px);
+        animation: qm-fade-in 0.2s ease;
     }
-    
-    .gallery-image-overlay span {
-        font-size: 0.75rem;
+
+    @@keyframes qm-fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .quote-modal-content {
+        background: var(--dt-modal-surface, #1e1b2e);
+        border: 1px solid var(--dt-modal-border, rgba(255, 255, 255, 0.08));
+        border-radius: 16px;
+        width: 100%;
+        max-width: 480px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+        animation: qm-slide-up 0.25s ease;
+        backdrop-filter: blur(20px);
+        color: var(--dt-text-primary, #FFFFFF);
+    }
+
+    @@keyframes qm-slide-up {
+        from { transform: translateY(24px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .quote-modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 20px 24px 14px;
+        border-bottom: 1px solid var(--dt-modal-divider, rgba(255, 255, 255, 0.06));
+    }
+
+    .quote-modal-header-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        padding-top: 2px;
+    }
+
+    .quote-modal-close {
+        background: var(--dt-modal-close-bg, rgba(255, 255, 255, 0.05));
+        border: none;
+        color: var(--dt-modal-close-color, rgba(255, 255, 255, 0.4));
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        font-size: 1.1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .quote-modal-close:hover {
+        background: var(--dt-modal-close-hover-bg, rgba(255, 255, 255, 0.12));
+        color: var(--dt-modal-close-hover-color, rgba(255, 255, 255, 0.8));
+    }
+
+    .quote-modal-body {
+        padding: 16px 24px 24px;
+    }
+
+    .quote-modal-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        text-align: center;
+        min-height: 200px;
+    }
+
+    .quote-success-state {
+        padding: 2.5rem 1.5rem;
+    }
+
+    .quote-ref-pill {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 4px 14px;
+        background: var(--dt-modal-surface2, rgba(255, 255, 255, 0.06));
+        border: 1px solid var(--dt-modal-border, rgba(255, 255, 255, 0.08));
+        border-radius: 20px;
+        font-size: 0.8rem;
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.55));
         font-weight: 500;
-        color: white;
+        letter-spacing: 0.02em;
     }
-    
+
+    .quote-success-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* ── Subcard sections ── */
+    .quote-subcard {
+        background: var(--dt-modal-surface2, rgba(255, 255, 255, 0.035));
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 10px;
+    }
+
+    .quote-section-label {
+        display: block;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.35));
+        margin-bottom: 14px;
+    }
+
+    .quote-modal-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px solid var(--dt-modal-divider, rgba(255, 255, 255, 0.05));
+    }
+
+    /* Fix select label clipping inside subcards */
+    .quote-subcard .mud-input-label {
+        padding: 0 4px;
+        background: var(--dt-modal-input-label-bg, rgba(30, 27, 46, 0.95));
+    }
+
+    /* Cap dropdown popover height */
+    .quote-modal-body .mud-popover {
+        max-height: 240px !important;
+        overflow-y: auto !important;
+    }
+
+    /* ── Theme-aware text utility classes for modal ── */
+    .qm-text-primary { color: var(--dt-text-primary) !important; }
+    .qm-text-secondary { color: var(--dt-text-secondary) !important; }
+    .qm-text-muted { color: var(--dt-text-muted) !important; }
+    .qm-btn-ghost { color: var(--dt-text-muted) !important; }
+
     /* ═══════════════════════════════════════════════════════════════════════════
        LIGHTBOX MODAL
        ═══════════════════════════════════════════════════════════════════════════ */
@@ -1141,7 +1497,7 @@ else
         margin-bottom: 6px;
         padding-bottom: 0;
         border-bottom: none;
-        color: rgba(255, 255, 255, 0.9);
+        color: var(--dt-text-primary, rgba(255, 255, 255, 0.9));
     }
     
     .form-header-icon {
@@ -1150,11 +1506,11 @@ else
     
     .form-header .mud-icon-root {
         font-size: 1rem !important;
-        color: rgba(255, 255, 255, 0.7) !important;
+        color: var(--dt-text-secondary, rgba(255, 255, 255, 0.7)) !important;
     }
 
     .form-title {
-        color: rgba(255, 255, 255, 0.95) !important;
+        color: var(--dt-text-primary, rgba(255, 255, 255, 0.95)) !important;
         font-weight: 600 !important;
         font-size: 0.95rem !important;
         margin: 0 !important;
@@ -1162,7 +1518,7 @@ else
     }
     
     .form-subtitle {
-        color: rgba(255, 255, 255, 0.5) !important;
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.5)) !important;
         font-size: 0.8rem !important;
         margin-bottom: 16px;
     }
@@ -1188,12 +1544,12 @@ else
         margin-bottom: 6px;
         font-size: 0.8rem;
         font-weight: 500;
-        color: rgba(255, 255, 255, 0.7);
+        color: var(--dt-text-secondary, rgba(255, 255, 255, 0.7));
         line-height: 1.2;
     }
     
     .compact-label .label-icon {
-        color: rgba(255, 255, 255, 0.5);
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.5));
         font-size: 0.9rem !important;
         width: 16px !important;
         height: 16px !important;
@@ -1282,8 +1638,8 @@ else
     .compact-input textarea::placeholder,
     .lead-form-card input::placeholder,
     .lead-form-card textarea::placeholder {
-        color: rgba(255, 255, 255, 0.4) !important;
-        -webkit-text-fill-color: rgba(255, 255, 255, 0.4) !important;
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.4)) !important;
+        -webkit-text-fill-color: var(--dt-text-muted, rgba(255, 255, 255, 0.4)) !important;
         font-weight: 400 !important;
         opacity: 1 !important;
     }
@@ -1396,8 +1752,8 @@ else
     
     .native-text-input::placeholder,
     .native-textarea-input::placeholder {
-        color: rgba(255, 255, 255, 0.4);
-        -webkit-text-fill-color: rgba(255, 255, 255, 0.4);
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.4));
+        -webkit-text-fill-color: var(--dt-text-muted, rgba(255, 255, 255, 0.4));
         font-weight: 400;
         letter-spacing: 0;
     }
@@ -1501,7 +1857,7 @@ else
     .premium-submit-btn.disabled,
     .premium-submit-btn:disabled {
         background: rgba(75, 85, 99, 0.5);
-        color: rgba(255, 255, 255, 0.4);
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.4));
         cursor: not-allowed;
         box-shadow: none;
         opacity: var(--dt-state-disabled-opacity);
@@ -1604,13 +1960,13 @@ else
        ═══════════════════════════════════════════════════════════════════════════ */
     .footer-minimal {
         text-align: center;
-        color: rgba(255, 255, 255, 0.4);
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.4));
         padding-top: 24px;
         font-size: 0.8rem;
     }
 
     .footer-minimal strong {
-        color: rgba(255, 255, 255, 0.6);
+        color: var(--dt-text-secondary, rgba(255, 255, 255, 0.6));
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
@@ -1796,11 +2152,6 @@ else
         color: var(--surface-icon) !important;
     }
     
-    /* Gallery title - contrast aware */
-    .profile-card.contrast-dark .gallery-section-title,
-    .profile-card.contrast-light .gallery-section-title {
-        color: var(--surface-text-primary) !important;
-    }
     
     /* ═══════════════════════════════════════════════════════════════
        COUNTRY PHONE INPUT - Contrast aware styling for light themes
@@ -1860,6 +2211,15 @@ else
        SERVICES TEMPLATE - Matches TemplateLibrary Preview
        ═══════════════════════════════════════════════════════════════════════════ */
     
+    /* ═══════════════════════════════════════════════════════════════
+       QUOTE REQUEST BLOCK — Now rendered by shared QuoteRequestBlock.razor
+       (styles live in the component; no duplicates here)
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* ═══════════════════════════════════════════════════════════════
+       SERVICES TEMPLATE SECTION
+       ═══════════════════════════════════════════════════════════════ */
+
     .services-template-section {
         margin: 24px 0 20px;
         width: 100%;
@@ -1868,7 +2228,7 @@ else
     .services-template-section .services-section-title {
         font-size: 0.75rem;
         font-weight: 600;
-        color: rgba(255,255,255,0.5);
+        color: var(--dt-text-muted, rgba(255,255,255,0.5));
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-bottom: 12px;
@@ -1885,15 +2245,15 @@ else
         align-items: center;
         gap: 14px;
         padding: 14px 16px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.08);
+        background: var(--dt-modal-surface2, rgba(255,255,255,0.04));
+        border: 1px solid var(--dt-modal-border, rgba(255,255,255,0.08));
         border-radius: 12px;
         transition: all 0.2s ease;
     }
     
     .service-card-item:hover {
-        background: rgba(255,255,255,0.08);
-        border-color: rgba(20,184,166,0.3);
+        background: var(--dt-surface-chip, rgba(255,255,255,0.08));
+        border-color: var(--dt-accent-primary, rgba(20,184,166,0.3));
     }
     
     .service-card-icon {
@@ -1917,12 +2277,12 @@ else
     .service-card-name {
         font-size: 0.95rem;
         font-weight: 600;
-        color: #ffffff;
+        color: var(--dt-text-primary, #ffffff);
     }
     
     .service-card-meta {
         font-size: 0.8rem;
-        color: rgba(255,255,255,0.6);
+        color: var(--dt-text-muted, rgba(255,255,255,0.6));
     }
     
     /* Services Template CTAs */
@@ -2160,6 +2520,7 @@ else
     
     // Gallery (Portfolio Template)
     private List<GalleryImageModel> _galleryImages = new();
+    private DataTouch.Web.Models.PortfolioGalleryModel _portfolioGallery = new();
     private bool _lightboxOpen = false;
     private GalleryImageModel? _selectedImage;
     private int _selectedIndex = 0;
@@ -2167,39 +2528,67 @@ else
     // Services (Services Template)
     private List<DataTouch.Domain.Entities.Service> _services = new();
     private bool _isServicesTemplate = false;
+
+    // Quote Request Template
+    private bool _isQuoteRequestTemplate = false;
+    private QuoteSettingsModel _quoteSettings = new();
+
+    // Appointments Template
+    private bool _isAppointmentsTemplate = false;
+    private bool _appointmentModalOpen = false;
+
+    // Reservations Template
+    private bool _isReservationsTemplate = false;
+    private bool _reservationModalOpen = false;
+    private ReservationSettingsModel _reservationSettings = new();
+    private HashSet<DateTime> _reservationBlockedDates = new();
+
+    // Quote Request Inline Modal state
+    private bool _quoteModalOpen = false;
+    private bool _quoteSubmitting = false;
+    private bool _quoteSuccess = false;
+    private string? _quoteError;
+    private string? _quoteRequestNumber;
+    private string _qFullName = "";
+    private string _qEmail = "";
+    private string _qPhone = "";
+    private string _qPhoneCountryCode = "SV";
+    private string? _qPhoneE164;
+    private bool _qPhoneValid = false;
+    private string _qDetails = "";
+    private string _qBudget = "";
+    private string _qDeadline = "";
+    private string _qPreferredContact = "";
+    private string _qIdempotencyKey = Guid.NewGuid().ToString();
+    private bool _qFormStartTracked = false;
     
     // Appearance Style
     private CardStyleModel _cardStyle = new();
     private ThemeTokens _themeTokens = PresetRegistry.Default.Tokens;
 
-    private MudTheme _theme = new()
+    private MudTheme _theme = new();
+
+    private static bool IsValidHexColor(string? v) =>
+        !string.IsNullOrEmpty(v) && v.StartsWith("#") && (v.Length == 4 || v.Length == 7 || v.Length == 9);
+
+    private void BuildMudTheme()
     {
-        PaletteDark = new PaletteDark()
-        {
-            Primary = "#8B5CF6",
-            Secondary = "#A78BFA",
-            Background = "#0d0a1a",
-            Surface = "#19122d",
-            TextPrimary = "#FFFFFF",
-            TextSecondary = "#B3B3B3",
-            TextDisabled = "#666666",
-            ActionDefault = "#FFFFFF",
-            ActionDisabled = "#4D4D4D",
-            ActionDisabledBackground = "#1A1A1A",
-            DrawerText = "#FFFFFF",
-            DrawerIcon = "#B3B3B3",
-            LinesDefault = "#3D2866",
-            LinesInputs = "#3D2866",
-            Divider = "#2D1B4E",
-        },
-        PaletteLight = new PaletteLight()
-        {
-            Primary = "#8B5CF6",
-            Secondary = "#A78BFA",
-            TextPrimary = "#FFFFFF",
-            TextSecondary = "#B3B3B3",
-        }
-    };
+        var t = _themeTokens;
+        var dark = new PaletteDark();
+        var light = new PaletteLight();
+
+        // Only set properties with valid hex values — MudBlazor crashes on rgba()/named colors
+        if (IsValidHexColor(t.AccentPrimary)) { dark.Primary = t.AccentPrimary; light.Primary = t.AccentPrimary; }
+        if (IsValidHexColor(t.TextPrimary))   { dark.TextPrimary = t.TextPrimary; light.TextPrimary = t.TextPrimary; dark.ActionDefault = t.TextPrimary; light.ActionDefault = t.TextPrimary; }
+        if (IsValidHexColor(t.TextOnAccent))  { dark.TextPrimary = dark.TextPrimary; } // no-op, just guarding
+
+        dark.Background = "#0d0a1a";
+        dark.Surface = "#19122d";
+        light.Background = t.BgValue.StartsWith("linear") ? "#F8FAFC" : (IsValidHexColor(t.BgValue) ? t.BgValue : "#F8FAFC");
+        light.Surface = "#FFFFFF";
+
+        _theme = new MudTheme { PaletteDark = dark, PaletteLight = light };
+    }
 
     private class ContactFormModel
     {
@@ -2234,6 +2623,23 @@ else
                 
                 // Detect template type
                 _isServicesTemplate = _card.TemplateType == "services-quotes";
+                _isQuoteRequestTemplate = _card.TemplateType == "quote-request";
+                _isAppointmentsTemplate = _card.TemplateType == "appointments";
+                _isReservationsTemplate = _card.TemplateType == "reservations-range";
+
+                // Parse quote settings for quote-request template
+                if (_isQuoteRequestTemplate && !string.IsNullOrEmpty(_card.QuoteSettingsJson))
+                {
+                    try { _quoteSettings = System.Text.Json.JsonSerializer.Deserialize<QuoteSettingsModel>(_card.QuoteSettingsJson) ?? new(); }
+                    catch { _quoteSettings = new(); }
+                }
+
+                // Parse reservation settings for reservations-range template
+                if (_isReservationsTemplate && !string.IsNullOrEmpty(_card.ReservationSettingsJson))
+                {
+                    try { _reservationSettings = System.Text.Json.JsonSerializer.Deserialize<ReservationSettingsModel>(_card.ReservationSettingsJson) ?? new(); }
+                    catch { _reservationSettings = new(); }
+                }
                 
                 // Load services for services template
                 _services = await DbContext.Services
@@ -2267,15 +2673,38 @@ else
             catch { _websiteLinks = new(); }
         }
         
-        // Gallery Images
-        if (!string.IsNullOrEmpty(_card?.GalleryImagesJson))
+        // Portfolio Gallery (new model with photos + videos)
+        if (!string.IsNullOrEmpty(_card?.PortfolioGalleryJson))
         {
             try
             {
-                _galleryImages = System.Text.Json.JsonSerializer.Deserialize<List<GalleryImageModel>>(_card.GalleryImagesJson) ?? new();
+                _portfolioGallery = System.Text.Json.JsonSerializer.Deserialize<DataTouch.Web.Models.PortfolioGalleryModel>(_card.PortfolioGalleryJson) ?? new();
             }
-            catch { _galleryImages = new(); }
+            catch { _portfolioGallery = new(); }
         }
+        // Legacy migration: if no PortfolioGalleryJson but has GalleryImagesJson
+        else if (!string.IsNullOrEmpty(_card?.GalleryImagesJson))
+        {
+            try
+            {
+                var legacyImages = System.Text.Json.JsonSerializer.Deserialize<List<GalleryImageModel>>(_card.GalleryImagesJson) ?? new();
+                _portfolioGallery = new DataTouch.Web.Models.PortfolioGalleryModel
+                {
+                    EnablePhotos = true,
+                    EnableVideos = false,
+                    Photos = legacyImages.Select(img => new DataTouch.Web.Models.GalleryItemModel
+                    {
+                        Url = img.Url, Title = img.Title, Description = img.Description, Order = img.Order
+                    }).ToList()
+                };
+            }
+            catch { _portfolioGallery = new(); }
+        }
+        // Sync legacy _galleryImages for lightbox compat
+        _galleryImages = _portfolioGallery.Photos.Select(p => new GalleryImageModel
+        {
+            Url = p.Url, Title = p.Title, Description = p.Description, Order = p.Order
+        }).ToList();
         
         // Appearance Style
         if (!string.IsNullOrEmpty(_card?.AppearanceStyleJson))
@@ -2296,6 +2725,8 @@ else
             }
             catch { _cardStyle = new(); }
         }
+
+        BuildMudTheme();
     }
     
     private string GetDisplayCompanyName()
@@ -2441,7 +2872,173 @@ END:VCARD";
         
         await DialogService.ShowAsync<QuoteRequestModal>("Solicitar Cotización", parameters, options);
     }
-    
+
+    private async Task OpenPublicQuoteModal()
+    {
+        Logger.LogInformation("OpenPublicQuoteModal called. _card is {CardNull}", _card == null ? "null" : _card.Id.ToString());
+        if (_card == null) return;
+
+        try { await AnalyticsService.TrackQuoteCtaClickAsync(_card.Id); } catch { /* analytics must never block UI */ }
+        try { await AnalyticsService.TrackQuoteModalOpenAsync(_card.Id); } catch { /* analytics must never block UI */ }
+
+        _quoteModalOpen = true;
+        _quoteSubmitting = false;
+        _quoteSuccess = false;
+        _quoteError = null;
+        _quoteRequestNumber = null;
+        StateHasChanged();
+    }
+
+    private void OpenSchedulerModal()
+    {
+        _appointmentModalOpen = true;
+        StateHasChanged();
+    }
+
+    private async Task OpenReservationModal()
+    {
+        _reservationModalOpen = true;
+        StateHasChanged();
+        // Load blocked dates for current + next month
+        if (_card != null)
+        {
+            try
+            {
+                var now = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+                var end = now.AddMonths(2);
+                _reservationBlockedDates = await ReservationService.GetBlockedDatesAsync(_card.Id, null, now, end);
+                StateHasChanged();
+            }
+            catch { /* Don't block modal opening if blocked dates fail */ }
+        }
+    }
+
+    private async Task LoadBlockedDatesForMonth(DateTime monthStart)
+    {
+        if (_card == null) return;
+        try
+        {
+            var end = monthStart.AddMonths(2);
+            var newBlocked = await ReservationService.GetBlockedDatesAsync(_card.Id, null, monthStart, end);
+            foreach (var d in newBlocked) _reservationBlockedDates.Add(d);
+            StateHasChanged();
+        }
+        catch { /* Silently fail — calendar still works, just without blocked dates */ }
+    }
+
+    private void CloseQuoteModal()
+    {
+        _quoteModalOpen = false;
+        // Reset form for next open
+        _qFullName = "";
+        _qEmail = "";
+        _qPhone = "";
+        _qPhoneCountryCode = "SV";
+        _qPhoneE164 = null;
+        _qPhoneValid = false;
+        _qDetails = "";
+        _qBudget = "";
+        _qDeadline = "";
+        _qPreferredContact = "";
+        _quoteSubmitting = false;
+        _quoteSuccess = false;
+        _quoteError = null;
+        _quoteRequestNumber = null;
+        _qIdempotencyKey = Guid.NewGuid().ToString();
+        _qFormStartTracked = false;
+        StateHasChanged();
+    }
+
+    private bool QuoteCanSubmit
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_qFullName)) return false;
+            if (string.IsNullOrWhiteSpace(_qDetails)) return false;
+            var hasEmail = IsValidQuoteEmail(_qEmail);
+            var hasPhone = !string.IsNullOrWhiteSpace(_qPhone);
+            if (!hasEmail && !hasPhone) return false;
+            if (_quoteSettings.EmailRequired && !hasEmail) return false;
+            if (_quoteSettings.PhoneRequired && !hasPhone) return false;
+            return true;
+        }
+    }
+
+    private bool IsValidQuoteEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return false;
+        try { var addr = new System.Net.Mail.MailAddress(email); return addr.Address == email.Trim(); }
+        catch { return false; }
+    }
+
+    private async Task SubmitQuoteRequest()
+    {
+        if (!QuoteCanSubmit || _card == null) return;
+
+        _quoteSubmitting = true;
+        _quoteError = null;
+        StateHasChanged();
+
+        try
+        {
+            try { await AnalyticsService.TrackQuoteSubmitAttemptAsync(_card.Id); } catch { }
+
+            var dto = new CreatePublicCardQuoteDto
+            {
+                CardId = _card.Id,
+                CustomerName = _qFullName.Trim(),
+                CustomerEmail = IsValidQuoteEmail(_qEmail) ? _qEmail.Trim().ToLowerInvariant() : null,
+                CustomerPhone = !string.IsNullOrWhiteSpace(_qPhone) ? _qPhone.Trim() : null,
+                CustomerPhoneCountryCode = !string.IsNullOrWhiteSpace(_qPhone) ? _qPhoneCountryCode : null,
+                Details = _qDetails.Trim(),
+                Budget = !string.IsNullOrEmpty(_qBudget) ? _qBudget : null,
+                Deadline = !string.IsNullOrEmpty(_qDeadline) ? _qDeadline : null,
+                PreferredContact = !string.IsNullOrEmpty(_qPreferredContact) ? _qPreferredContact : null,
+                IdempotencyKey = _qIdempotencyKey
+            };
+
+            var result = await QuoteService.CreateQuoteFromPublicCardRequestAsync(dto);
+
+            if (result.Success)
+            {
+                _quoteSuccess = true;
+                _quoteRequestNumber = result.RequestNumber;
+                try { await AnalyticsService.TrackQuoteSubmitSuccessAsync(_card.Id, result.Quote?.Id); } catch { }
+            }
+            else
+            {
+                _quoteError = result.Error ?? "Error al enviar la solicitud";
+                try { await AnalyticsService.TrackQuoteSubmitErrorAsync(_card.Id, result.Error); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SubmitQuoteRequest failed");
+            _quoteError = "Error inesperado. Por favor intenta de nuevo.";
+            try { await AnalyticsService.TrackQuoteSubmitErrorAsync(_card.Id, ex.Message); } catch { }
+        }
+        finally
+        {
+            _quoteSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task TrackQuoteFormStart(FocusEventArgs? e = null)
+    {
+        if (!_qFormStartTracked && _card != null)
+        {
+            _qFormStartTracked = true;
+            try { await AnalyticsService.TrackQuoteFormStartAsync(_card.Id); } catch { }
+        }
+    }
+
+    private void ClearQuoteError()
+    {
+        _quoteError = null;
+        StateHasChanged();
+    }
+
     private string GetServiceIconColor(int index)
     {
         var colors = new[] { 
@@ -2459,15 +3056,19 @@ END:VCARD";
     {
         public string? LinkedIn { get; set; }
         public string? Instagram { get; set; }
+        public string? Facebook { get; set; }
         public string? YouTube { get; set; }
         public string? Twitter { get; set; }
+        public string? Website { get; set; }
 
         public bool HasAnyLink()
         {
             return !string.IsNullOrEmpty(LinkedIn) ||
                    !string.IsNullOrEmpty(Instagram) ||
+                   !string.IsNullOrEmpty(Facebook) ||
                    !string.IsNullOrEmpty(YouTube) ||
-                   !string.IsNullOrEmpty(Twitter);
+                   !string.IsNullOrEmpty(Twitter) ||
+                   !string.IsNullOrEmpty(Website);
         }
     }
 
@@ -2485,36 +3086,7 @@ END:VCARD";
         public int Order { get; set; }
     }
     
-    private class CardStyleModel
-    {
-        public string BackgroundType { get; set; } = "gradient";
-        public string BackgroundValue { get; set; } = "linear-gradient(135deg, #1a1035 0%, #2d1b4e 50%, #1a1035 100%)";
-        public string? BackgroundImageUrl { get; set; }
-        
-        // Card Independence
-        public bool CardLinkedToBackground { get; set; } = true;
-        public string CardContainerStyle { get; set; } = "glass";
-        public string CardBackgroundColor { get; set; } = "#1A1035";
-        public int GlassIntensity { get; set; } = 40;
-        public string BorderRadius { get; set; } = "medium";
-        public string ShadowStyle { get; set; } = "soft";
-        public string AvatarSize { get; set; } = "M";
-        public bool AvatarGlow { get; set; } = true;
-        public string ButtonShape { get; set; } = "rounded";
-        public string ButtonStyle { get; set; } = "filled";
-        public double OverlayOpacity { get; set; } = 0.3;
-        public bool ShowGrain { get; set; } = false;
-        
-        // Contrast settings
-        public string ContrastMode { get; set; } = "auto";
-        public bool BackgroundIsDark { get; set; } = true;
-        public bool CardIsDark { get; set; } = true;
-        public bool CardIsDarkOverride { get; set; } = true;
-        
-        // Preset tracking (new v2)
-        public string? PresetId { get; set; } = "premium-dark";
-        public string? AccentColor { get; set; } = "#7C3AED";
-    }
+    // CardStyleModel is now shared: see Models/CardStyleModel.cs
     
     private string GetDynamicBackgroundStyle()
     {
@@ -2558,6 +3130,20 @@ END:VCARD";
         return _cardStyle.CardIsDark ? "contrast-dark" : "contrast-light";
     }
     
+    // Gallery click handlers (bridge from shared component to lightbox)
+    private void OnGalleryPhotoClick(DataTouch.Web.Models.GalleryItemModel item)
+    {
+        var match = _galleryImages.FirstOrDefault(i => i.Url == item.Url);
+        if (match != null) OpenLightbox(match);
+    }
+
+    private void OnGalleryVideoClick(DataTouch.Web.Models.GalleryItemModel item)
+    {
+        // Open video in new tab (simple approach — can be enhanced with modal player later)
+        if (!string.IsNullOrEmpty(item.Url))
+            Navigation.NavigateTo(item.Url, forceLoad: true);
+    }
+
     // Gallery Lightbox Methods
     private void OpenLightbox(GalleryImageModel image)
     {

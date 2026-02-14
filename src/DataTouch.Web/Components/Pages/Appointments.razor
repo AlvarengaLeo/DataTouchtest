@@ -7,6 +7,10 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
+@inject AppointmentDashboardService BiService
+@inject ReservationService ReservationSvc
+@inject ReservationDashboardService ReservationBiService
+@inject IJSRuntime JSRuntime
 @using DataTouch.Web.Services
 @using DataTouch.Domain.Entities
 @using System.Globalization
@@ -622,6 +626,130 @@
             }
         </div>
     </MudTabPanel>
+
+    <MudTabPanel Text="Reservas" Icon="@Icons.Material.Filled.Hotel">
+        <div class="pa-4">
+            @* Reservation KPIs *@
+            @if (_reservationKpis != null)
+            {
+                <div class="bi-kpis d-flex flex-wrap gap-3 mb-4">
+                    <MudPaper Elevation="0" Class="bi-kpi-card">
+                        <span class="bi-kpi-value" style="color: #D97706;">@_reservationKpis.Total</span>
+                        <span class="bi-kpi-label">Total</span>
+                    </MudPaper>
+                    <MudPaper Elevation="0" Class="bi-kpi-card">
+                        <span class="bi-kpi-value" style="color: #D97706;">@_reservationKpis.New</span>
+                        <span class="bi-kpi-label">Nuevas</span>
+                    </MudPaper>
+                    <MudPaper Elevation="0" Class="bi-kpi-card">
+                        <span class="bi-kpi-value" style="color: #22C55E;">@_reservationKpis.Confirmed</span>
+                        <span class="bi-kpi-label">Confirmadas</span>
+                    </MudPaper>
+                    <MudPaper Elevation="0" Class="bi-kpi-card">
+                        <span class="bi-kpi-value" style="color: #3B82F6;">@_reservationKpis.AvgNights</span>
+                        <span class="bi-kpi-label">Noches prom.</span>
+                    </MudPaper>
+                </div>
+            }
+
+            @* Reservation Charts *@
+            <div class="d-flex flex-wrap gap-3 mb-4">
+                <MudPaper Elevation="0" Class="bi-chart-card" Style="flex:1; min-width:240px;">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Estado de Solicitudes</MudText>
+                    <div id="chart-res-status" style="width: 100%; height: 220px;"></div>
+                </MudPaper>
+                <MudPaper Elevation="0" Class="bi-chart-card" Style="flex:1; min-width:240px;">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Por Día de Semana</MudText>
+                    <div id="chart-res-weekday" style="width: 100%; height: 220px;"></div>
+                </MudPaper>
+            </div>
+
+            @* Reservations Table *@
+            @if (_reservationRequests.Any())
+            {
+                <MudTable Items="_reservationRequests" Hover="true" Striped="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Ref.</MudTh>
+                        <MudTh>Fechas</MudTh>
+                        <MudTh>Noches</MudTh>
+                        <MudTh>Huéspedes</MudTh>
+                        <MudTh>Cliente</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Ref.">@context.RequestNumber</MudTd>
+                        <MudTd DataLabel="Fechas">@context.FromDate.ToString("dd/MM") — @context.ToDate.ToString("dd/MM/yy")</MudTd>
+                        <MudTd DataLabel="Noches">@context.Nights</MudTd>
+                        <MudTd DataLabel="Huéspedes">@(context.GuestsAdults + context.GuestsChildren)</MudTd>
+                        <MudTd DataLabel="Cliente">
+                            <div class="d-flex flex-column">
+                                <span>@context.ContactName</span>
+                                <span class="mud-text-secondary" style="font-size: 0.8rem;">@(context.ContactPhone ?? context.ContactEmail)</span>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Estado">
+                            <MudChip T="string" Color="@GetReservationStatusColor(context.Status)" Size="Size.Small">@GetReservationStatusLabel(context.Status)</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
+                                <MudMenuItem OnClick="() => UpdateReservationStatus(context, ReservationStatus.Confirmed)">Confirmar</MudMenuItem>
+                                <MudMenuItem OnClick="() => UpdateReservationStatus(context, ReservationStatus.Cancelled)">Cancelar</MudMenuItem>
+                            </MudMenu>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">No tienes solicitudes de reserva.</MudAlert>
+            }
+        </div>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Analítica" Icon="@Icons.Material.Filled.BarChart">
+        <div class="pa-4">
+            @* BI KPI Cards *@
+            <div class="bi-kpis d-flex flex-wrap gap-3 mb-4">
+                <MudPaper Elevation="0" Class="bi-kpi-card">
+                    <span class="bi-kpi-value" style="color: var(--mud-palette-primary);">@_biKpis.TotalAppointments</span>
+                    <span class="bi-kpi-label">Total Citas</span>
+                </MudPaper>
+                <MudPaper Elevation="0" Class="bi-kpi-card">
+                    <span class="bi-kpi-value" style="color: #22C55E;">@_biKpis.CompletionRate%</span>
+                    <span class="bi-kpi-label">Tasa Completadas</span>
+                </MudPaper>
+                <MudPaper Elevation="0" Class="bi-kpi-card">
+                    <span class="bi-kpi-value" style="color: #EF4444;">@_biKpis.CancellationRate%</span>
+                    <span class="bi-kpi-label">Tasa Cancelación</span>
+                </MudPaper>
+                <MudPaper Elevation="0" Class="bi-kpi-card">
+                    <span class="bi-kpi-value" style="color: #8B5CF6;">@_biKpis.NoShowRate%</span>
+                    <span class="bi-kpi-label">No-Show</span>
+                </MudPaper>
+            </div>
+
+            @* Charts Row *@
+            <div class="bi-charts-row d-flex flex-wrap gap-4 mb-4">
+                @* Status Distribution (Donut) *@
+                <MudPaper Elevation="0" Class="bi-chart-card" Style="flex: 1; min-width: 280px;">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2" Style="font-weight: 600;">Distribución por Estado</MudText>
+                    <div id="chart-appt-status" style="width: 100%; height: 280px;"></div>
+                </MudPaper>
+                @* Daily Volume (Bar) *@
+                <MudPaper Elevation="0" Class="bi-chart-card" Style="flex: 2; min-width: 380px;">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2" Style="font-weight: 600;">Volumen Diario</MudText>
+                    <div id="chart-appt-volume" style="width: 100%; height: 280px;"></div>
+                </MudPaper>
+            </div>
+
+            @* Heatmap *@
+            <MudPaper Elevation="0" Class="bi-chart-card mb-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-2" Style="font-weight: 600;">Mapa de Calor — Hora vs Día</MudText>
+                <div id="chart-appt-heatmap" style="width: 100%; height: 260px;"></div>
+            </MudPaper>
+        </div>
+    </MudTabPanel>
 </MudTabs>
 
 @* ═══════════════════════════════════════════════════════════════════════════════
@@ -872,6 +1000,14 @@
     
     // Booking Settings
     private BookingSettings _bookingSettings = new();
+
+    // BI Dashboard
+    private AppointmentDashboardService.AppointmentKpis _biKpis = new(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    private bool _biLoaded = false;
+
+    // Reservations Tab
+    private List<ReservationRequest> _reservationRequests = new();
+    private ReservationDashboardService.ReservationKpis? _reservationKpis;
     
     // Cancel Modal
     private bool _showCancelModal = false;
@@ -913,6 +1049,8 @@
         await LoadExceptions();
         await LoadBookingSettings();
         await LoadQuotes();
+        await LoadReservations();
+        await LoadBiData();
     }
 
     private async Task LoadAppointments()
@@ -955,6 +1093,71 @@
         _metricsPending = _appointments.Count(a => a.Status == AppointmentStatus.Pending);
         _metricsConfirmed = _appointments.Count(a => a.Status == AppointmentStatus.Confirmed);
         _metricsCancelled = _appointments.Count(a => a.Status == AppointmentStatus.Cancelled);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // BI ANALYTICS TAB
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    private async Task LoadBiData()
+    {
+        if (!_cardId.HasValue) return;
+        var from = DateTime.Today.AddDays(-30);
+        var to = DateTime.Today.AddDays(1);
+        _biKpis = await BiService.GetKpisAsync(_cardId.Value, from, to);
+        _biLoaded = true;
+        StateHasChanged();
+        await RenderBiCharts(from, to);
+    }
+
+    private async Task RenderBiCharts(DateTime from, DateTime to)
+    {
+        if (!_cardId.HasValue) return;
+        try
+        {
+            // Status Distribution
+            var statusData = await BiService.GetStatusDistributionAsync(_cardId.Value, from, to);
+            await JSRuntime.InvokeVoidAsync("EChartsAppointments.init", "chart-appt-status", "status", new
+            {
+                labels = statusData.Select(s => s.Status).ToArray(),
+                values = statusData.Select(s => s.Count).ToArray(),
+                colors = statusData.Select(s => s.Color).ToArray()
+            });
+
+            // Daily Volume
+            var volumeData = await BiService.GetDailyVolumeAsync(_cardId.Value, from, to);
+            await JSRuntime.InvokeVoidAsync("EChartsAppointments.init", "chart-appt-volume", "volume", new
+            {
+                dates = volumeData.Select(v => v.Date).ToArray(),
+                booked = volumeData.Select(v => v.Booked).ToArray(),
+                completed = volumeData.Select(v => v.Completed).ToArray(),
+                cancelled = volumeData.Select(v => v.Cancelled).ToArray()
+            });
+
+            // Hourly Heatmap
+            var heatmapData = await BiService.GetHourlyHeatmapAsync(_cardId.Value, from, to);
+            var days = new[] { "Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do" };
+            var hours = Enumerable.Range(0, 24).ToArray();
+            var values = new List<int[]>();
+            var maxVal = 0;
+            foreach (var h in heatmapData)
+            {
+                var counts = new[] { h.Monday, h.Tuesday, h.Wednesday, h.Thursday, h.Friday, h.Saturday, h.Sunday };
+                for (int d = 0; d < 7; d++)
+                {
+                    values.Add(new[] { d, h.Hour, counts[d] });
+                    if (counts[d] > maxVal) maxVal = counts[d];
+                }
+            }
+            await JSRuntime.InvokeVoidAsync("EChartsAppointments.init", "chart-appt-heatmap", "heatmap", new
+            {
+                hours,
+                days,
+                values = values.ToArray(),
+                max = Math.Max(maxVal, 1)
+            });
+        }
+        catch { /* Charts are non-critical */ }
     }
     
     private async Task ApplyQuickFilter(string filter)
@@ -1104,6 +1307,62 @@
             .OrderByDescending(q => q.CreatedAt)
             .ToListAsync();
     }
+
+    private async Task LoadReservations()
+    {
+        if (!_cardId.HasValue) return;
+        try
+        {
+            _reservationRequests = await ReservationSvc.GetReservationsAsync(_cardId.Value);
+            var orgId = AuthService.GetCurrentOrganizationId();
+            if (orgId.HasValue)
+            {
+                _reservationKpis = await ReservationBiService.GetKpisAsync(orgId.Value);
+                // Render reservation charts
+                try
+                {
+                    var statusData = await ReservationBiService.GetStatusDistributionAsync(orgId.Value);
+                    var weekdayData = await ReservationBiService.GetByDayOfWeekAsync(orgId.Value);
+                    await Task.Delay(100); // Allow DOM to render
+                    await JSRuntime.InvokeVoidAsync("reservationCharts.renderStatusDonut", "chart-res-status",
+                        statusData.Select(d => new { label = d.Label, value = d.Value }).ToArray());
+                    await JSRuntime.InvokeVoidAsync("reservationCharts.renderByDayOfWeek", "chart-res-weekday",
+                        weekdayData.Select(d => new { label = d.Label, value = d.Value }).ToArray());
+                }
+                catch { /* Charts may fail if tab not visible yet */ }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"LoadReservations warning: {ex.Message}");
+            // Table may not exist yet — don't crash the app
+        }
+    }
+
+    private async Task UpdateReservationStatus(ReservationRequest reservation, ReservationStatus newStatus)
+    {
+        await ReservationSvc.UpdateStatusAsync(reservation.Id, newStatus);
+        Snackbar.Add($"Reserva {GetReservationStatusLabel(newStatus).ToLower()}", Severity.Success);
+        await LoadReservations();
+    }
+
+    private Color GetReservationStatusColor(ReservationStatus status) => status switch
+    {
+        ReservationStatus.New => Color.Warning,
+        ReservationStatus.InReview => Color.Info,
+        ReservationStatus.Confirmed => Color.Success,
+        ReservationStatus.Cancelled => Color.Default,
+        _ => Color.Default
+    };
+
+    private string GetReservationStatusLabel(ReservationStatus status) => status switch
+    {
+        ReservationStatus.New => "Nueva",
+        ReservationStatus.InReview => "En revisión",
+        ReservationStatus.Confirmed => "Confirmada",
+        ReservationStatus.Cancelled => "Cancelada",
+        _ => status.ToString()
+    };
 
     private async Task UpdateStatus(Appointment appointment, AppointmentStatus newStatus)
     {
@@ -2362,5 +2621,19 @@
         .date-filter, .status-filter {
             width: 100%;
         }
+    }
+
+    /* ═══════════════ BI ANALYTICS TAB ═══════════════ */
+    .bi-kpi-card {
+        flex: 1; min-width: 140px;
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        padding: 20px 16px; border-radius: 16px;
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+    }
+    .bi-kpi-value { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .bi-kpi-label { font-size: 0.75rem; color: rgba(255,255,255,0.5); font-weight: 500; }
+    .bi-chart-card {
+        padding: 20px; border-radius: 16px;
+        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
     }
 </style>

@@ -35,6 +35,20 @@ public class AppointmentService
     }
 
     /// <summary>
+    /// Batch: which days in a month have availability? Resolves service duration, delegates to AvailabilityService.
+    /// </summary>
+    public async Task<Dictionary<int, bool>> GetMonthAvailabilityAsync(Guid cardId, int year, int month, Guid? serviceId = null)
+    {
+        var durationMinutes = 30;
+        if (serviceId.HasValue)
+        {
+            var service = await _db.Services.FindAsync(serviceId.Value);
+            if (service != null) durationMinutes = service.DurationMinutes;
+        }
+        return await _availabilityService.GetMonthAvailabilityAsync(cardId, year, month, durationMinutes);
+    }
+
+    /// <summary>
     /// Get available time slots for a specific date.
     /// </summary>
     public async Task<List<TimeSlot>> GetAvailableSlotsAsync(Guid cardId, DateOnly date, Guid? serviceId = null)

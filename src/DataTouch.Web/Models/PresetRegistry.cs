@@ -311,6 +311,43 @@ public static class PresetRegistry
             }
         },
         
+        new ThemePreset
+        {
+            Id = "amber-fire",
+            Name = "Amber Fire",
+            Category = "dark",
+            Personality = "Cotizaciones, ventas",
+            Tokens = new ThemeTokens
+            {
+                BgType = "gradient",
+                BgValue = "linear-gradient(180deg, #1a0d05 0%, #2d1a0a 30%, #3d2010 60%, #2d1a0a 100%)",
+                BgOverlayOpacity = 0.2,
+                BgIsDark = true,
+                SurfaceCard = "rgba(245, 158, 11, 0.06)",
+                SurfaceCardBorder = "rgba(245, 158, 11, 0.15)",
+                SurfaceCardStyle = "glass",
+                SurfaceInput = "rgba(0, 0, 0, 0.35)",
+                SurfaceInputBorder = "rgba(245, 158, 11, 0.15)",
+                SurfaceInputFocus = "#F59E0B",
+                SurfaceDivider = "rgba(245, 158, 11, 0.1)",
+                SurfaceChip = "rgba(245, 158, 11, 0.1)",
+                SurfaceChipBorder = "rgba(245, 158, 11, 0.2)",
+                TextPrimary = "#FFFFFF",
+                TextSecondary = "rgba(255, 255, 255, 0.85)",
+                TextMuted = "rgba(255, 255, 255, 0.6)",
+                TextOnAccent = "#FFFFFF",
+                AccentPrimary = "#F59E0B",
+                AccentSoft = "rgba(245, 158, 11, 0.2)",
+                AccentGradient = "linear-gradient(135deg, #F59E0B, #EF4444)",
+                ButtonPrimaryBg = "#F59E0B",
+                ButtonPrimaryText = "#FFFFFF",
+                ButtonPrimaryHover = "#D97706",
+                ButtonSecondaryBorder = "rgba(245, 158, 11, 0.4)",
+                ButtonShape = "pill",
+                FocusRing = "rgba(245, 158, 11, 0.5)"
+            }
+        },
+        
         // ═══════════════════════════════════════════════════════════════
         // LIGHT PRESETS (8)
         // ═══════════════════════════════════════════════════════════════

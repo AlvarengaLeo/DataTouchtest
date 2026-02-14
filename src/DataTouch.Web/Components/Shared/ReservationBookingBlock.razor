@@ -1,0 +1,321 @@
+@* ═══════════════════════════════════════════════════════════════
+   ReservationBookingBlock — Single source of truth for the "RESERVAR" CTA block.
+   Used identically in: PublicCard, MyCard (LivePreview), TemplateLibrary.
+   All colors come from --dt-* CSS variables (injected by parent context).
+   Pattern: same as AppointmentBookingBlock.razor (Compact + ContainerStyle params).
+   ═══════════════════════════════════════════════════════════════ *@
+
+<div class="rbb @(Compact ? "rbb--compact" : "")" style="@ContainerStyle">
+    <div class="rbb__header">
+        <svg class="rbb__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <h3 class="rbb__title">@Title</h3>
+    </div>
+    <p class="rbb__subtitle">@Subtitle</p>
+
+    <div class="rbb__inputs">
+        <div class="rbb__input-group">
+            <label class="rbb__label">Desde</label>
+            <div class="rbb__input-mock @(!Compact ? "rbb__input-mock--interactive" : "")" role="@(!Compact ? "button" : "")" tabindex="@(!Compact ? 0 : -1)" @onclick="HandleFromClick">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>Seleccionar</span>
+            </div>
+        </div>
+        <div class="rbb__input-group">
+            <label class="rbb__label">Hasta</label>
+            <div class="rbb__input-mock @(!Compact ? "rbb__input-mock--interactive" : "")" role="@(!Compact ? "button" : "")" tabindex="@(!Compact ? 0 : -1)" @onclick="HandleToClick">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>Seleccionar</span>
+            </div>
+        </div>
+        <div class="rbb__input-group rbb__input-guests">
+            <label class="rbb__label">Huéspedes</label>
+            <div class="rbb__input-mock">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>@MaxGuests máx.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="rbb__info">
+        <span class="rbb__info-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            @ConfirmationText
+        </span>
+        @if (!string.IsNullOrEmpty(PoliciesLabel))
+        {
+            <span class="rbb__info-item rbb__policies-link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                @PoliciesLabel
+            </span>
+        }
+    </div>
+
+    <button type="button" class="rbb__cta" @onclick="OnReserveClick" disabled="@Compact">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+            <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"></path>
+        </svg>
+        RESERVAR
+    </button>
+</div>
+
+@code {
+    [Parameter] public bool Compact { get; set; } = false;
+    [Parameter] public string? ContainerStyle { get; set; }
+    [Parameter] public string Title { get; set; } = "RESERVAR";
+    [Parameter] public string Subtitle { get; set; } = "Elige tus fechas y envía la solicitud.";
+    [Parameter] public int MaxGuests { get; set; } = 10;
+    [Parameter] public string ConfirmationText { get; set; } = "Confirmación en menos de 24h";
+    [Parameter] public string? PoliciesLabel { get; set; } = "Políticas";
+    [Parameter] public EventCallback OnReserveClick { get; set; }
+    [Parameter] public EventCallback OnFromClick { get; set; }
+    [Parameter] public EventCallback OnToClick { get; set; }
+
+    private async Task HandleFromClick()
+    {
+        if (!Compact && OnFromClick.HasDelegate)
+            await OnFromClick.InvokeAsync();
+    }
+
+    private async Task HandleToClick()
+    {
+        if (!Compact && OnToClick.HasDelegate)
+            await OnToClick.InvokeAsync();
+    }
+}
+
+<style>
+    /* ═══════════════════════════════════════════════════════════
+       ReservationBookingBlock — All colors via var(--dt-*)
+       ═══════════════════════════════════════════════════════════ */
+    .rbb {
+        background: var(--dt-surface-card, rgba(255,255,255,0.06));
+        border: 1px solid var(--dt-surface-card-border, rgba(255,255,255,0.1));
+        border-radius: var(--dt-input-radius, 16px);
+        padding: 20px;
+        margin: 12px 0;
+    }
+
+    .rbb--compact {
+        padding: 12px;
+        margin: 8px 0;
+    }
+
+    .rbb__header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 6px;
+    }
+
+    .rbb__icon {
+        width: 22px;
+        height: 22px;
+        color: var(--dt-accent-primary, #D97706);
+        flex-shrink: 0;
+    }
+
+    .rbb--compact .rbb__icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .rbb__title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--dt-text-primary, #78350F);
+        margin: 0;
+        letter-spacing: 0.05em;
+    }
+
+    .rbb--compact .rbb__title {
+        font-size: 0.75rem;
+    }
+
+    .rbb__subtitle {
+        font-size: 0.82rem;
+        color: var(--dt-text-secondary, #92400E);
+        margin: 0 0 14px 0;
+        line-height: 1.4;
+        text-align: center;
+    }
+
+    .rbb--compact .rbb__subtitle {
+        font-size: 0.6rem;
+        margin-bottom: 8px;
+    }
+
+    .rbb__inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .rbb--compact .rbb__inputs {
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+
+    .rbb__input-guests {
+        grid-column: 1 / -1;
+    }
+
+    .rbb__label {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--dt-text-muted, #B45309);
+        margin-bottom: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .rbb--compact .rbb__label {
+        font-size: 0.5rem;
+        margin-bottom: 2px;
+    }
+
+    .rbb__input-mock {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--dt-surface-input, #FEF3C7);
+        border: 1px solid var(--dt-surface-input-border, rgba(217,119,6,0.2));
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 0.78rem;
+        color: var(--dt-text-muted, #B45309);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .rbb__input-mock--interactive {
+        cursor: pointer;
+    }
+
+    .rbb__input-mock--interactive:hover {
+        border-color: var(--dt-accent-primary, #D97706);
+        box-shadow: 0 0 0 2px var(--dt-focus-ring, rgba(217,119,6,0.2));
+    }
+
+    .rbb__input-mock--interactive:focus-visible {
+        border-color: var(--dt-accent-primary, #D97706);
+        box-shadow: 0 0 0 3px var(--dt-focus-ring, rgba(217,119,6,0.3));
+        outline: none;
+    }
+
+    .rbb--compact .rbb__input-mock {
+        padding: 5px 7px;
+        font-size: 0.55rem;
+        gap: 4px;
+        border-radius: 6px;
+    }
+
+    .rbb__input-mock svg {
+        color: var(--dt-text-muted, #B45309);
+        flex-shrink: 0;
+    }
+
+    .rbb--compact .rbb__input-mock svg {
+        width: 10px;
+        height: 10px;
+    }
+
+    .rbb__info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .rbb--compact .rbb__info {
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .rbb__info-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.72rem;
+        color: var(--dt-text-muted, #B45309);
+    }
+
+    .rbb--compact .rbb__info-item {
+        font-size: 0.5rem;
+        gap: 3px;
+    }
+
+    .rbb__info-item svg {
+        color: var(--dt-accent-primary, #D97706);
+        flex-shrink: 0;
+    }
+
+    .rbb--compact .rbb__info-item svg {
+        width: 10px;
+        height: 10px;
+    }
+
+    .rbb__policies-link {
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-style: dotted;
+    }
+
+    .rbb__cta {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--dt-button-primary-bg, #D97706);
+        color: var(--dt-button-primary-text, #FFFFFF);
+        border: none;
+        border-radius: var(--dt-button-radius, 999px);
+        font-size: 0.88rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .rbb__cta:hover:not(:disabled) {
+        background: var(--dt-button-primary-hover, #B45309);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .rbb__cta:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+
+    .rbb--compact .rbb__cta {
+        padding: 7px 10px;
+        font-size: 0.6rem;
+        gap: 5px;
+    }
+
+    .rbb--compact .rbb__cta svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    /* Mobile stacking */
+    @@media (max-width: 480px) {
+        .rbb__inputs {
+            grid-template-columns: 1fr;
+        }
+        .rbb__input-guests {
+            grid-column: auto;
+        }
+    }
+</style>

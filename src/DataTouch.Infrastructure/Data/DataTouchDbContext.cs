@@ -30,6 +30,8 @@ public class DataTouchDbContext : DbContext
     public DbSet<AvailabilityException> AvailabilityExceptions => Set<AvailabilityException>();
     public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
     public DbSet<BookingSettings> BookingSettings => Set<BookingSettings>();
+    public DbSet<ReservationRequest> ReservationRequests => Set<ReservationRequest>();
+    public DbSet<ReservationResource> ReservationResources => Set<ReservationResource>();
     
     // CRM / Timeline
     public DbSet<Activity> Activities => Set<Activity>();
@@ -316,11 +318,16 @@ public class DataTouchDbContext : DbContext
         modelBuilder.Entity<AvailabilityRule>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.CardId, e.DayOfWeek }).IsUnique();
+            entity.HasIndex(e => new { e.CardId, e.DayOfWeek, e.ServiceId }).IsUnique();
             
             entity.HasOne(e => e.Card)
                 .WithMany(c => c.AvailabilityRules)
                 .HasForeignKey(e => e.CardId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Service)
+                .WithMany()
+                .HasForeignKey(e => e.ServiceId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
         
@@ -342,25 +349,31 @@ public class DataTouchDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.CustomerName).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.CustomerEmail).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.CustomerEmail).HasMaxLength(255);
             entity.Property(e => e.CustomerPhone).HasMaxLength(50);
             entity.Property(e => e.CustomerPhoneCountryCode).HasMaxLength(10);
             entity.Property(e => e.Description).HasMaxLength(2000);
             entity.Property(e => e.InternalNotes).HasMaxLength(2000);
+            entity.Property(e => e.CustomFieldsJson).HasColumnType("NVARCHAR(MAX)");
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(e => e.CardId);
             entity.HasIndex(e => e.Status);
-            
+
             entity.HasOne(e => e.Card)
                 .WithMany(c => c.QuoteRequests)
                 .HasForeignKey(e => e.CardId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.HasOne(e => e.Organization)
                 .WithMany()
                 .HasForeignKey(e => e.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
+            entity.HasOne(e => e.Service)
+                .WithMany()
+                .HasForeignKey(e => e.ServiceId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasOne(e => e.ConvertedAppointment)
                 .WithMany()
                 .HasForeignKey(e => e.ConvertedAppointmentId)
@@ -378,6 +391,66 @@ public class DataTouchDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.CardId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // ═══════════════════════════════════════════════════════════════
+        // RESERVATION SYSTEM ENTITIES
+        // ═══════════════════════════════════════════════════════════════
+        
+        // ReservationResource
+        modelBuilder.Entity<ReservationResource>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.PricePerNight).HasColumnType("decimal(10,2)");
+            entity.Property(e => e.BlockedDatesJson).HasColumnType("NVARCHAR(MAX)");
+            entity.HasIndex(e => e.CardId);
+            entity.HasIndex(e => new { e.CardId, e.DisplayOrder });
+            
+            entity.HasOne(e => e.Card)
+                .WithMany(c => c.ReservationResources)
+                .HasForeignKey(e => e.CardId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // ReservationRequest
+        modelBuilder.Entity<ReservationRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RequestNumber).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ContactName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.ContactEmail).HasMaxLength(255);
+            entity.Property(e => e.ContactPhone).HasMaxLength(50);
+            entity.Property(e => e.ContactPhoneCountryCode).HasMaxLength(10);
+            entity.Property(e => e.Notes).HasMaxLength(2000);
+            entity.Property(e => e.ExtrasJson).HasColumnType("NVARCHAR(MAX)");
+            entity.Property(e => e.InternalNotes).HasMaxLength(2000);
+            entity.Property(e => e.StatusReason).HasMaxLength(500);
+            entity.Property(e => e.Source).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.TemplateKey).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.IpAddress).HasMaxLength(50);
+            entity.Property(e => e.UserAgent).HasMaxLength(500);
+            entity.Property(e => e.IdempotencyKey).HasMaxLength(100);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(e => e.CardId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.CardId, e.FromDate });
+            
+            entity.HasOne(e => e.Card)
+                .WithMany(c => c.ReservationRequests)
+                .HasForeignKey(e => e.CardId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasOne(e => e.Resource)
+                .WithMany(r => r.ReservationRequests)
+                .HasForeignKey(e => e.ResourceId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
     }
 }

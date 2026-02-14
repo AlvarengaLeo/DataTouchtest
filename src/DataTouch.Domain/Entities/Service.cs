@@ -52,6 +52,9 @@ public class Service
     /// <summary>Max bookings per day for this service (0=unlimited)</summary>
     public int? MaxBookingsPerDay { get; set; }
     
+    /// <summary>Whether this service uses the card's global schedule (true) or has its own override (false)</summary>
+    public bool UseGlobalSchedule { get; set; } = true;
+    
     /// <summary>Quote form config JSON (fields enabled, auto-response)</summary>
     public string? QuoteFormConfigJson { get; set; }
     

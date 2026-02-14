@@ -53,12 +53,16 @@ public class QuoteService
         if (card == null)
             return new QuoteResult { Success = false, Error = "Tarjeta no encontrada" };
 
-        // Validate service exists and is active
-        var service = await _db.Services
-            .FirstOrDefaultAsync(s => s.Id == dto.ServiceId && s.CardId == dto.CardId && s.IsActive);
+        // Validate service exists and is active (skip if no service)
+        Service? service = null;
+        if (dto.ServiceId != Guid.Empty)
+        {
+            service = await _db.Services
+                .FirstOrDefaultAsync(s => s.Id == dto.ServiceId && s.CardId == dto.CardId && s.IsActive);
 
-        if (service == null)
-            return new QuoteResult { Success = false, Error = "Servicio no disponible" };
+            if (service == null)
+                return new QuoteResult { Success = false, Error = "Servicio no disponible" };
+        }
 
         // Lead deduplication - find or create lead
         var lead = await FindOrCreateLeadAsync(
@@ -109,7 +113,7 @@ public class QuoteService
             EntityType = "QuoteRequest",
             EntityId = quote.Id,
             Type = ActivityType.Created,
-            Description = $"Solicitud de cotización creada para {service.Name}",
+            Description = service != null ? $"Solicitud de cotización creada para {service.Name}" : "Solicitud de cotización creada",
             MetadataJson = System.Text.Json.JsonSerializer.Serialize(new
             {
                 serviceName = service.Name,
@@ -209,6 +213,192 @@ public class QuoteService
         }
 
         return $"{prefix}{nextNumber:D4}";
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PUBLIC API — Quote Request Template (no service catalog)
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Create a quote request from the public QuoteRequest template card.
+    /// Unlike CreatePublicQuoteAsync, this does NOT require a service — it's a general request.
+    /// </summary>
+    public async Task<QuoteResult> CreateQuoteFromPublicCardRequestAsync(CreatePublicCardQuoteDto dto)
+    {
+        // Idempotency check
+        if (!string.IsNullOrEmpty(dto.IdempotencyKey))
+        {
+            var existing = await _db.QuoteRequests
+                .FirstOrDefaultAsync(q => q.IdempotencyKey == dto.IdempotencyKey);
+            if (existing != null)
+            {
+                return new QuoteResult
+                {
+                    Success = true,
+                    Quote = existing,
+                    Message = "Solicitud ya procesada",
+                    IsDuplicate = true
+                };
+            }
+        }
+
+        // Validate card exists
+        var card = await _db.Cards
+            .Include(c => c.Organization)
+            .FirstOrDefaultAsync(c => c.Id == dto.CardId);
+
+        if (card == null)
+            return new QuoteResult { Success = false, Error = "Tarjeta no encontrada" };
+
+        // Lead deduplication — by email if available, otherwise by phone
+        var lead = await FindOrCreateLeadForPublicRequestAsync(
+            card.OrganizationId,
+            dto.CustomerEmail,
+            dto.CustomerName,
+            dto.CustomerPhone,
+            dto.CustomerPhoneCountryCode,
+            card.Id,
+            card.UserId);
+
+        // Generate request number
+        var requestNumber = await GenerateRequestNumberAsync(card.OrganizationId);
+
+        // SLA deadline (default: 24 hours)
+        var slaDeadline = DateTime.UtcNow.AddHours(24);
+
+        // Build custom fields metadata
+        var customFields = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            source = "PublicCard",
+            budget = dto.Budget,
+            deadline = dto.Deadline,
+            preferredContact = dto.PreferredContact
+        });
+
+        // Create quote request (no ServiceId)
+        var quote = new QuoteRequest
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = card.OrganizationId,
+            CardId = dto.CardId,
+            ServiceId = null,
+            LeadId = lead.Id,
+            RequestNumber = requestNumber,
+            CustomerName = dto.CustomerName,
+            CustomerEmail = dto.CustomerEmail,
+            CustomerPhone = dto.CustomerPhone,
+            CustomerPhoneCountryCode = dto.CustomerPhoneCountryCode,
+            Description = dto.Details,
+            CustomFieldsJson = customFields,
+            Status = QuoteStatus.New,
+            Priority = 2,
+            SlaDeadlineAt = slaDeadline,
+            IdempotencyKey = dto.IdempotencyKey ?? Guid.NewGuid().ToString(),
+            IpAddress = dto.IpAddress,
+            UserAgent = dto.UserAgent,
+            Referrer = dto.Referrer,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _db.QuoteRequests.Add(quote);
+
+        // Activity log
+        var activity = new Activity
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = card.OrganizationId,
+            EntityType = "QuoteRequest",
+            EntityId = quote.Id,
+            Type = ActivityType.Created,
+            Description = "Solicitud de cotización desde tarjeta pública",
+            MetadataJson = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                source = "public_card_quote_template",
+                customerEmail = dto.CustomerEmail,
+                customerPhone = dto.CustomerPhone
+            }),
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.Activities.Add(activity);
+
+        await _db.SaveChangesAsync();
+
+        return new QuoteResult
+        {
+            Success = true,
+            Quote = quote,
+            RequestNumber = requestNumber,
+            Message = "¡Solicitud de cotización enviada!"
+        };
+    }
+
+    /// <summary>
+    /// Find or create lead for public card request.
+    /// Deduplicates by email (primary) or phone (fallback when email is null).
+    /// </summary>
+    private async Task<Lead> FindOrCreateLeadForPublicRequestAsync(
+        Guid orgId,
+        string? email,
+        string fullName,
+        string? phone,
+        string? phoneCountryCode,
+        Guid sourceCardId,
+        Guid? ownerUserId = null)
+    {
+        Lead? existingLead = null;
+
+        // Try email dedup first
+        if (!string.IsNullOrEmpty(email))
+        {
+            existingLead = await _db.Leads
+                .FirstOrDefaultAsync(l => l.OrganizationId == orgId && l.Email == email);
+        }
+        // Fallback: dedup by phone if no email
+        else if (!string.IsNullOrEmpty(phone))
+        {
+            existingLead = await _db.Leads
+                .FirstOrDefaultAsync(l => l.OrganizationId == orgId && l.Phone == phone);
+        }
+
+        if (existingLead != null)
+        {
+            if (!string.IsNullOrWhiteSpace(fullName) &&
+                fullName.Length > (existingLead.FullName?.Length ?? 0))
+            {
+                existingLead.FullName = fullName;
+            }
+            if (string.IsNullOrEmpty(existingLead.Phone) && !string.IsNullOrEmpty(phone))
+            {
+                existingLead.Phone = phone;
+                existingLead.PhoneCountryCode = phoneCountryCode;
+            }
+            if (string.IsNullOrEmpty(existingLead.Email) && !string.IsNullOrEmpty(email))
+            {
+                existingLead.Email = email;
+            }
+            existingLead.LastActivityAt = DateTime.UtcNow;
+            return existingLead;
+        }
+
+        // Create new lead
+        var newLead = new Lead
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = orgId,
+            Email = email ?? "",
+            FullName = fullName,
+            Phone = phone,
+            PhoneCountryCode = phoneCountryCode,
+            Source = "quote_request_template",
+            CardId = sourceCardId,
+            OwnerUserId = ownerUserId ?? Guid.Empty,
+            Status = "new",
+            CreatedAt = DateTime.UtcNow,
+            LastActivityAt = DateTime.UtcNow
+        };
+
+        _db.Leads.Add(newLead);
+        return newLead;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -425,7 +615,7 @@ public class QuoteService
             Timezone = "America/El_Salvador",
             Status = AppointmentStatus.Pending,
             CustomerName = quote.CustomerName,
-            CustomerEmail = quote.CustomerEmail,
+            CustomerEmail = quote.CustomerEmail ?? "",
             CustomerPhone = quote.CustomerPhone,
             CustomerPhoneCountryCode = quote.CustomerPhoneCountryCode,
             CustomerNotes = $"Convertido desde cotización {quote.RequestNumber}. {quote.Description}",
@@ -481,6 +671,25 @@ public class CreateQuoteDto
     public string? Description { get; set; }
     
     // Idempotency & tracking
+    public string? IdempotencyKey { get; set; }
+    public string? IpAddress { get; set; }
+    public string? UserAgent { get; set; }
+    public string? Referrer { get; set; }
+}
+
+public class CreatePublicCardQuoteDto
+{
+    public Guid CardId { get; set; }
+    public required string CustomerName { get; set; }
+    public string? CustomerEmail { get; set; }
+    public string? CustomerPhone { get; set; }
+    public string? CustomerPhoneCountryCode { get; set; }
+    public required string Details { get; set; }
+    public string? Budget { get; set; }
+    public string? Deadline { get; set; }
+    public string? PreferredContact { get; set; }
+
+    // Tracking
     public string? IdempotencyKey { get; set; }
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }

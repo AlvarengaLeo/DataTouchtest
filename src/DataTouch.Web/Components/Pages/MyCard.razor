@@ -576,73 +576,174 @@ else
                             </div>
                             <div class="section-header-text">
                                 <h2 class="section-title">Galería de Proyectos</h2>
-                                <p class="section-description">Muestra tu trabajo creativo (máximo 10 imágenes)</p>
+                                <p class="section-description">Muestra tu trabajo creativo con fotos y videos</p>
                             </div>
                         </div>
                         <div class="section-content">
-                            @* Upload Area *@
-                            <div class="gallery-upload-area">
-                                <MudFileUpload T="IBrowserFile" 
-                                               FilesChanged="UploadGalleryImage" 
-                                               Accept="image/png,image/jpeg,image/webp"
-                                               Disabled="@(_galleryImages.Count >= 10 || _isUploadingGallery)">
-                                    <ActivatorContent>
-                                        <div class="gallery-dropzone @(_galleryImages.Count >= 10 ? "disabled" : "")">
-                                            @if (_isUploadingGallery)
-                                            {
-                                                <MudProgressCircular Size="Size.Medium" Indeterminate="true" Color="Color.Primary" />
-                                                <span>Subiendo...</span>
-                                            }
-                                            else
-                                            {
-                                                <MudIcon Icon="@Icons.Material.Filled.AddPhotoAlternate" Size="Size.Large" />
-                                                <span>@(_galleryImages.Count >= 10 ? "Límite alcanzado" : "Agregar imagen")</span>
-                                            }
-                                        </div>
-                                    </ActivatorContent>
-                                </MudFileUpload>
+                            @* Content toggles *@
+                            <div class="gallery-toggles">
+                                <span class="gallery-toggles-label">Contenido de galería</span>
+                                <div class="gallery-toggles-row">
+                                    <MudSwitch T="bool" Value="_portfolioGallery.EnablePhotos"
+                                               ValueChanged="OnPhotosToggleChanged"
+                                               Color="Color.Primary" Label="Fotos" />
+                                    <MudSwitch T="bool" Value="_portfolioGallery.EnableVideos"
+                                               ValueChanged="OnVideosToggleChanged"
+                                               Color="Color.Primary" Label="Videos" />
+                                </div>
+                                <span class="gallery-toggles-hint">Activa solo lo que quieras mostrar en tu tarjeta.</span>
                             </div>
 
-                            @* Gallery Grid *@
-                            @if (_galleryImages.Any())
-                            {
-                                <div class="gallery-editor-grid">
-                                    @foreach (var (image, index) in _galleryImages.OrderBy(i => i.Order).Select((img, idx) => (img, idx)))
-                                    {
-                                        <div class="gallery-editor-item">
-                                            <img src="@image.Url" alt="@(image.Title ?? $"Imagen {index + 1}")" />
-                                            <div class="gallery-item-overlay">
-                                                <button class="gallery-item-btn" @onclick="() => MoveGalleryImage(image, -1)" 
-                                                        disabled="@(index == 0)" title="Mover arriba">
-                                                    <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" />
-                                                </button>
-                                                <button class="gallery-item-btn gallery-item-delete" @onclick="() => RemoveGalleryImage(image)" title="Eliminar">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" />
-                                                </button>
-                                                <button class="gallery-item-btn" @onclick="() => MoveGalleryImage(image, 1)" 
-                                                        disabled="@(index == _galleryImages.Count - 1)" title="Mover abajo">
-                                                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" />
-                                                </button>
-                                            </div>
-                                            <div class="gallery-item-title">
-                                                <MudTextField @bind-Value="image.Title" 
-                                                              Placeholder="Título (opcional)" 
-                                                              Variant="Variant.Text"
-                                                              Margin="Margin.Dense"
-                                                              @oninput="MarkUnsaved" />
-                                            </div>
+                            <div class="gallery-columns">
+                                @* ── PHOTOS COLUMN ── *@
+                                @if (_portfolioGallery.EnablePhotos)
+                                {
+                                    <div class="gallery-column">
+                                        <h3 class="gallery-column-title">
+                                            <MudIcon Icon="@Icons.Material.Filled.Photo" Size="Size.Small" /> Fotos
+                                            <span class="gallery-column-count">@_galleryImages.Count/10</span>
+                                        </h3>
+                                        <div class="gallery-upload-area">
+                                            <MudFileUpload T="IBrowserFile" 
+                                                           FilesChanged="UploadGalleryImage" 
+                                                           Accept="image/png,image/jpeg,image/webp"
+                                                           Disabled="@(_galleryImages.Count >= 10 || _isUploadingGallery)">
+                                                <ActivatorContent>
+                                                    <div class="gallery-dropzone @(_galleryImages.Count >= 10 ? "disabled" : "")">
+                                                        @if (_isUploadingGallery)
+                                                        {
+                                                            <MudProgressCircular Size="Size.Medium" Indeterminate="true" Color="Color.Primary" />
+                                                            <span>Subiendo...</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <MudIcon Icon="@Icons.Material.Filled.AddPhotoAlternate" Size="Size.Large" />
+                                                            <span>@(_galleryImages.Count >= 10 ? "Límite alcanzado" : "Agregar foto")</span>
+                                                        }
+                                                    </div>
+                                                </ActivatorContent>
+                                            </MudFileUpload>
                                         </div>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="gallery-empty-state">
-                                    <MudIcon Icon="@Icons.Material.Filled.Collections" Size="Size.Large" />
-                                    <p>Aún no tienes imágenes en tu galería</p>
-                                    <span>Sube hasta 10 imágenes para mostrar tu trabajo</span>
-                                </div>
-                            }
+                                        @if (_galleryImages.Any())
+                                        {
+                                            <div class="gallery-editor-grid">
+                                                @foreach (var (image, index) in _galleryImages.OrderBy(i => i.Order).Select((img, idx) => (img, idx)))
+                                                {
+                                                    <div class="gallery-editor-item">
+                                                        <img src="@image.Url" alt="@(image.Title ?? $"Foto {index + 1}")" />
+                                                        <div class="gallery-item-overlay">
+                                                            <button class="gallery-item-btn" @onclick="() => MoveGalleryImage(image, -1)" 
+                                                                    disabled="@(index == 0)" title="Mover arriba">
+                                                                <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" />
+                                                            </button>
+                                                            <button class="gallery-item-btn gallery-item-delete" @onclick="() => RemoveGalleryImage(image)" title="Eliminar">
+                                                                <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" />
+                                                            </button>
+                                                            <button class="gallery-item-btn" @onclick="() => MoveGalleryImage(image, 1)" 
+                                                                    disabled="@(index == _galleryImages.Count - 1)" title="Mover abajo">
+                                                                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" />
+                                                            </button>
+                                                        </div>
+                                                        <div class="gallery-item-title">
+                                                            <MudTextField @bind-Value="image.Title" 
+                                                                          Placeholder="Título (opcional)" 
+                                                                          Variant="Variant.Text"
+                                                                          Margin="Margin.Dense"
+                                                                          @oninput="MarkUnsaved" />
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="gallery-empty-state">
+                                                <MudIcon Icon="@Icons.Material.Filled.Collections" Size="Size.Large" />
+                                                <p>Aún no hay fotos</p>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                @* ── VIDEOS COLUMN ── *@
+                                @if (_portfolioGallery.EnableVideos)
+                                {
+                                    <div class="gallery-column">
+                                        <h3 class="gallery-column-title">
+                                            <MudIcon Icon="@Icons.Material.Filled.Videocam" Size="Size.Small" /> Videos
+                                            <span class="gallery-column-count">@_portfolioGallery.Videos.Count/10</span>
+                                        </h3>
+                                        <div class="gallery-upload-area">
+                                            <MudFileUpload T="IBrowserFile" 
+                                                           FilesChanged="UploadGalleryVideo" 
+                                                           Accept="video/mp4,video/webm,video/quicktime"
+                                                           Disabled="@(_portfolioGallery.Videos.Count >= 10 || _isUploadingVideo)">
+                                                <ActivatorContent>
+                                                    <div class="gallery-dropzone @(_portfolioGallery.Videos.Count >= 10 ? "disabled" : "")">
+                                                        @if (_isUploadingVideo)
+                                                        {
+                                                            <MudProgressCircular Size="Size.Medium" Indeterminate="true" Color="Color.Primary" />
+                                                            <span>Subiendo...</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <MudIcon Icon="@Icons.Material.Filled.VideoCall" Size="Size.Large" />
+                                                            <span>@(_portfolioGallery.Videos.Count >= 10 ? "Límite alcanzado" : "Agregar video")</span>
+                                                        }
+                                                    </div>
+                                                </ActivatorContent>
+                                            </MudFileUpload>
+                                        </div>
+                                        @if (_portfolioGallery.Videos.Any())
+                                        {
+                                            <div class="gallery-editor-grid">
+                                                @foreach (var (video, index) in _portfolioGallery.Videos.OrderBy(v => v.Order).Select((v, idx) => (v, idx)))
+                                                {
+                                                    <div class="gallery-editor-item gallery-editor-item--video">
+                                                        @if (!string.IsNullOrEmpty(video.ThumbnailUrl))
+                                                        {
+                                                            <img src="@video.ThumbnailUrl" alt="@(video.Title ?? $"Video {index + 1}")" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="gallery-video-thumb">
+                                                                <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Size="Size.Large" />
+                                                            </div>
+                                                        }
+                                                        <div class="gallery-item-overlay">
+                                                            <button class="gallery-item-btn" @onclick="() => MoveGalleryVideo(video, -1)" 
+                                                                    disabled="@(index == 0)" title="Mover arriba">
+                                                                <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" />
+                                                            </button>
+                                                            <button class="gallery-item-btn gallery-item-delete" @onclick="() => RemoveGalleryVideo(video)" title="Eliminar">
+                                                                <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" />
+                                                            </button>
+                                                            <button class="gallery-item-btn" @onclick="() => MoveGalleryVideo(video, 1)" 
+                                                                    disabled="@(index == _portfolioGallery.Videos.Count - 1)" title="Mover abajo">
+                                                                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" />
+                                                            </button>
+                                                        </div>
+                                                        <div class="gallery-item-title">
+                                                            <MudTextField @bind-Value="video.Title" 
+                                                                          Placeholder="Título (opcional)" 
+                                                                          Variant="Variant.Text"
+                                                                          Margin="Margin.Dense"
+                                                                          @oninput="MarkUnsaved" />
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="gallery-empty-state">
+                                                <MudIcon Icon="@Icons.Material.Filled.VideoLibrary" Size="Size.Large" />
+                                                <p>Aún no hay videos</p>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
                         </div>
                     </section>
                 }
@@ -650,11 +751,11 @@ else
                 @* ─────────────────────────────────────────────────────────
                    SERVICES (CONDITIONAL - Only for Services Template)
                    ───────────────────────────────────────────────────────── *@
-                @if (_isServicesTemplate)
+                @if (_isServicesTemplate || _isAppointmentsTemplate)
                 {
                     @* SERVICES EDITOR - With integrated CTA indicator *@
                     <section class="section-card section-level-1 section-services">
-                        <div class="section-header section-header-collapsible" @onclick="() => _servicesSectionExpanded = !_servicesSectionExpanded">
+                        <div class="section-header">
                             <div class="section-icon icon-services">
                                 <MudIcon Icon="@Icons.Material.Filled.Handyman" Size="Size.Medium" />
                             </div>
@@ -662,13 +763,10 @@ else
                                 <h2 class="section-title">Mis Servicios</h2>
                                 <p class="section-description">Configura los servicios que ofreces (máximo 10)</p>
                             </div>
-                            <MudIcon Icon="@(_servicesSectionExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" 
-                                     Size="Size.Medium" 
-                                     Class="section-collapse-icon" />
                         </div>
                         
-                        @* Compact CTA Status Indicator - Always visible when services exist *@
-                        @if (_services.Any())
+                        @* Compact CTA Status Indicator - Only for services-quotes template (appointments always = booking) *@
+                        @if (_services.Any() && !_isAppointmentsTemplate)
                         {
                             <div class="cta-status-bar">
                                 <div class="cta-status-left">
@@ -701,7 +799,138 @@ else
                             </div>
                         }
                         
-                        <MudCollapse Expanded="_servicesSectionExpanded">
+                        @* ═══════════════════════════════════════════════════════
+                           HORARIO DE ATENCIÓN (GLOBAL) — only for appointments template
+                           ═══════════════════════════════════════════════════════ *@
+                        @if (_isAppointmentsTemplate)
+                        {
+                            <div class="schedule-editor">
+                                    <div class="schedule-editor-body">
+                                        @* Preset chips *@
+                                        <div class="schedule-presets">
+                                            @{ var presetMonFri = "mon-fri"; var presetMonSat = "mon-sat"; }
+                                            <button class="schedule-preset-chip @(_schedulePreset == presetMonFri ? "preset-active" : "")"
+                                                    @onclick="@(() => ApplySchedulePreset(presetMonFri))">Lun – Vie</button>
+                                            <button class="schedule-preset-chip @(_schedulePreset == presetMonSat ? "preset-active" : "")"
+                                                    @onclick="@(() => ApplySchedulePreset(presetMonSat))">Lun – Sáb</button>
+                                        </div>
+
+                                        @* Day toggles *@
+                                        <div class="schedule-day-toggles">
+                                            @foreach (var day in _scheduleDays)
+                                            {
+                                                var isActive = _globalScheduleActiveDays.Contains(day.Value);
+                                                <button class="schedule-day-chip @(isActive ? "day-active" : "")"
+                                                        @onclick="() => ToggleScheduleDay(day.Value)">
+                                                    @day.Label
+                                                </button>
+                                            }
+                                        </div>
+
+                                        @* Time range *@
+                                        <div class="schedule-time-row">
+                                            <MudTimePicker Label="Desde" @bind-Time="_globalWorkStart"
+                                                           Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                           AmPm="true" />
+                                            <MudTimePicker Label="Hasta" @bind-Time="_globalWorkEnd"
+                                                           Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                           AmPm="true" />
+                                        </div>
+                                        @if (_globalWorkEnd.HasValue && _globalWorkStart.HasValue && _globalWorkEnd <= _globalWorkStart)
+                                        {
+                                            <p class="schedule-validation-msg">"Hasta" debe ser mayor que "Desde".</p>
+                                        }
+
+                                        @* Break toggle *@
+                                        <div class="schedule-break-toggle">
+                                            <MudSwitch @bind-Value="_hasBreak" Color="Color.Primary" Size="Size.Small" Label="Agregar descanso" />
+                                        </div>
+                                        @if (_hasBreak)
+                                        {
+                                            <div class="schedule-time-row">
+                                                <MudTimePicker Label="Descanso desde" @bind-Time="_globalBreakStart"
+                                                               Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                               AmPm="true" />
+                                                <MudTimePicker Label="Descanso hasta" @bind-Time="_globalBreakEnd"
+                                                               Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                               AmPm="true" />
+                                            </div>
+                                            @if (_globalBreakEnd.HasValue && _globalBreakStart.HasValue && _globalBreakEnd <= _globalBreakStart)
+                                            {
+                                                <p class="schedule-validation-msg">"Descanso hasta" debe ser mayor que "Descanso desde".</p>
+                                            }
+                                        }
+
+                                        @* Timezone (read-only) *@
+                                        <div class="schedule-timezone">
+                                            <MudIcon Icon="@Icons.Material.Filled.Public" Size="Size.Small" />
+                                            <span>@(_bookingSettings?.TimeZoneId ?? "America/El_Salvador")</span>
+                                        </div>
+
+                                        @* Exceptions (blocked dates) *@
+                                        <div class="schedule-exceptions">
+                                            <div class="schedule-exceptions-header">
+                                                <span class="schedule-exceptions-title">Fechas no laborables</span>
+                                                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                           StartIcon="@Icons.Material.Filled.Add"
+                                                           OnClick="AddScheduleException">Agregar</MudButton>
+                                            </div>
+                                            @if (_availabilityExceptions.Any())
+                                            {
+                                                <div class="schedule-exceptions-list">
+                                                    @foreach (var ex in _availabilityExceptions.OrderBy(e => e.ExceptionDate))
+                                                    {
+                                                        <div class="schedule-exception-item">
+                                                            <span>@ex.ExceptionDate.ToString("dd MMM yyyy")</span>
+                                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                                                           OnClick="() => RemoveScheduleException(ex)" />
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <p class="schedule-exceptions-empty">Sin fechas bloqueadas</p>
+                                            }
+                                        </div>
+                                    </div>
+                            </div>
+
+                            @* ── Block Date Modal ── *@
+                            @if (_showBlockDateModal)
+                            {
+                                <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300"
+                                            OnClick="CancelBlockDate">
+                                    <div class="block-date-modal" @onclick:stopPropagation="true">
+                                        <div class="block-date-modal-header">
+                                            <h3 class="block-date-modal-title">Bloquear fecha</h3>
+                                            <p class="block-date-modal-subtitle">Evita reservas en una fecha específica.</p>
+                                        </div>
+                                        <div class="block-date-modal-body">
+                                            <MudDatePicker Label="Fecha a bloquear"
+                                                           @bind-Date="_blockDateSelection"
+                                                           MinDate="DateTime.Today"
+                                                           Variant="Variant.Outlined"
+                                                           Margin="Margin.Dense"
+                                                           DateFormat="dd MMM yyyy"
+                                                           Placeholder="Selecciona una fecha" />
+                                            @if (_blockDateSelection != null && _availabilityExceptions.Any(e => e.ExceptionDate == DateOnly.FromDateTime(_blockDateSelection.Value)))
+                                            {
+                                                <p class="schedule-validation-msg">Esta fecha ya está bloqueada.</p>
+                                            }
+                                        </div>
+                                        <div class="block-date-modal-footer">
+                                            <MudButton Variant="Variant.Text" Color="Color.Default"
+                                                       OnClick="CancelBlockDate">Cancelar</MudButton>
+                                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                                       Disabled="@(!IsBlockDateValid())"
+                                                       OnClick="ConfirmBlockDate">Bloquear</MudButton>
+                                        </div>
+                                    </div>
+                                </MudOverlay>
+                            }
+                        }
+
                             <div class="section-content">
                                 @* Add Service Button *@
                                 <div class="services-add-area">
@@ -723,147 +952,165 @@ else
                                         @foreach (var (service, index) in _services.OrderBy(s => s.DisplayOrder).Select((s, i) => (s, i)))
                                         {
                                             <div class="service-editor-card @(service.IsActive ? "" : "service-inactive")">
-                                                @* Service Header *@
-                                                <div class="service-card-header">
+                                                @* ── Enterprise Service Header ── *@
+                                                <div class="service-card-header" @onclick="() => ToggleServiceBody(service.Id)">
                                                     <div class="service-header-left">
-                                                        <span class="service-drag-handle" title="Arrastra para reordenar">≡</span>
-                                                        <span class="service-number">#@(index + 1)</span>
                                                         <span class="service-name-preview">@(string.IsNullOrEmpty(service.Name) ? "Nuevo servicio" : service.Name)</span>
+                                                        <div class="service-header-chips">
+                                                            @if (service.DurationMinutes > 0)
+                                                            {
+                                                                <span class="svc-chip svc-chip-duration">@FormatDuration(service.DurationMinutes)</span>
+                                                            }
+                                                            @if (service.PriceFrom.HasValue && service.PriceFrom > 0)
+                                                            {
+                                                                <span class="svc-chip svc-chip-price">$@service.PriceFrom</span>
+                                                            }
+                                                            @if (!string.IsNullOrEmpty(service.Modality))
+                                                            {
+                                                                <span class="svc-chip svc-chip-modality">@GetModalityLabel(service.Modality)</span>
+                                                            }
+                                                        </div>
                                                     </div>
                                                     <div class="service-header-right">
                                                         <MudSwitch @bind-Value="service.IsActive" 
                                                                    Color="Color.Success" 
                                                                    Size="Size.Small"
+                                                                   @onclick:stopPropagation="true"
                                                                    title="@(service.IsActive ? "Activo" : "Inactivo")" />
                                                         <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
                                                             <MudMenuItem Icon="@Icons.Material.Filled.ContentCopy" OnClick="() => DuplicateService(service)">Duplicar</MudMenuItem>
                                                             <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="() => RemoveService(service)" Class="mud-error-text">Eliminar</MudMenuItem>
                                                         </MudMenu>
+                                                        <MudIcon Icon="@(IsServiceBodyExpanded(service.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" Class="svc-expand-icon" />
                                                     </div>
                                                 </div>
 
-                                                @* Conversion Type Selector *@
-                                                <div class="service-conversion-type">
-                                                    <label class="conversion-label">Este servicio se ofrece como:</label>
-                                                    <div class="conversion-options">
-                                                        <div class="conversion-option @(service.ConversionType == "booking" ? "conversion-active" : "")"
-                                                             @onclick="@(() => SetServiceConversionType(service, "booking"))">
-                                                            <span class="conversion-icon">📅</span>
-                                                            <span class="conversion-text">Cita</span>
-                                                        </div>
-                                                        <div class="conversion-option @(service.ConversionType == "quote" ? "conversion-active" : "")"
-                                                             @onclick="@(() => SetServiceConversionType(service, "quote"))">
-                                                            <span class="conversion-icon">📝</span>
-                                                            <span class="conversion-text">Cotización</span>
-                                                        </div>
-                                                        <div class="conversion-option @(service.ConversionType == "both" ? "conversion-active" : "")"
-                                                             @onclick="@(() => SetServiceConversionType(service, "both"))">
-                                                            <span class="conversion-icon">✅</span>
-                                                            <span class="conversion-text">Ambos</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                @* Basic Fields *@
-                                                <div class="service-basic-fields">
-                                                    <MudTextField @bind-Value="service.Name" 
-                                                                  Label="Nombre del servicio" 
-                                                                  Variant="Variant.Outlined"
-                                                                  Required="true"
-                                                                  Margin="Margin.Dense"
-                                                                  @oninput="MarkUnsaved" />
-                                                    <div class="service-row">
-                                                        <MudNumericField @bind-Value="service.DurationMinutes" 
-                                                                         Label="Duración (min)" 
-                                                                         Variant="Variant.Outlined"
-                                                                         Min="15" Max="480"
-                                                                         Margin="Margin.Dense"
-                                                                         @oninput="MarkUnsaved" />
-                                                        <MudNumericField @bind-Value="service.PriceFrom" 
-                                                                         Label="Precio desde $" 
-                                                                         Variant="Variant.Outlined"
-                                                                         Min="0"
-                                                                         Margin="Margin.Dense"
-                                                                         @oninput="MarkUnsaved" />
-                                                    </div>
-                                                    <MudTextField @bind-Value="service.Description" 
-                                                                  Label="Descripción (opcional)" 
-                                                                  Variant="Variant.Outlined"
-                                                                  Lines="2"
-                                                                  Margin="Margin.Dense"
-                                                                  @oninput="MarkUnsaved" />
-                                                </div>
-
-                                                @* Booking Config (Collapsible) - Only if booking or both *@
-                                                @if (service.ConversionType == "booking" || service.ConversionType == "both")
-                                                {
-                                                    <div class="service-config-panel">
-                                                        <div class="config-panel-header" @onclick="() => ToggleServiceBookingConfig(service.Id)">
-                                                            <span class="config-panel-icon">⚙️</span>
-                                                            <span class="config-panel-title">Configuración de Agenda</span>
-                                                            <MudIcon Icon="@(IsServiceBookingConfigExpanded(service.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
-                                                        </div>
-                                                        <MudCollapse Expanded="IsServiceBookingConfigExpanded(service.Id)">
-                                                            <div class="config-panel-content">
-                                                                <div class="config-row">
-                                                                    <MudSelect @bind-Value="service.Modality" 
-                                                                               Label="Modalidad" 
-                                                                               Variant="Variant.Outlined"
-                                                                               Margin="Margin.Dense"
-                                                                               @oninput="MarkUnsaved">
-                                                                        <MudSelectItem Value="@("presencial")">🏢 Presencial</MudSelectItem>
-                                                                        <MudSelectItem Value="@("online")">💻 Online</MudSelectItem>
-                                                                        <MudSelectItem Value="@("domicilio")">🏠 A domicilio</MudSelectItem>
-                                                                    </MudSelect>
-                                                                    <MudSelect @bind-Value="service.MinNoticeMinutes" 
-                                                                               Label="Anticipación mínima" 
-                                                                               Variant="Variant.Outlined"
-                                                                               Margin="Margin.Dense"
-                                                                               @oninput="MarkUnsaved">
-                                                                        <MudSelectItem Value="@((int?)60)">1 hora</MudSelectItem>
-                                                                        <MudSelectItem Value="@((int?)180)">3 horas</MudSelectItem>
-                                                                        <MudSelectItem Value="@((int?)1440)">24 horas</MudSelectItem>
-                                                                        <MudSelectItem Value="@((int?)2880)">48 horas</MudSelectItem>
-                                                                    </MudSelect>
+                                                @* ── Collapsible Body ── *@
+                                                <MudCollapse Expanded="IsServiceBodyExpanded(service.Id)">
+                                                    <div class="service-card-body">
+                                                        @* Conversion Type Selector — hidden for appointments (always booking) *@
+                                                        @if (!_isAppointmentsTemplate)
+                                                        {
+                                                            <div class="service-conversion-type">
+                                                                <label class="conversion-label">Este servicio se ofrece como:</label>
+                                                                <div class="conversion-options">
+                                                                    <div class="conversion-option @(service.ConversionType == "booking" ? "conversion-active" : "")"
+                                                                         @onclick="@(() => SetServiceConversionType(service, "booking"))">
+                                                                        <span class="conversion-icon">📅</span>
+                                                                        <span class="conversion-text">Cita</span>
+                                                                    </div>
+                                                                    <div class="conversion-option @(service.ConversionType == "quote" ? "conversion-active" : "")"
+                                                                         @onclick="@(() => SetServiceConversionType(service, "quote"))">
+                                                                        <span class="conversion-icon">📝</span>
+                                                                        <span class="conversion-text">Cotización</span>
+                                                                    </div>
+                                                                    <div class="conversion-option @(service.ConversionType == "both" ? "conversion-active" : "")"
+                                                                         @onclick="@(() => SetServiceConversionType(service, "both"))">
+                                                                        <span class="conversion-icon">✅</span>
+                                                                        <span class="conversion-text">Ambos</span>
+                                                                    </div>
                                                                 </div>
-                                                                <div class="config-row">
-                                                                    <MudSelect @bind-Value="service.BufferBeforeMinutes" 
-                                                                               Label="Buffer antes" 
-                                                                               Variant="Variant.Outlined"
-                                                                               Margin="Margin.Dense"
-                                                                               @oninput="MarkUnsaved">
-                                                                        <MudSelectItem Value="@((int?)0)">0 min</MudSelectItem>
-                                                                        <MudSelectItem Value="@((int?)5)">5 min</MudSelectItem>
-                                                                        <MudSelectItem Value="@((int?)10)">10 min</MudSelectItem>
-                                                                        <MudSelectItem Value="@((int?)15)">15 min</MudSelectItem>
-                                                                    </MudSelect>
-                                                                    <MudSelect @bind-Value="service.BufferAfterMinutes" 
-                                                                               Label="Buffer después" 
-                                                                               Variant="Variant.Outlined"
-                                                                               Margin="Margin.Dense"
-                                                                               @oninput="MarkUnsaved">
-                                                                        <MudSelectItem Value="@((int?)0)">0 min</MudSelectItem>
-                                                                        <MudSelectItem Value="@((int?)5)">5 min</MudSelectItem>
-                                                                        <MudSelectItem Value="@((int?)10)">10 min</MudSelectItem>
-                                                                        <MudSelectItem Value="@((int?)15)">15 min</MudSelectItem>
-                                                                    </MudSelect>
-                                                                </div>
-                                                                <MudSelect @bind-Value="service.MaxBookingsPerDay" 
-                                                                           Label="Límite de citas por día" 
+                                                            </div>
+                                                        }
+
+                                                        @* Basic Fields *@
+                                                        <div class="service-basic-fields">
+                                                            <MudTextField @bind-Value="service.Name" 
+                                                                          Label="Nombre del servicio" 
+                                                                          Variant="Variant.Outlined"
+                                                                          Required="true"
+                                                                          Margin="Margin.Dense"
+                                                                          @oninput="MarkUnsaved" />
+                                                            <div class="service-row">
+                                                                <MudSelect @bind-Value="service.DurationMinutes"
+                                                                           Label="Duración"
                                                                            Variant="Variant.Outlined"
                                                                            Margin="Margin.Dense"
-                                                                           FullWidth="true"
                                                                            @oninput="MarkUnsaved">
-                                                                    <MudSelectItem Value="@((int?)0)">Ilimitado</MudSelectItem>
-                                                                    <MudSelectItem Value="@((int?)3)">3 citas</MudSelectItem>
-                                                                    <MudSelectItem Value="@((int?)5)">5 citas</MudSelectItem>
-                                                                    <MudSelectItem Value="@((int?)10)">10 citas</MudSelectItem>
+                                                                    <MudSelectItem Value="@(15)">15 min</MudSelectItem>
+                                                                    <MudSelectItem Value="@(30)">30 min</MudSelectItem>
+                                                                    <MudSelectItem Value="@(45)">45 min</MudSelectItem>
+                                                                    <MudSelectItem Value="@(60)">1 hora</MudSelectItem>
+                                                                    <MudSelectItem Value="@(90)">1 h 30 min</MudSelectItem>
+                                                                    <MudSelectItem Value="@(120)">2 horas</MudSelectItem>
                                                                 </MudSelect>
+                                                                <MudNumericField @bind-Value="service.PriceFrom" 
+                                                                                 Label="Precio desde $" 
+                                                                                 Variant="Variant.Outlined"
+                                                                                 Min="0"
+                                                                                 Margin="Margin.Dense"
+                                                                                 @oninput="MarkUnsaved" />
                                                             </div>
-                                                        </MudCollapse>
-                                                    </div>
-                                                }
+                                                            <MudTextField @bind-Value="service.Description" 
+                                                                          Label="Descripción (opcional)" 
+                                                                          Variant="Variant.Outlined"
+                                                                          Lines="2"
+                                                                          Margin="Margin.Dense"
+                                                                          @oninput="MarkUnsaved" />
+                                                        </div>
 
+                                                        @* Booking Config - Only if booking or both *@
+                                                        @if (service.ConversionType == "booking" || service.ConversionType == "both")
+                                                        {
+                                                            <div class="service-config-panel">
+                                                                <div class="config-panel-header" @onclick="() => ToggleServiceBookingConfig(service.Id)">
+                                                                    <span class="config-panel-title">⚙️ Configuración de Agenda</span>
+                                                                    <MudIcon Icon="@(IsServiceBookingConfigExpanded(service.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
+                                                                </div>
+                                                                @if (IsServiceBookingConfigExpanded(service.Id))
+                                                                {
+                                                                    <div class="config-panel-content">
+                                                                        @if (_isAppointmentsTemplate)
+                                                                        {
+                                                                            <div class="schedule-override-toggle">
+                                                                                <MudSwitch @bind-Value="service.UseGlobalSchedule"
+                                                                                           Color="Color.Primary" Size="Size.Small"
+                                                                                           Label="Usar horario global" />
+                                                                                @if (!service.UseGlobalSchedule)
+                                                                                {
+                                                                                    <p class="schedule-override-hint">Este servicio usa un horario personalizado (configurable en Disponibilidad).</p>
+                                                                                }
+                                                                            </div>
+                                                                        }
+                                                                        <div class="config-row">
+                                                                            <MudSelect @bind-Value="service.Modality" Label="Modalidad" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                                                                <MudSelectItem Value="@("presencial")">Presencial</MudSelectItem>
+                                                                                <MudSelectItem Value="@("online")">Online</MudSelectItem>
+                                                                                <MudSelectItem Value="@("domicilio")">A domicilio</MudSelectItem>
+                                                                            </MudSelect>
+                                                                            <MudSelect @bind-Value="service.MinNoticeMinutes" Label="Anticipación mínima" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                                                                <MudSelectItem Value="@((int?)60)">1 hora</MudSelectItem>
+                                                                                <MudSelectItem Value="@((int?)180)">3 horas</MudSelectItem>
+                                                                                <MudSelectItem Value="@((int?)1440)">24 horas</MudSelectItem>
+                                                                                <MudSelectItem Value="@((int?)2880)">48 horas</MudSelectItem>
+                                                                            </MudSelect>
+                                                                        </div>
+                                                                        <div class="config-row">
+                                                                            <MudSelect @bind-Value="service.BufferBeforeMinutes" Label="Buffer antes" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                                                                <MudSelectItem Value="@((int?)0)">0 min</MudSelectItem>
+                                                                                <MudSelectItem Value="@((int?)5)">5 min</MudSelectItem>
+                                                                                <MudSelectItem Value="@((int?)10)">10 min</MudSelectItem>
+                                                                                <MudSelectItem Value="@((int?)15)">15 min</MudSelectItem>
+                                                                            </MudSelect>
+                                                                            <MudSelect @bind-Value="service.BufferAfterMinutes" Label="Buffer después" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                                                                <MudSelectItem Value="@((int?)0)">0 min</MudSelectItem>
+                                                                                <MudSelectItem Value="@((int?)5)">5 min</MudSelectItem>
+                                                                                <MudSelectItem Value="@((int?)10)">10 min</MudSelectItem>
+                                                                                <MudSelectItem Value="@((int?)15)">15 min</MudSelectItem>
+                                                                            </MudSelect>
+                                                                        </div>
+                                                                        <MudSelect @bind-Value="service.MaxBookingsPerDay" Label="Límite de citas por día" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true">
+                                                                            <MudSelectItem Value="@((int?)0)">Ilimitado</MudSelectItem>
+                                                                            <MudSelectItem Value="@((int?)3)">3 citas</MudSelectItem>
+                                                                            <MudSelectItem Value="@((int?)5)">5 citas</MudSelectItem>
+                                                                            <MudSelectItem Value="@((int?)10)">10 citas</MudSelectItem>
+                                                                        </MudSelect>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </MudCollapse>
                                             </div>
                                         }
                                     </div>
@@ -877,7 +1124,182 @@ else
                                     </div>
                                 }
                             </div>
-                        </MudCollapse>
+                    </section>
+                }
+
+                @* ─────────────────────────────────────────────────────────
+                   QUOTE REQUEST (CONDITIONAL - Only for Quote Request Template)
+                   ───────────────────────────────────────────────────────── *@
+                @if (_isQuoteRequestTemplate)
+                {
+                    <section class="section-card section-level-1 section-quotes">
+                        <div class="section-header">
+                            <div class="section-icon icon-quotes">
+                                <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Size="Size.Medium" />
+                            </div>
+                            <div class="section-header-text">
+                                <h2 class="section-title">Cotizaciones</h2>
+                                <p class="section-description">Configura el formulario de solicitud de cotización</p>
+                            </div>
+                        </div>
+                        <div class="section-content">
+                            @* A) Copy del bloque *@
+                            <div class="edit-group">
+                                <label class="edit-label">Título del bloque</label>
+                                <MudTextField @bind-Value="_quoteSettings.BlockTitle" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" @oninput="MarkUnsaved" />
+                            </div>
+                            <div class="edit-group">
+                                <label class="edit-label">Subtítulo</label>
+                                <MudTextField @bind-Value="_quoteSettings.BlockSubtitle" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" @oninput="MarkUnsaved" />
+                            </div>
+                            <div class="edit-group">
+                                <MudSwitch @bind-Value="_quoteSettings.ShowLegalText" Color="Color.Primary" Label="Mostrar texto legal" />
+                                @if (_quoteSettings.ShowLegalText)
+                                {
+                                    <MudTextField @bind-Value="_quoteSettings.LegalText" Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense" Placeholder="La cotización puede variar según alcance."
+                                                  @oninput="MarkUnsaved" />
+                                }
+                            </div>
+
+                            @* B) Configuración de campos *@
+                            <MudDivider Class="my-3" />
+                            <label class="edit-label">Campos del formulario</label>
+                            <div class="form-fields-config">
+                                <MudSwitch @bind-Value="_quoteSettings.EmailRequired" Color="Color.Primary" Label="Email requerido" />
+                                <MudSwitch @bind-Value="_quoteSettings.PhoneRequired" Color="Color.Primary" Label="Teléfono requerido" />
+                                <MudSwitch @bind-Value="_quoteSettings.ShowBudgetField" Color="Color.Primary" Label="Presupuesto aproximado" />
+                                <MudSwitch @bind-Value="_quoteSettings.ShowDeadlineField" Color="Color.Primary" Label="¿Para cuándo lo necesitas?" />
+                                <MudSwitch @bind-Value="_quoteSettings.ShowPreferredContactField" Color="Color.Primary" Label="Preferencia de contacto" />
+                            </div>
+
+                            @* C) Confirmación *@
+                            <MudDivider Class="my-3" />
+                            <div class="edit-group">
+                                <label class="edit-label">Mensaje de éxito</label>
+                                <MudTextField @bind-Value="_quoteSettings.SuccessMessage" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" @oninput="MarkUnsaved" />
+                            </div>
+                        </div>
+                    </section>
+                }
+
+                @* ─────────────────────────────────────────────────────────
+                   RESERVATIONS (CONDITIONAL - Only for Reservations Template)
+                   ───────────────────────────────────────────────────────── *@
+                @if (_isReservationsTemplate)
+                {
+                    <section class="section-card section-level-1 section-quotes">
+                        <div class="section-header">
+                            <div class="section-icon icon-quotes">
+                                <MudIcon Icon="@Icons.Material.Filled.Hotel" Size="Size.Medium" />
+                            </div>
+                            <div class="section-header-text">
+                                <h2 class="section-title">Reservas</h2>
+                                <p class="section-description">Configura el bloque de reservas y políticas</p>
+                            </div>
+                        </div>
+                        <div class="section-content">
+
+                            @* ── A) ENCABEZADO ── *@
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" md="8">
+                                    <div class="edit-group">
+                                        <label class="edit-label">Título del bloque</label>
+                                        <MudTextField @bind-Value="_reservationSettings.BlockTitle" Variant="Variant.Outlined"
+                                                      Margin="Margin.Dense" @oninput="MarkUnsaved" />
+                                    </div>
+                                    <div class="edit-group" style="margin-top:8px;">
+                                        <label class="edit-label">Subtítulo</label>
+                                        <MudTextField @bind-Value="_reservationSettings.BlockSubtitle" Variant="Variant.Outlined"
+                                                      Margin="Margin.Dense" @oninput="MarkUnsaved" />
+                                    </div>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <div class="edit-group">
+                                        <MudTextField @bind-Value="_reservationSettings.ConfirmationTimeText" Label="Tiempo de confirmación"
+                                                      Variant="Variant.Outlined" Margin="Margin.Dense" @oninput="MarkUnsaved" />
+                                    </div>
+                                    <div class="edit-group" style="margin-top:8px;">
+                                        <MudTextField @bind-Value="_reservationSettings.SuccessMessage" Label="Mensaje de éxito"
+                                                      Variant="Variant.Outlined" Margin="Margin.Dense" @oninput="MarkUnsaved" />
+                                    </div>
+                                </MudItem>
+                            </MudGrid>
+
+                            @* ── B) RESTRICCIONES ── *@
+                            <label class="edit-label" style="margin-top:16px; margin-bottom:4px; display:block;">Restricciones</label>
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField @bind-Value="_reservationSettings.MinNights" Label="Noches mínimas"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="30" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField @bind-Value="_reservationSettings.MinAdvanceDays" Label="Días de anticipación"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="90" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField @bind-Value="_reservationSettings.MaxGuests" Label="Huéspedes máximos"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="50" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6" Class="d-flex align-center">
+                                    <MudSwitch @bind-Value="_reservationSettings.SeparateChildCount" Color="Color.Primary" Label="Separar adultos y niños" />
+                                </MudItem>
+                            </MudGrid>
+
+                            @* ── C) CHECK-IN / CHECK-OUT ── *@
+                            <label class="edit-label" style="margin-top:16px; margin-bottom:4px; display:block;">Check-in / Check-out</label>
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="6">
+                                    <MudTimePicker Label="Check-in" AmPm="true"
+                                                   Time="_reservationSettings.CheckInTime"
+                                                   TimeChanged="OnCheckInTimeChanged"
+                                                   Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                   Adornment="Adornment.End"
+                                                   AdornmentIcon="@Icons.Material.Filled.Schedule"
+                                                   Editable="false" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTimePicker Label="Check-out" AmPm="true"
+                                                   Time="_reservationSettings.CheckOutTime"
+                                                   TimeChanged="OnCheckOutTimeChanged"
+                                                   Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                   Adornment="Adornment.End"
+                                                   AdornmentIcon="@Icons.Material.Filled.Schedule"
+                                                   Editable="false" />
+                                </MudItem>
+                            </MudGrid>
+                            @if (_reservationCheckOutError != null)
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2" NoIcon="false">
+                                    @_reservationCheckOutError
+                                </MudAlert>
+                            }
+
+                            @* ── D) CAMPOS DEL FORMULARIO ── *@
+                            <label class="edit-label" style="margin-top:16px; margin-bottom:4px; display:block;">Campos del formulario</label>
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="6" Class="d-flex align-center">
+                                    <MudSwitch @bind-Value="_reservationSettings.EmailRequired" Color="Color.Primary" Label="Email requerido" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6" Class="d-flex align-center">
+                                    <MudSwitch @bind-Value="_reservationSettings.PhoneRequired" Color="Color.Primary" Label="Teléfono requerido" />
+                                </MudItem>
+                            </MudGrid>
+
+                            @* ── E) POLÍTICAS ── *@
+                            <label class="edit-label" style="margin-top:16px; margin-bottom:4px; display:block;">Políticas</label>
+                            <MudSwitch @bind-Value="_reservationSettings.ShowPolicies" Color="Color.Primary" Label="Mostrar políticas" />
+                            @if (_reservationSettings.ShowPolicies)
+                            {
+                                <MudTextField @bind-Value="_reservationSettings.PoliciesText" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Lines="3" Placeholder="Cancelación gratuita hasta 48h antes..."
+                                              Class="mt-2" @oninput="MarkUnsaved" />
+                            }
+
+                        </div>
                     </section>
                 }
 
@@ -955,8 +1377,7 @@ else
                                         }
                                         else
                                         {
-                                            <div class="phone-avatar phone-avatar-initials avatar-size-@_cardStyle.AvatarSize.ToLower() @(_cardStyle.AvatarGlow ? "avatar-glow" : "")"
-                                                 style="background: @_themeTokens.AccentPrimary; color: @_themeTokens.TextOnAccent;">
+                                            <div class="phone-avatar phone-avatar-initials avatar-size-@_cardStyle.AvatarSize.ToLower() @(_cardStyle.AvatarGlow ? "avatar-glow" : "")">
                                                 <span>@GetInitials(_card.FullName)</span>
                                             </div>
                                         }
@@ -964,7 +1385,7 @@ else
 
                                     @* Identity Info *@
                                     <h3 class="phone-name">@(string.IsNullOrEmpty(_card.FullName) ? "Tu Nombre" : _card.FullName)</h3>
-                                    <p class="phone-title" style="color: @_themeTokens.AccentPrimary;">@(string.IsNullOrEmpty(_card.Title) ? "—" : _card.Title)</p>
+                                    <p class="phone-title">@(string.IsNullOrEmpty(_card.Title) ? "—" : _card.Title)</p>
                                     <p class="phone-company">@GetDisplayCompanyName()</p>
 
                                     @* Bio *@
@@ -977,81 +1398,69 @@ else
                                         <p class="phone-bio phone-bio-placeholder">Tu biografía aparecerá aquí...</p>
                                     }
 
-                                    @* Portfolio Gallery Preview (conditional) *@
-                                    @if (_isPortfolioTemplate && _galleryImages.Any())
+                                    @* Portfolio Gallery Preview (conditional) — Shared Component *@
+                                    @if (_isPortfolioTemplate)
                                     {
-                                        <div class="phone-gallery-section">
-                                            <h4 class="phone-gallery-title">Mi Trabajo</h4>
-                                            <div class="phone-gallery-grid">
-                                                @foreach (var image in _galleryImages.OrderBy(i => i.Order).Take(4))
-                                                {
-                                                    <div class="phone-gallery-item">
-                                                        <img src="@image.Url" alt="@(image.Title ?? "Portfolio")" />
-                                                    </div>
-                                                }
-                                            </div>
-                                            @if (_galleryImages.Count > 4)
-                                            {
-                                                <p class="phone-gallery-more">+@(_galleryImages.Count - 4) más</p>
-                                            }
-                                        </div>
+                                        <PortfolioGalleryBlock
+                                            Photos="@_portfolioGallery.Photos"
+                                            Videos="@_portfolioGallery.Videos"
+                                            EnablePhotos="@_portfolioGallery.EnablePhotos"
+                                            EnableVideos="@_portfolioGallery.EnableVideos"
+                                            Compact="true" />
                                     }
 
-                                    @* Social Icons (if any) - ABOVE Status Chips *@
-                                    @if (HasAnySocialLink())
+                                    @* Social Icons — Shared Component *@
+                                    <SocialLinksRow
+                                        LinkedIn="@_socialLinks?.LinkedIn"
+                                        Instagram="@_socialLinks?.Instagram"
+                                        Facebook="@_socialLinks?.Facebook"
+                                        YouTube="@_socialLinks?.YouTube"
+                                        Twitter="@_socialLinks?.Twitter"
+                                        Website="@_socialLinks?.Website"
+                                        Compact="true"
+                                        IsPreview="true" />
+
+                                    @* Quote Request Block - BEFORE CTAs to match PublicCard layout *@
+                                    @if (_isQuoteRequestTemplate)
                                     {
-                                        <div class="phone-social-row">
-                                            @if (!string.IsNullOrEmpty(_socialLinks.LinkedIn))
-                                            {
-                                                <span class="phone-social-icon-rect">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                                                    </svg>
-                                                </span>
-                                            }
-                                            @if (!string.IsNullOrEmpty(_socialLinks.Instagram))
-                                            {
-                                                <span class="phone-social-icon-rect">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                                                    </svg>
-                                                </span>
-                                            }
-                                            @if (!string.IsNullOrEmpty(_socialLinks.YouTube))
-                                            {
-                                                <span class="phone-social-icon-rect">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                                                    </svg>
-                                                </span>
-                                            }
-                                            @if (!string.IsNullOrEmpty(_socialLinks.Twitter))
-                                            {
-                                                <span class="phone-social-icon-rect">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                                                    </svg>
-                                                </span>
-                                            }
-                                            @if (!string.IsNullOrEmpty(_socialLinks.Facebook))
-                                            {
-                                                <span class="phone-social-icon-rect">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                                                    </svg>
-                                                </span>
-                                            }
-                                            @if (!string.IsNullOrEmpty(_socialLinks.Website))
-                                            {
-                                                <span class="phone-social-icon-rect">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <circle cx="12" cy="12" r="10"/>
-                                                        <line x1="2" y1="12" x2="22" y2="12"/>
-                                                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                                                    </svg>
-                                                </span>
-                                            }
-                                        </div>
+                                        <QuoteRequestBlock
+                                            Compact="true"
+                                            Title="@_quoteSettings.BlockTitle"
+                                            Subtitle="@_quoteSettings.BlockSubtitle"
+                                            CtaLabel="@_quoteSettings.BlockTitle"
+                                            ShowLegalText="@_quoteSettings.ShowLegalText"
+                                            LegalText="@_quoteSettings.LegalText" />
+                                    }
+
+                                    @* Appointment Booking Block - BEFORE CTAs to match PublicCard layout *@
+                                    @if (_isAppointmentsTemplate)
+                                    {
+                                        @if (_services.Any())
+                                        {
+                                            <AppointmentBookingBlock
+                                                Compact="true"
+                                                Services="@_services.Select(s => new AppointmentBookingBlock.ServiceDisplayItem { Name = s.Name, DurationMinutes = s.DurationMinutes, Price = s.PriceFrom }).ToList()" />
+                                        }
+                                        else
+                                        {
+                                            @* Mock services fallback — same as TemplateLibrary preview *@
+                                            <AppointmentBookingBlock
+                                                Compact="true"
+                                                Services="@_mockAppointmentServices" />
+                                            <p style="text-align:center; font-size:0.5rem; color:var(--dt-text-muted, rgba(255,255,255,0.35)); margin:-8px 0 8px;">Configura tus servicios en la sección de arriba</p>
+                                        }
+                                    }
+
+                                    @* Reservation Booking Block - BEFORE CTAs to match PublicCard layout *@
+                                    @if (_isReservationsTemplate)
+                                    {
+                                        <ReservationBookingBlock
+                                            Compact="true"
+                                            Title="@_reservationSettings.BlockTitle"
+                                            Subtitle="@_reservationSettings.BlockSubtitle"
+                                            MaxGuests="@_reservationSettings.MaxGuests"
+                                            ConfirmationText="@_reservationSettings.ConfirmationTimeText"
+                                            PoliciesLabel="@(_reservationSettings.ShowPolicies ? "Políticas" : null)" />
                                     }
 
                                     @* Status Chips and CTA Buttons - Show on ALL templates *@
@@ -1078,7 +1487,7 @@ else
                                             @if (_card.ShowSaveContact)
                                             {
                                                 <button class="phone-cta-primary"
-                                                        style="background: @_themeTokens.ButtonPrimaryBg; color: @_themeTokens.ButtonPrimaryText; box-shadow: 0 4px 16px @(_themeTokens.AccentSoft); border-radius: @GetButtonRadius();">
+                                                        style="border-radius: @GetButtonRadius();">
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                         <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                                                         <circle cx="8.5" cy="7" r="4"/>
@@ -1182,13 +1591,13 @@ else
                                                 {
                                                     @foreach (var service in _services.Take(3))
                                                     {
-                                                        <div class="phone-service-card" style="border-color: @_themeTokens.AccentSoft;">
-                                                            <div class="phone-service-icon" style="background: @_themeTokens.AccentSoft;">
+                                                        <div class="phone-service-card">
+                                                            <div class="phone-service-icon">
                                                                 <span>@GetServiceEmoji(service.Name)</span>
                                                             </div>
                                                             <div class="phone-service-info">
                                                                 <span class="phone-service-name">@service.Name</span>
-                                                                <span class="phone-service-meta" style="color: @_themeTokens.AccentPrimary;">
+                                                                <span class="phone-service-meta">
                                                                     @service.DurationMinutes min · Desde $@service.PriceFrom
                                                                 </span>
                                                             </div>
@@ -1197,11 +1606,11 @@ else
                                                 }
                                                 else
                                                 {
-                                                    <div class="phone-service-card" style="border-color: @_themeTokens.AccentSoft;">
-                                                        <div class="phone-service-icon" style="background: @_themeTokens.AccentSoft;">💼</div>
+                                                    <div class="phone-service-card">
+                                                        <div class="phone-service-icon">💼</div>
                                                         <div class="phone-service-info">
                                                             <span class="phone-service-name">Consultoría Empresarial</span>
-                                                            <span class="phone-service-meta" style="color: @_themeTokens.AccentPrimary;">60 min · Desde $50</span>
+                                                            <span class="phone-service-meta">60 min · Desde $50</span>
                                                         </div>
                                                     </div>
                                                 }
@@ -1216,7 +1625,7 @@ else
                                                 }
                                                 @if (effectiveGoal == "booking" && hasBooking)
                                                 {
-                                                    <button class="phone-cta-booking" style="background: @_themeTokens.AccentPrimary; border-radius: @GetButtonRadius();">
+                                                    <button class="phone-cta-booking">
                                                         📅 Reservar Cita
                                                     </button>
                                                     @if (hasQuote)
@@ -1226,7 +1635,7 @@ else
                                                 }
                                                 else if (effectiveGoal == "quote" && hasQuote)
                                                 {
-                                                    <button class="phone-cta-booking" style="background: @_themeTokens.AccentPrimary; border-radius: @GetButtonRadius();">
+                                                    <button class="phone-cta-booking">
                                                         📝 Solicitar Cotización
                                                     </button>
                                                     @if (hasBooking)
@@ -1236,18 +1645,30 @@ else
                                                 }
                                                 else if (hasBooking)
                                                 {
-                                                    <button class="phone-cta-booking" style="background: @_themeTokens.AccentPrimary; border-radius: @GetButtonRadius();">
+                                                    <button class="phone-cta-booking">
                                                         📅 Reservar Cita
                                                     </button>
                                                 }
                                                 else if (hasQuote)
                                                 {
-                                                    <button class="phone-cta-booking" style="background: @_themeTokens.AccentPrimary; border-radius: @GetButtonRadius();">
+                                                    <button class="phone-cta-booking">
                                                         📝 Solicitar Cotización
                                                     </button>
                                                 }
                                             </div>
                                         </div>
+                                    }
+                                    else if (_isQuoteRequestTemplate)
+                                    {
+                                        @* Quote Request: no lead form — quote block already rendered above CTAs *@
+                                    }
+                                    else if (_isAppointmentsTemplate)
+                                    {
+                                        @* Appointments: no lead form — booking block already rendered above CTAs *@
+                                    }
+                                    else if (_isReservationsTemplate)
+                                    {
+                                        @* Reservations: no lead form — reservation booking block already rendered above CTAs *@
                                     }
                                     else
                                     {
@@ -1265,8 +1686,7 @@ else
                                                         <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
                                                         Nombre completo <span class="required-mark">*</span>
                                                     </label>
-                                                    <div class="phone-input-mock"
-                                                         style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">Juan Pérez</div>
+                                                    <div class="phone-input-mock">Juan Pérez</div>
                                                 </div>
                                                 
                                                 @* Email *@
@@ -1275,8 +1695,7 @@ else
                                                         <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
                                                         Correo electrónico <span class="required-mark">*</span>
                                                     </label>
-                                                    <div class="phone-input-mock"
-                                                         style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">tu@email.com</div>
+                                                    <div class="phone-input-mock">tu@email.com</div>
                                                 </div>
                                                 
                                                 @* Teléfono *@
@@ -1286,10 +1705,8 @@ else
                                                         Teléfono <span class="required-mark">*</span>
                                                     </label>
                                                     <div class="phone-input-row">
-                                                        <div class="phone-country-mock"
-                                                             style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">🇸🇻 +503</div>
-                                                        <div class="phone-input-mock phone-input-number"
-                                                             style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">7000 0000</div>
+                                                        <div class="phone-country-mock">🇸🇻 +503</div>
+                                                        <div class="phone-input-mock phone-input-number">7000 0000</div>
                                                     </div>
                                                 </div>
                                                 
@@ -1299,13 +1716,11 @@ else
                                                         <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Small" />
                                                         Mensaje <span class="optional-mark">(opcional)</span>
                                                     </label>
-                                                    <div class="phone-textarea-mock"
-                                                         style="background: @_themeTokens.SurfaceInput; border-color: @_themeTokens.SurfaceInputFocus; border-radius: @GetInputRadius();">¿En qué puedo ayudarte?</div>
+                                                    <div class="phone-textarea-mock">¿En qué puedo ayudarte?</div>
                                                 </div>
                                                 
                                                 @* Submit Button *@
-                                                <button class="phone-submit-btn"
-                                                        style="background: @_themeTokens.ButtonPrimaryBg; box-shadow: 0 3px 12px @(_themeTokens.AccentSoft); border-radius: @GetButtonRadius();">
+                                                <button class="phone-submit-btn">
                                                     <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Small" />
                                                     <span>Enviar mensaje</span>
                                                 </button>
@@ -2676,7 +3091,7 @@ else
         left: 0;
         right: 0;
         height: 60px;
-        background: linear-gradient(to bottom, transparent, #0F172A);
+        background: linear-gradient(to bottom, transparent, var(--dt-bg-fade, #0F172A));
     }
 
     /* Scrollable Phone Content - FLEXIBLE HEIGHT */
@@ -2711,10 +3126,10 @@ else
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 5px solid #1E293B;
+        border: 5px solid var(--dt-surface-card-border, #1E293B);
         box-shadow: 
-            0 0 0 3px rgba(99, 102, 241, 0.35),
-            0 0 30px rgba(99, 102, 241, 0.15),
+            0 0 0 3px var(--dt-accent-soft, rgba(99, 102, 241, 0.35)),
+            0 0 30px var(--dt-accent-soft, rgba(99, 102, 241, 0.15)),
             0 12px 32px rgba(0, 0, 0, 0.5);
         overflow: hidden;
     }
@@ -2726,13 +3141,13 @@ else
     }
 
     .phone-avatar-initials {
-        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+        background: var(--dt-accent-primary, var(--dt-accent-gradient, linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)));
     }
 
     .phone-avatar-initials span {
         font-size: 2.75rem;
         font-weight: 700;
-        color: white;
+        color: var(--dt-text-on-accent, white);
         text-transform: uppercase;
     }
     
@@ -2764,9 +3179,9 @@ else
     /* Avatar Glow Effect */
     .phone-avatar.avatar-glow {
         box-shadow: 
-            0 0 0 3px rgba(99, 102, 241, 0.35),
-            0 0 30px rgba(99, 102, 241, 0.25),
-            0 0 60px rgba(139, 92, 246, 0.15),
+            0 0 0 3px var(--dt-accent-soft, rgba(99, 102, 241, 0.35)),
+            0 0 30px var(--dt-accent-soft, rgba(99, 102, 241, 0.25)),
+            0 0 60px var(--dt-accent-soft, rgba(139, 92, 246, 0.15)),
             0 12px 32px rgba(0, 0, 0, 0.5);
     }
     
@@ -2833,12 +3248,12 @@ else
         border-radius: 14px;
         font-size: 0.9375rem;
         font-weight: 600;
-        color: white;
-        background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+        color: var(--dt-button-primary-text, white);
+        background: var(--dt-button-primary-bg, linear-gradient(135deg, #6366F1 0%, #4F46E5 100%));
         border: none;
         cursor: pointer;
         transition: all 0.2s ease;
-        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+        box-shadow: 0 4px 16px var(--dt-accent-soft, rgba(99, 102, 241, 0.35));
     }
 
     .phone-cta-primary .mud-icon-root {
@@ -2846,9 +3261,9 @@ else
     }
 
     .phone-cta-primary:hover {
-        background: linear-gradient(135deg, #818CF8 0%, #6366F1 100%);
+        background: var(--dt-button-primary-hover, linear-gradient(135deg, #818CF8 0%, #6366F1 100%));
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+        box-shadow: 0 6px 20px var(--dt-accent-soft, rgba(99, 102, 241, 0.45));
     }
 
     /* Secondary Row: WhatsApp, Llamar, Email */
@@ -3144,30 +3559,9 @@ else
     }
 
     .phone-social-icon:hover {
-        background: rgba(99, 102, 241, 0.2);
-        color: #A78BFA;
-        border-color: rgba(99, 102, 241, 0.3);
-    }
-
-    /* Rectangular social icons like public card */
-    .phone-social-icon-rect {
-        width: 40px;
-        height: 36px;
-        border-radius: 10px;
-        background: rgba(30, 20, 50, 0.8);
-        border: 1px solid rgba(139, 92, 246, 0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #E5E7EB;
-        transition: all 0.2s ease;
-    }
-
-    .phone-social-icon-rect:hover {
-        background: rgba(139, 92, 246, 0.3);
-        color: white;
-        border-color: rgba(139, 92, 246, 0.4);
-        transform: translateY(-2px);
+        background: var(--dt-accent-soft, rgba(99, 102, 241, 0.2));
+        color: var(--dt-accent-primary, #A78BFA);
+        border-color: var(--dt-accent-primary, rgba(99, 102, 241, 0.3));
     }
 
     /* Phone URL Section */
@@ -3286,50 +3680,6 @@ else
     }
 
     /* ─────────────────────────────────────────────────────────
-       Phone Gallery Preview (Portfolio Template)
-       ───────────────────────────────────────────────────────── */
-    .phone-gallery-section {
-        margin-top: 16px;
-        padding: 16px 0;
-        border-top: 1px solid rgba(139, 92, 246, 0.2);
-    }
-    
-    .phone-gallery-title {
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #94A3B8;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin: 0 0 12px;
-    }
-    
-    .phone-gallery-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
-    }
-    
-    .phone-gallery-item {
-        aspect-ratio: 1;
-        border-radius: 8px;
-        overflow: hidden;
-        background: #1E293B;
-    }
-    
-    .phone-gallery-item img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    
-    .phone-gallery-more {
-        font-size: 0.7rem;
-        color: #8B5CF6;
-        text-align: center;
-        margin: 8px 0 0;
-    }
-
-    /* ─────────────────────────────────────────────────────────
        Phone Lead Form Section - Preview
        ───────────────────────────────────────────────────────── */
     .phone-lead-form-section {
@@ -3392,12 +3742,12 @@ else
     }
     
     .phone-input-mock {
-        background: rgba(25, 18, 45, 0.85);
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        border-radius: 8px;
+        background: var(--dt-surface-input, rgba(25, 18, 45, 0.85));
+        border: 1px solid var(--dt-surface-input-border, rgba(139, 92, 246, 0.3));
+        border-radius: var(--dt-input-radius, 8px);
         padding: 8px 10px;
         font-size: 0.75rem;
-        color: #FFFFFF;
+        color: var(--dt-text-primary, #FFFFFF);
         font-weight: 500;
         text-align: left;
     }
@@ -3408,12 +3758,12 @@ else
     }
     
     .phone-country-mock {
-        background: rgba(25, 18, 45, 0.85);
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        border-radius: 8px;
+        background: var(--dt-surface-input, rgba(25, 18, 45, 0.85));
+        border: 1px solid var(--dt-surface-input-border, rgba(139, 92, 246, 0.3));
+        border-radius: var(--dt-input-radius, 8px);
         padding: 8px 10px;
         font-size: 0.7rem;
-        color: #FFFFFF;
+        color: var(--dt-text-primary, #FFFFFF);
         font-weight: 500;
         flex-shrink: 0;
         white-space: nowrap;
@@ -3424,12 +3774,12 @@ else
     }
     
     .phone-textarea-mock {
-        background: rgba(25, 18, 45, 0.85);
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        border-radius: 8px;
+        background: var(--dt-surface-input, rgba(25, 18, 45, 0.85));
+        border: 1px solid var(--dt-surface-input-border, rgba(139, 92, 246, 0.3));
+        border-radius: var(--dt-input-radius, 8px);
         padding: 8px 10px;
         font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.4);
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.4));
         font-weight: 400;
         min-height: 40px;
         text-align: left;
@@ -3443,14 +3793,14 @@ else
         width: 100%;
         padding: 10px;
         margin-top: 4px;
-        background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
-        color: #fff;
+        background: var(--dt-button-primary-bg, linear-gradient(135deg, #14B8A6 0%, #0D9488 100%));
+        color: var(--dt-button-primary-text, #fff);
         font-size: 0.75rem;
         font-weight: 600;
         border: none;
-        border-radius: 10px;
+        border-radius: var(--dt-button-radius, 10px);
         cursor: pointer;
-        box-shadow: 0 3px 12px rgba(20, 184, 166, 0.35);
+        box-shadow: 0 3px 12px var(--dt-accent-soft, rgba(20, 184, 166, 0.35));
     }
     
     .phone-submit-btn .mud-icon-root {
@@ -3606,6 +3956,73 @@ else
     .gallery-empty-state span {
         font-size: 0.8rem;
     }
+
+    /* Gallery Toggles */
+    .gallery-toggles {
+        margin-bottom: 16px;
+        padding: 12px 16px;
+        background: rgba(139, 92, 246, 0.06);
+        border-radius: 12px;
+        border: 1px solid rgba(139, 92, 246, 0.12);
+    }
+    .gallery-toggles-label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+    }
+    .gallery-toggles-row {
+        display: flex;
+        gap: 1.5rem;
+        margin: 4px 0;
+    }
+    .gallery-toggles-hint {
+        font-size: 0.72rem;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    /* Gallery Two-Column Layout */
+    .gallery-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    @@media (max-width: 768px) {
+        .gallery-columns {
+            grid-template-columns: 1fr;
+        }
+    }
+    .gallery-column {
+        min-width: 0;
+    }
+    .gallery-column-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--mud-palette-text-primary);
+        margin: 0 0 10px;
+    }
+    .gallery-column-count {
+        margin-left: auto;
+        font-size: 0.72rem;
+        font-weight: 400;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    /* Video thumbnail placeholder */
+    .gallery-video-thumb {
+        width: 100%;
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--dt-surface-2, #1F2937);
+        color: var(--mud-palette-text-secondary);
+    }
+    .gallery-editor-item--video {
+        position: relative;
+    }
     
     /* ═══════════════════════════════════════════════════════════════
        AUTO-CONTRAST SYSTEM
@@ -3647,63 +4064,71 @@ else
     /* Apply contrast variables to phone preview elements */
     .phone-card-content.contrast-dark .phone-name,
     .phone-card-content.contrast-light .phone-name {
-        color: var(--surface-text-primary) !important;
+        color: var(--dt-text-primary) !important;
     }
     
     .phone-card-content.contrast-dark .phone-title,
     .phone-card-content.contrast-dark .phone-company,
     .phone-card-content.contrast-light .phone-title,
     .phone-card-content.contrast-light .phone-company {
-        color: var(--surface-text-secondary) !important;
+        color: var(--dt-text-secondary) !important;
     }
     
     .phone-card-content.contrast-dark .phone-bio,
     .phone-card-content.contrast-light .phone-bio {
-        color: var(--surface-text-secondary) !important;
+        color: var(--dt-text-secondary) !important;
     }
     
     /* Status chips */
     .phone-card-content.contrast-dark .phone-chip,
     .phone-card-content.contrast-light .phone-chip {
-        background: var(--surface-chip-bg) !important;
-        color: var(--surface-chip-text) !important;
-        border-color: var(--surface-chip-border) !important;
+        background: var(--dt-surface-chip) !important;
+        color: var(--dt-text-secondary) !important;
+        border-color: var(--dt-surface-chip-border) !important;
     }
     
     /* Form section in preview */
     .phone-card-content.contrast-dark .phone-form-title,
     .phone-card-content.contrast-light .phone-form-title {
-        color: var(--surface-text-primary) !important;
+        color: var(--dt-text-primary) !important;
     }
     
     .phone-card-content.contrast-dark .phone-form-subtitle,
     .phone-card-content.contrast-light .phone-form-subtitle {
-        color: var(--surface-text-muted) !important;
+        color: var(--dt-text-muted) !important;
     }
     
     /* Inputs in preview */
     .phone-card-content.contrast-dark .phone-input,
     .phone-card-content.contrast-light .phone-input {
-        background: var(--surface-input-bg) !important;
-        border-color: var(--surface-input-border) !important;
-        color: var(--surface-input-text) !important;
+        background: var(--dt-surface-input) !important;
+        border-color: var(--dt-surface-input-border) !important;
+        color: var(--dt-text-primary) !important;
     }
     
     .phone-card-content.contrast-dark .phone-input::placeholder,
     .phone-card-content.contrast-light .phone-input::placeholder {
-        color: var(--surface-input-placeholder) !important;
+        color: var(--dt-text-muted) !important;
     }
     
     /* Icons */
     .phone-card-content.contrast-dark .mud-icon-root,
     .phone-card-content.contrast-light .mud-icon-root {
-        color: var(--surface-icon) !important;
+        color: var(--dt-text-secondary) !important;
     }
     
-    /* Gallery title */
-    .phone-card-content.contrast-dark .phone-gallery-title,
-    .phone-card-content.contrast-light .phone-gallery-title {
-        color: var(--surface-text-primary) !important;
+    /* Social icons - contrast aware (now uses shared SocialLinksRow) */
+    .phone-card-content.contrast-dark .social-link-icon,
+    .phone-card-content.contrast-light .social-link-icon {
+        background: var(--dt-surface-chip) !important;
+        color: var(--dt-text-secondary) !important;
+        border-color: var(--dt-surface-chip-border) !important;
+    }
+    
+    /* Avatar ring - contrast aware */
+    .phone-card-content.contrast-dark .phone-avatar,
+    .phone-card-content.contrast-light .phone-avatar {
+        border-color: var(--dt-surface-card-border, rgba(255,255,255,0.25)) !important;
     }
     
     /* ═══════════════════════════════════════════════════════════════
@@ -3713,56 +4138,56 @@ else
     /* Form titles */
     .phone-card-content.contrast-dark .phone-lead-title,
     .phone-card-content.contrast-light .phone-lead-title {
-        color: var(--surface-text-primary) !important;
+        color: var(--dt-text-primary) !important;
     }
     
     .phone-card-content.contrast-dark .phone-lead-subtitle,
     .phone-card-content.contrast-light .phone-lead-subtitle {
-        color: var(--surface-text-muted) !important;
+        color: var(--dt-text-muted) !important;
     }
     
     /* Form field labels */
     .phone-card-content.contrast-dark .phone-field-label,
     .phone-card-content.contrast-light .phone-field-label {
-        color: var(--surface-label-text) !important;
+        color: var(--dt-text-secondary) !important;
     }
     
     .phone-card-content.contrast-dark .phone-field-label .mud-icon-root,
     .phone-card-content.contrast-light .phone-field-label .mud-icon-root {
-        color: var(--surface-text-muted) !important;
+        color: var(--dt-text-muted) !important;
     }
     
     /* Optional mark in form */
     .phone-card-content.contrast-dark .optional-mark,
     .phone-card-content.contrast-light .optional-mark {
-        color: var(--surface-text-muted) !important;
+        color: var(--dt-text-muted) !important;
     }
     
     /* Form inputs - mock elements */
     .phone-card-content.contrast-dark .phone-input-mock,
     .phone-card-content.contrast-light .phone-input-mock {
-        background: var(--surface-input-bg) !important;
-        border-color: var(--surface-input-border) !important;
-        color: var(--surface-input-text) !important;
+        background: var(--dt-surface-input) !important;
+        border-color: var(--dt-surface-input-border) !important;
+        color: var(--dt-text-primary) !important;
     }
     
     .phone-card-content.contrast-dark .phone-country-mock,
     .phone-card-content.contrast-light .phone-country-mock {
-        background: var(--surface-input-bg) !important;
-        border-color: var(--surface-input-border) !important;
-        color: var(--surface-input-text) !important;
+        background: var(--dt-surface-input) !important;
+        border-color: var(--dt-surface-input-border) !important;
+        color: var(--dt-text-primary) !important;
     }
     
     .phone-card-content.contrast-dark .phone-textarea-mock,
     .phone-card-content.contrast-light .phone-textarea-mock {
-        background: var(--surface-input-bg) !important;
-        border-color: var(--surface-input-border) !important;
-        color: var(--surface-input-text) !important;
+        background: var(--dt-surface-input) !important;
+        border-color: var(--dt-surface-input-border) !important;
+        color: var(--dt-text-primary) !important;
     }
     
     /* Submit button text */
     .phone-card-content.contrast-light .phone-submit-btn span {
-        color: var(--surface-text-primary) !important;
+        color: var(--dt-text-primary) !important;
     }
     
     /* ═══════════════════════════════════════════════════════════════
@@ -3795,7 +4220,7 @@ else
         gap: 10px;
         padding: 10px 12px;
         background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        border: 1px solid var(--dt-accent-soft, rgba(99, 102, 241, 0.2));
         border-radius: 10px;
         transition: all 150ms ease;
     }
@@ -3809,6 +4234,7 @@ else
         width: 32px;
         height: 32px;
         border-radius: 8px;
+        background: var(--dt-accent-soft, rgba(99, 102, 241, 0.15));
         display: flex;
         align-items: center;
         justify-content: center;
@@ -3836,6 +4262,7 @@ else
     .phone-service-meta {
         font-size: 0.7rem;
         font-weight: 500;
+        color: var(--dt-accent-primary, #A78BFA);
     }
     
     .phone-booking-ctas {
@@ -3852,6 +4279,8 @@ else
         gap: 6px;
         padding: 12px 16px;
         border: none;
+        border-radius: var(--dt-button-radius, 14px);
+        background: var(--dt-accent-primary, #6366F1);
         font-size: 0.8rem;
         font-weight: 600;
         color: white;
@@ -3899,7 +4328,36 @@ else
     .phone-card-content.contrast-light .phone-cta-booking {
         color: white;
     }
-    
+
+    /* ═══════════════════════════════════════════════════════════════
+       QUOTE REQUEST TEMPLATE PREVIEW — Now rendered by shared QuoteRequestBlock.razor
+       (styles live in the component; no duplicates here)
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* ═══════════════════════════════════════════════════════════════
+       QUOTE REQUEST EDITOR SECTION
+       ═══════════════════════════════════════════════════════════════ */
+
+    .section-quotes .section-content {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .icon-quotes {
+        background: linear-gradient(135deg, #F59E0B, #EF4444);
+    }
+
+    .form-fields-config {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 12px;
+        background: var(--mud-palette-surface);
+        border-radius: 8px;
+        border: 1px solid var(--mud-palette-lines-default);
+    }
+
     /* ═══════════════════════════════════════════════════════════════
        SERVICES MODULE PREMIUM STYLES
        ═══════════════════════════════════════════════════════════════ */
@@ -4100,18 +4558,18 @@ else
         color: var(--mud-palette-text-secondary);
     }
     
-    /* Service Card Premium */
+    /* Service Card Premium (Enterprise) */
     .service-editor-card {
         background: var(--mud-palette-surface);
         border: 1px solid var(--mud-palette-lines-default);
         border-radius: 12px;
-        padding: 1rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
         transition: all 0.2s ease;
+        overflow: hidden;
     }
     
     .service-editor-card.service-inactive {
-        opacity: 0.6;
+        opacity: 0.55;
         background: var(--mud-palette-background-gray);
     }
     
@@ -4119,44 +4577,56 @@ else
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid var(--mud-palette-lines-default);
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: background 0.15s;
     }
+    .service-card-header:hover { background: rgba(255,255,255,0.03); }
     
     .service-header-left {
         display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .service-drag-handle {
-        cursor: grab;
-        color: var(--mud-palette-text-secondary);
-        font-size: 1.25rem;
-        padding: 0.25rem;
-    }
-    
-    .service-number {
-        font-weight: 600;
-        color: var(--mud-palette-primary);
-        font-size: 0.9rem;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
     }
     
     .service-name-preview {
         color: var(--mud-palette-text-primary);
-        font-weight: 500;
+        font-weight: 600;
         font-size: 0.9rem;
-        max-width: 200px;
+        max-width: 260px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+
+    .service-header-chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .svc-chip {
+        display: inline-flex; align-items: center;
+        padding: 2px 8px; border-radius: 10px;
+        font-size: 0.7rem; font-weight: 500;
+        background: rgba(255,255,255,0.06);
+        color: var(--mud-palette-text-secondary);
+        white-space: nowrap;
+    }
+    .svc-chip-duration { background: rgba(var(--mud-palette-primary-rgb), 0.12); color: var(--mud-palette-primary); }
+    .svc-chip-price { background: rgba(76,175,80,0.12); color: #66bb6a; }
+    .svc-chip-modality { background: rgba(255,255,255,0.06); }
+    .svc-expand-icon { color: var(--mud-palette-text-secondary); }
     
     .service-header-right {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.25rem;
+        flex-shrink: 0;
+    }
+
+    .service-card-body {
+        padding: 0 1rem 1rem;
     }
     
     /* Conversion Type Selector */
@@ -4301,6 +4771,114 @@ else
     .services-empty-state span {
         font-size: 0.85rem;
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SCHEDULE EDITOR (Appointments template)
+       ═══════════════════════════════════════════════════════════════ */
+    .schedule-editor {
+        margin: 0.75rem 1rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(0,0,0,0.12);
+    }
+    .schedule-editor-body { padding: 1rem; }
+
+    .schedule-presets {
+        display: flex; gap: 0.5rem; margin-bottom: 0.75rem;
+    }
+    .schedule-preset-chip {
+        padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);
+        background: transparent; color: var(--mud-palette-text-secondary);
+        font-size: 0.8rem; cursor: pointer; transition: all 0.15s;
+    }
+    .schedule-preset-chip:hover { border-color: var(--mud-palette-primary); color: var(--mud-palette-text-primary); }
+    .schedule-preset-chip.preset-active {
+        background: var(--mud-palette-primary); border-color: var(--mud-palette-primary);
+        color: white; font-weight: 600;
+    }
+
+    .schedule-day-toggles {
+        display: flex; gap: 6px; margin-bottom: 0.75rem; flex-wrap: wrap;
+    }
+    .schedule-day-chip {
+        width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.12);
+        background: transparent; color: var(--mud-palette-text-secondary);
+        font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .schedule-day-chip:hover { border-color: var(--mud-palette-primary); }
+    .schedule-day-chip.day-active {
+        background: var(--mud-palette-primary); border-color: var(--mud-palette-primary); color: white;
+    }
+
+    .schedule-time-row {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;
+    }
+    .schedule-validation-msg {
+        font-size: 0.78rem; color: var(--mud-palette-error); margin: 0 0 0.5rem;
+    }
+    .schedule-break-toggle { margin: 0.25rem 0 0.5rem; }
+
+    .schedule-timezone {
+        display: flex; align-items: center; gap: 0.4rem;
+        font-size: 0.78rem; color: var(--mud-palette-text-secondary);
+        margin: 0.5rem 0;
+    }
+
+    .schedule-exceptions { margin-top: 0.75rem; }
+    .schedule-exceptions-header {
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .schedule-exceptions-title {
+        font-size: 0.85rem; font-weight: 600;
+    }
+    .schedule-exceptions-list {
+        display: flex; flex-direction: column; gap: 4px; margin-top: 0.5rem;
+    }
+    .schedule-exception-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 4px 8px; border-radius: 6px;
+        background: rgba(255,255,255,0.04); font-size: 0.82rem;
+    }
+    .schedule-exceptions-empty {
+        font-size: 0.78rem; color: var(--mud-palette-text-secondary);
+        margin: 0.25rem 0;
+    }
+
+    /* Block Date Modal */
+    .block-date-modal {
+        background: var(--mud-palette-surface);
+        border-radius: 12px;
+        padding: 1.5rem;
+        width: 340px;
+        max-width: 90vw;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .block-date-modal-header { margin-bottom: 1rem; }
+    .block-date-modal-title {
+        font-size: 1.1rem; font-weight: 600; margin: 0;
+        color: var(--mud-palette-text-primary);
+    }
+    .block-date-modal-subtitle {
+        font-size: 0.82rem; margin: 0.25rem 0 0;
+        color: var(--mud-palette-text-secondary);
+    }
+    .block-date-modal-body { margin-bottom: 1.25rem; }
+    .block-date-modal-footer {
+        display: flex; justify-content: flex-end; gap: 0.5rem;
+    }
+
+    /* Schedule Override Toggle (per-service) */
+    .schedule-override-toggle {
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .schedule-override-hint {
+        font-size: 0.76rem; color: var(--mud-palette-text-secondary);
+        margin: 0.25rem 0 0;
+    }
 </style>
 
 @code {
@@ -4308,6 +4886,9 @@ else
     private bool _isLoading = true;
     private bool _isSaving = false;
     private bool _hasUnsavedChanges = false;
+    private bool _initCompleted = false;
+    private bool _pendingDbSave = false;
+    private readonly SemaphoreSlim _dbGate = new(1, 1);
     private string _publicUrl = "";
     private bool _identitySectionExpanded = true;  // Only this open by default
     private bool _contactSectionExpanded = false;
@@ -4326,11 +4907,50 @@ else
     private bool _isPortfolioTemplate = false;
     private List<GalleryImageModel> _galleryImages = new();
     private bool _isUploadingGallery = false;
+    private DataTouch.Web.Models.PortfolioGalleryModel _portfolioGallery = new();
+    private bool _isUploadingVideo = false;
     
     // Services Template
     private bool _isServicesTemplate = false;
     private List<DataTouch.Domain.Entities.Service> _services = new();
     private bool _servicesSectionExpanded = false;  // Collapsed by default
+
+    // Quote Request Template
+    private bool _isQuoteRequestTemplate = false;
+
+    // Appointments Template
+    private bool _isAppointmentsTemplate = false;
+
+    // Reservations Template
+    private bool _isReservationsTemplate = false;
+    private DataTouch.Web.Models.ReservationSettingsModel _reservationSettings = new();
+    private string? _reservationCheckOutError;
+    private static readonly List<AppointmentBookingBlock.ServiceDisplayItem> _mockAppointmentServices = new()
+    {
+        new() { Name = "Consulta General", DurationMinutes = 60, Price = 50 },
+        new() { Name = "Asesoría Premium", DurationMinutes = 90, Price = 85 }
+    };
+    
+    // Schedule Editor State (appointments template)
+    private bool _scheduleExpanded = true;
+    private string _schedulePreset = "mon-fri";
+    private List<AvailabilityRule> _availabilityRules = new();
+    private List<AvailabilityException> _availabilityExceptions = new();
+    private BookingSettings? _bookingSettings;
+    private HashSet<int> _globalScheduleActiveDays = new() { 1, 2, 3, 4, 5 }; // Mon-Fri default
+    private TimeSpan? _globalWorkStart = TimeSpan.FromHours(9);
+    private TimeSpan? _globalWorkEnd = TimeSpan.FromHours(17);
+    private bool _hasBreak = false;
+    private TimeSpan? _globalBreakStart = TimeSpan.FromHours(13);
+    private TimeSpan? _globalBreakEnd = TimeSpan.FromHours(14);
+    private bool _showBlockDateModal = false;
+    private DateTime? _blockDateSelection = null;
+    private static readonly List<(int Value, string Label)> _scheduleDays = new()
+    {
+        (1, "Lu"), (2, "Ma"), (3, "Mi"), (4, "Ju"), (5, "Vi"), (6, "Sá"), (0, "Do")
+    };
+    
+    private DataTouch.Web.Models.QuoteSettingsModel _quoteSettings = new();
     
     // ViewModels for JSON fields
     private SocialLinksModel _socialLinks = new();
@@ -4339,37 +4959,83 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var email = AuthService.GetCurrentEmail();
-        if (!string.IsNullOrEmpty(email))
+        try
         {
-            _card = await DbContext.Cards
-                .Include(c => c.Organization)
-                .FirstOrDefaultAsync(c => c.Email == email);
-
-            if (_card != null)
+            var email = AuthService.GetCurrentEmail();
+            if (!string.IsNullOrEmpty(email))
             {
-                var baseUrl = Navigation.BaseUri.TrimEnd('/');
-                _publicUrl = $"{baseUrl}/p/{_card.Organization?.Slug}/{_card.Slug}";
-                
-                // Set default country codes if empty
-                if (string.IsNullOrEmpty(_card.PhoneCountryCode)) _card.PhoneCountryCode = "+52";
-                if (string.IsNullOrEmpty(_card.WhatsAppCountryCode)) _card.WhatsAppCountryCode = "+52";
+                await _dbGate.WaitAsync();
+                try
+                {
+                    _card = await DbContext.Cards
+                        .Include(c => c.Organization)
+                        .FirstOrDefaultAsync(c => c.Email == email);
 
-                // Deserialize JSON fields
-                DeserializeJsonFields();
-                
-                // Expand social section if has any links
-                _socialSectionExpanded = HasAnySocialLink();
-                
-                // Load services if services template
-                await LoadServicesAsync();
+                    if (_card != null)
+                    {
+                        var baseUrl = Navigation.BaseUri.TrimEnd('/');
+                        _publicUrl = $"{baseUrl}/p/{_card.Organization?.Slug}/{_card.Slug}";
+                        
+                        // Set default country codes if empty
+                        if (string.IsNullOrEmpty(_card.PhoneCountryCode)) _card.PhoneCountryCode = "+52";
+                        if (string.IsNullOrEmpty(_card.WhatsAppCountryCode)) _card.WhatsAppCountryCode = "+52";
+
+                        // Deserialize JSON fields (no longer does fire-and-forget DB calls)
+                        DeserializeJsonFields();
+                        
+                        // Flush any pending DB save from DeserializeJsonFields
+                        if (_pendingDbSave)
+                        {
+                            await DbContext.SaveChangesAsync();
+                            _pendingDbSave = false;
+                        }
+                        
+                        // Expand social section if has any links
+                        _socialSectionExpanded = HasAnySocialLink();
+                        
+                        // Load services if services template
+                        _services = await DbContext.Services
+                            .Where(s => s.CardId == _card.Id)
+                            .OrderBy(s => s.DisplayOrder)
+                            .ToListAsync();
+                        
+                        // Load schedule data for appointments template
+                        if (_isAppointmentsTemplate)
+                        {
+                            _availabilityRules = await DbContext.AvailabilityRules
+                                .Where(r => r.CardId == _card.Id && r.ServiceId == null)
+                                .ToListAsync();
+                            _availabilityExceptions = await DbContext.AvailabilityExceptions
+                                .Where(e => e.CardId == _card.Id)
+                                .ToListAsync();
+                            _bookingSettings = await DbContext.Set<BookingSettings>()
+                                .FirstOrDefaultAsync(s => s.CardId == _card.Id);
+                            SyncScheduleStateFromRules();
+                        }
+                    }
+                }
+                finally
+                {
+                    _dbGate.Release();
+                }
             }
         }
-        _isLoading = false;
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar tarjeta: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            _initCompleted = true;
+        }
     }
 
     protected override async Task OnParametersSetAsync()
     {
+        // Guard: don't run DB ops before OnInitializedAsync completes
+        if (!_initCompleted) return;
+        
         // Handle query parameter changes (e.g., from TemplateLibrary navigation)
         await HandleTemplateQueryParam();
     }
@@ -4391,30 +5057,60 @@ else
             // Update flags
             _isPortfolioTemplate = templateParam == "portfolio-creative";
             _isServicesTemplate = templateParam == "services-quotes";
-            
-            // Apply theme for services
-            if (_isServicesTemplate)
+            _isQuoteRequestTemplate = templateParam == "quote-request";
+            _isAppointmentsTemplate = templateParam == "appointments";
+            _isReservationsTemplate = templateParam == "reservations-range";
+
+            // Apply appearance from query param (e.g. ?appearance=sky-light)
+            var appearanceParam = query["appearance"];
+            if (!string.IsNullOrEmpty(appearanceParam))
             {
-                var emeraldPreset = PresetRegistry.GetById("emerald-night");
-                if (emeraldPreset != null)
-                {
-                    _themeTokens = emeraldPreset.Tokens;
-                    _selectedPreset = "emerald-night";
-                }
+                ApplyPreset(appearanceParam);
+            }
+            else if (_isServicesTemplate)
+            {
+                ApplyPreset("emerald-night");
+            }
+            else if (_isQuoteRequestTemplate)
+            {
+                ApplyPreset("sky-light");
+            }
+            else if (_isAppointmentsTemplate)
+            {
+                ApplyPreset("mint-breeze");
+            }
+            else if (_isReservationsTemplate)
+            {
+                ApplyPreset("soft-cream");
             }
             
-            // Persist change
-            await DbContext.SaveChangesAsync();
-            
-            // Reload services if needed
-            await LoadServicesAsync();
-            
-            // Clear gallery if switching away from portfolio
-            if (!_isPortfolioTemplate && _galleryImages.Any())
+            await _dbGate.WaitAsync();
+            try
             {
-                _galleryImages.Clear();
-                _card.GalleryImagesJson = null;
+                // Persist change
                 await DbContext.SaveChangesAsync();
+                
+                // Reload services if needed
+                _services = await DbContext.Services
+                    .Where(s => s.CardId == _card.Id)
+                    .OrderBy(s => s.DisplayOrder)
+                    .ToListAsync();
+                
+                // Clear gallery if switching away from portfolio
+                if (!_isPortfolioTemplate && _galleryImages.Any())
+                {
+                    _galleryImages.Clear();
+                    _card.GalleryImagesJson = null;
+                    await DbContext.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al aplicar template: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                _dbGate.Release();
             }
             
             StateHasChanged();
@@ -4443,15 +5139,41 @@ else
             catch { _websiteLinks = new(); }
         }
         
-        // Gallery Images (for portfolio template)
-        if (!string.IsNullOrEmpty(_card?.GalleryImagesJson))
+        // Portfolio Gallery (new model with photos + videos)
+        if (!string.IsNullOrEmpty(_card?.PortfolioGalleryJson))
         {
             try
             {
-                _galleryImages = JsonSerializer.Deserialize<List<GalleryImageModel>>(_card.GalleryImagesJson) ?? new();
+                _portfolioGallery = JsonSerializer.Deserialize<DataTouch.Web.Models.PortfolioGalleryModel>(_card.PortfolioGalleryJson) ?? new();
             }
-            catch { _galleryImages = new(); }
+            catch { _portfolioGallery = new(); }
         }
+        // Legacy migration: if no PortfolioGalleryJson but has GalleryImagesJson, migrate photos
+        else if (!string.IsNullOrEmpty(_card?.GalleryImagesJson))
+        {
+            try
+            {
+                var legacyImages = JsonSerializer.Deserialize<List<GalleryImageModel>>(_card.GalleryImagesJson) ?? new();
+                _portfolioGallery = new DataTouch.Web.Models.PortfolioGalleryModel
+                {
+                    EnablePhotos = true,
+                    EnableVideos = false,
+                    Photos = legacyImages.Select(img => new DataTouch.Web.Models.GalleryItemModel
+                    {
+                        Url = img.Url,
+                        Title = img.Title,
+                        Description = img.Description,
+                        Order = img.Order
+                    }).ToList()
+                };
+            }
+            catch { _portfolioGallery = new(); }
+        }
+        // Sync legacy _galleryImages from portfolio model for backward compat
+        _galleryImages = _portfolioGallery.Photos.Select(p => new GalleryImageModel
+        {
+            Url = p.Url, Title = p.Title, Description = p.Description, Order = p.Order
+        }).ToList();
         
         // Appearance Style
         if (!string.IsNullOrEmpty(_card?.AppearanceStyleJson))
@@ -4468,11 +5190,32 @@ else
             catch { _cardStyle = new(); }
         }
         
+        // Quote Settings
+        if (!string.IsNullOrEmpty(_card?.QuoteSettingsJson))
+        {
+            try
+            {
+                _quoteSettings = JsonSerializer.Deserialize<DataTouch.Web.Models.QuoteSettingsModel>(_card.QuoteSettingsJson) ?? new();
+            }
+            catch { _quoteSettings = new(); }
+        }
+
+        // Reservation Settings
+        if (!string.IsNullOrEmpty(_card?.ReservationSettingsJson))
+        {
+            try
+            {
+                _reservationSettings = JsonSerializer.Deserialize<DataTouch.Web.Models.ReservationSettingsModel>(_card.ReservationSettingsJson) ?? new();
+                _reservationSettings.MigrateFromLegacy();
+            }
+            catch { _reservationSettings = new(); }
+        }
+
         // Check template type: query param takes priority, else read from saved card
         var uri = new Uri(Navigation.Uri);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var templateParam = query["template"];
-        
+
         // Determine effective template: query param > card.TemplateType > "default"
         string effectiveTemplate;
         if (!string.IsNullOrEmpty(templateParam))
@@ -4483,7 +5226,7 @@ else
             {
                 _card.TemplateType = templateParam;
                 _card.UpdatedAt = DateTime.UtcNow;
-                _ = DbContext.SaveChangesAsync(); // Persist for next load
+                _pendingDbSave = true; // Will be flushed by caller after DeserializeJsonFields returns
             }
         }
         else
@@ -4491,11 +5234,14 @@ else
             // No query param - read from saved card
             effectiveTemplate = !string.IsNullOrEmpty(_card?.TemplateType) ? _card.TemplateType : "default";
         }
-        
+
         // Set template flags based on effective template
         _isPortfolioTemplate = effectiveTemplate == "portfolio-creative";
         _isServicesTemplate = effectiveTemplate == "services-quotes";
-        
+        _isQuoteRequestTemplate = effectiveTemplate == "quote-request";
+        _isAppointmentsTemplate = effectiveTemplate == "appointments";
+        _isReservationsTemplate = effectiveTemplate == "reservations-range";
+
         // Apply Emerald Night theme for Services template
         if (_isServicesTemplate)
         {
@@ -4507,6 +5253,45 @@ else
             }
         }
         
+        // Apply Sky Light theme for Quote Request template
+        if (_isQuoteRequestTemplate)
+        {
+            var skyPreset = PresetRegistry.GetById("sky-light");
+            if (skyPreset != null)
+            {
+                _themeTokens = skyPreset.Tokens;
+                _selectedPreset = "sky-light";
+                _cardStyle.BackgroundIsDark = false;
+                _cardStyle.CardIsDark = false;
+            }
+        }
+        
+        // Apply Mint Breeze theme for Appointments template
+        if (_isAppointmentsTemplate)
+        {
+            var mintPreset = PresetRegistry.GetById("mint-breeze");
+            if (mintPreset != null)
+            {
+                _themeTokens = mintPreset.Tokens;
+                _selectedPreset = "mint-breeze";
+                _cardStyle.BackgroundIsDark = false;
+                _cardStyle.CardIsDark = false;
+            }
+        }
+        
+        // Apply Soft Cream theme for Reservations template
+        if (_isReservationsTemplate)
+        {
+            var creamPreset = PresetRegistry.GetById("soft-cream");
+            if (creamPreset != null)
+            {
+                _themeTokens = creamPreset.Tokens;
+                _selectedPreset = "soft-cream";
+                _cardStyle.BackgroundIsDark = false;
+                _cardStyle.CardIsDark = false;
+            }
+        }
+        
         // Clear gallery images when switching away from portfolio template
         if (!_isPortfolioTemplate && _galleryImages.Any())
         {
@@ -4515,7 +5300,7 @@ else
             {
                 _card.GalleryImagesJson = null;
                 _card.UpdatedAt = DateTime.UtcNow;
-                _ = DbContext.SaveChangesAsync();
+                _pendingDbSave = true; // Will be flushed by caller after DeserializeJsonFields returns
             }
         }
     }
@@ -4550,7 +5335,16 @@ else
                 _card.WebsiteLinksJson = null;
             }
             
-            // Serialize Gallery Images
+            // Sync _galleryImages into _portfolioGallery.Photos before serializing
+            _portfolioGallery.Photos = _galleryImages.Select(img => new DataTouch.Web.Models.GalleryItemModel
+            {
+                Url = img.Url, Title = img.Title, Description = img.Description, Order = img.Order
+            }).ToList();
+
+            // Serialize Portfolio Gallery (new model)
+            _card.PortfolioGalleryJson = JsonSerializer.Serialize(_portfolioGallery);
+
+            // Serialize legacy GalleryImagesJson for backward compat
             if (_galleryImages.Any())
             {
                 _card.GalleryImagesJson = JsonSerializer.Serialize(_galleryImages.OrderBy(i => i.Order).ToList());
@@ -4562,16 +5356,44 @@ else
             
             // Serialize Appearance Style
             _card.AppearanceStyleJson = JsonSerializer.Serialize(_cardStyle);
-            
+
+            // Serialize Quote Settings — always persist to avoid data loss on template switch
+            _card.QuoteSettingsJson = JsonSerializer.Serialize(_quoteSettings);
+
+            // Serialize Reservation Settings — sync display strings from TimeSpan before persisting
+            _reservationSettings.SyncDisplayStrings();
+            _card.ReservationSettingsJson = JsonSerializer.Serialize(_reservationSettings);
+
             // Save TemplateType based on current state
-            if (_isServicesTemplate)
+            if (_isQuoteRequestTemplate)
+                _card.TemplateType = "quote-request";
+            else if (_isServicesTemplate)
                 _card.TemplateType = "services-quotes";
             else if (_isPortfolioTemplate)
                 _card.TemplateType = "portfolio-creative";
+            else if (_isAppointmentsTemplate)
+                _card.TemplateType = "appointments";
+            else if (_isReservationsTemplate)
+                _card.TemplateType = "reservations-range";
             // Otherwise keep current value (could be default or other)
 
+            // Build availability rules from schedule editor state
+            if (_isAppointmentsTemplate)
+            {
+                BuildRulesFromScheduleState();
+            }
+
             _card.UpdatedAt = DateTime.UtcNow;
-            await DbContext.SaveChangesAsync();
+            
+            await _dbGate.WaitAsync();
+            try
+            {
+                await DbContext.SaveChangesAsync();
+            }
+            finally
+            {
+                _dbGate.Release();
+            }
             
             _hasUnsavedChanges = false;
             Snackbar.Add("Cambios guardados correctamente", Severity.Success);
@@ -4584,6 +5406,41 @@ else
         {
             _isSaving = false;
             StateHasChanged();
+        }
+    }
+
+    private void OnCheckInTimeChanged(TimeSpan? newTime)
+    {
+        _reservationSettings.CheckInTime = newTime;
+        // Auto-suggest check-out if not yet set
+        if (newTime.HasValue && !_reservationSettings.CheckOutTime.HasValue)
+        {
+            // Default: check-in + 20h (e.g. 3PM check-in → 11AM check-out next day concept)
+            var suggested = new TimeSpan(11, 0, 0); // 11:00 AM is standard check-out
+            _reservationSettings.CheckOutTime = suggested;
+        }
+        _reservationSettings.SyncDisplayStrings();
+        ValidateCheckOutTime();
+        MarkUnsaved();
+    }
+
+    private void OnCheckOutTimeChanged(TimeSpan? newTime)
+    {
+        _reservationSettings.CheckOutTime = newTime;
+        _reservationSettings.SyncDisplayStrings();
+        ValidateCheckOutTime();
+        MarkUnsaved();
+    }
+
+    private void ValidateCheckOutTime()
+    {
+        _reservationCheckOutError = null;
+        if (_reservationSettings.CheckInTime.HasValue && _reservationSettings.CheckOutTime.HasValue)
+        {
+            if (_reservationSettings.CheckOutTime.Value >= _reservationSettings.CheckInTime.Value)
+            {
+                _reservationCheckOutError = "El check-out debe ser anterior al check-in (el huésped sale antes de que entre el siguiente).";
+            }
         }
     }
 
@@ -4942,45 +5799,7 @@ else
         public string Url { get; set; } = "";
     }
 
-    private class CardStyleModel
-    {
-        // Fondo Global
-        public string BackgroundType { get; set; } = "gradient"; // gradient, solid, image
-        public string BackgroundValue { get; set; } = "linear-gradient(135deg, #0F0A1E 0%, #1E1B4B 50%, #0F0A1E 100%)";
-        public string? BackgroundImageUrl { get; set; }
-        
-        // Tarjeta - Vinculación e Independencia
-        public bool CardLinkedToBackground { get; set; } = true; // Toggle: vinculada/independiente
-        public string CardContainerStyle { get; set; } = "glass"; // glass, solid, elevated
-        public string CardBackgroundColor { get; set; } = "#1A1035"; // Color para solid independiente
-        public int GlassIntensity { get; set; } = 50; // 0-100
-        
-        // Avanzado - Fondo
-        public double OverlayOpacity { get; set; } = 0.5;
-        public bool ShowGrain { get; set; } = false;
-        
-        // Avanzado - Contenedor
-        public string BorderRadius { get; set; } = "medium"; // small, medium, large
-        public string ShadowStyle { get; set; } = "soft"; // soft, medium, strong
-        
-        // Avanzado - Avatar
-        public string AvatarSize { get; set; } = "M"; // S, M, L
-        public bool AvatarGlow { get; set; } = true;
-        
-        // Avanzado - Botones
-        public string ButtonShape { get; set; } = "pill"; // pill, rounded, square
-        public string ButtonStyle { get; set; } = "filled"; // filled, outline
-        
-        // Contraste automático
-        public string ContrastMode { get; set; } = "auto"; // auto, force-light, force-dark
-        public bool BackgroundIsDark { get; set; } = true;
-        public bool CardIsDark { get; set; } = true;
-        public bool CardIsDarkOverride { get; set; } = true; // Para tarjeta independiente
-        
-        // Preset tracking
-        public string? PresetId { get; set; } = "premium-dark";
-        public string? AccentColor { get; set; } = "#7C3AED";
-    }
+    // CardStyleModel is now shared: see Models/CardStyleModel.cs
 
     private record AppearancePreset(
         string Id, 
@@ -5121,7 +5940,15 @@ else
             // FIX: Update card and save immediately to DB
             _card.ProfileImageUrl = $"/uploads/{fileName}";
             _card.UpdatedAt = DateTime.UtcNow;
-            await DbContext.SaveChangesAsync();
+            await _dbGate.WaitAsync();
+            try
+            {
+                await DbContext.SaveChangesAsync();
+            }
+            finally
+            {
+                _dbGate.Release();
+            }
             
             MarkUnsaved();
             Snackbar.Add("Foto actualizada y guardada", Severity.Success);
@@ -5279,15 +6106,130 @@ else
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // GALLERY TOGGLES & VIDEO MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════
+    private void OnPhotosToggleChanged(bool value)
+    {
+        if (!value && !_portfolioGallery.EnableVideos)
+        {
+            Snackbar.Add("Debes tener al menos una sección activa.", Severity.Warning);
+            return;
+        }
+        _portfolioGallery.EnablePhotos = value;
+        MarkUnsaved();
+    }
+
+    private void OnVideosToggleChanged(bool value)
+    {
+        if (!value && !_portfolioGallery.EnablePhotos)
+        {
+            Snackbar.Add("Debes tener al menos una sección activa.", Severity.Warning);
+            return;
+        }
+        _portfolioGallery.EnableVideos = value;
+        MarkUnsaved();
+    }
+
+    private async Task UploadGalleryVideo(IBrowserFile file)
+    {
+        if (_card == null || _isUploadingVideo || _portfolioGallery.Videos.Count >= 10) return;
+
+        _isUploadingVideo = true;
+        StateHasChanged();
+
+        try
+        {
+            if (file.Size > 50 * 1024 * 1024)
+            {
+                Snackbar.Add("Video muy pesado. Máximo 50 MB permitido.", Severity.Error);
+                return;
+            }
+
+            var allowedExtensions = new[] { ".mp4", ".webm", ".mov" };
+            var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                Snackbar.Add("Formato no soportado. Usa MP4, WebM o MOV.", Severity.Error);
+                return;
+            }
+
+            var uploadsFolder = Path.Combine(Environment.WebRootPath, "uploads", "gallery");
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+            var fileName = $"{Guid.NewGuid()}{extension}";
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            using (var stream = file.OpenReadStream(50 * 1024 * 1024))
+            using (var fs = new FileStream(filePath, FileMode.Create))
+            {
+                await stream.CopyToAsync(fs);
+            }
+
+            _portfolioGallery.Videos.Add(new DataTouch.Web.Models.GalleryItemModel
+            {
+                Url = $"/uploads/gallery/{fileName}",
+                Order = _portfolioGallery.Videos.Count
+            });
+
+            MarkUnsaved();
+            Snackbar.Add("Video agregado a la galería", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al subir video: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploadingVideo = false;
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveGalleryVideo(DataTouch.Web.Models.GalleryItemModel video)
+    {
+        _portfolioGallery.Videos.Remove(video);
+        var ordered = _portfolioGallery.Videos.OrderBy(v => v.Order).ToList();
+        for (int i = 0; i < ordered.Count; i++) ordered[i].Order = i;
+        MarkUnsaved();
+        StateHasChanged();
+    }
+
+    private void MoveGalleryVideo(DataTouch.Web.Models.GalleryItemModel video, int direction)
+    {
+        var ordered = _portfolioGallery.Videos.OrderBy(v => v.Order).ToList();
+        var currentIndex = ordered.IndexOf(video);
+        var newIndex = currentIndex + direction;
+        if (newIndex < 0 || newIndex >= ordered.Count) return;
+        var other = ordered[newIndex];
+        var tempOrder = video.Order;
+        video.Order = other.Order;
+        other.Order = tempOrder;
+        MarkUnsaved();
+        StateHasChanged();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // SERVICES MANAGEMENT (for services template)
     // ═══════════════════════════════════════════════════════════════
     private async Task LoadServicesAsync()
     {
         if (_card == null) return;
-        _services = await DbContext.Services
-            .Where(s => s.CardId == _card.Id)
-            .OrderBy(s => s.DisplayOrder)
-            .ToListAsync();
+        await _dbGate.WaitAsync();
+        try
+        {
+            _services = await DbContext.Services
+                .Where(s => s.CardId == _card.Id)
+                .OrderBy(s => s.DisplayOrder)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar servicios: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _dbGate.Release();
+        }
     }
 
     private void AddNewService()
@@ -5301,6 +6243,8 @@ else
             OrganizationId = _card.OrganizationId,
             Name = "Nuevo servicio",
             DurationMinutes = 60,
+            ConversionType = _isAppointmentsTemplate ? "booking" : "booking",
+            UseGlobalSchedule = true,
             DisplayOrder = _services.Count,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
@@ -5326,6 +6270,178 @@ else
         
         MarkUnsaved();
         StateHasChanged();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SCHEDULE EDITOR METHODS (appointments template)
+    // ═══════════════════════════════════════════════════════════════
+
+    private async Task LoadScheduleDataAsync()
+    {
+        if (_card == null) return;
+        await _dbGate.WaitAsync();
+        try
+        {
+            _availabilityRules = await DbContext.AvailabilityRules
+                .Where(r => r.CardId == _card.Id && r.ServiceId == null)
+                .ToListAsync();
+            _availabilityExceptions = await DbContext.AvailabilityExceptions
+                .Where(e => e.CardId == _card.Id)
+                .ToListAsync();
+            _bookingSettings = await DbContext.Set<BookingSettings>()
+                .FirstOrDefaultAsync(s => s.CardId == _card.Id);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar horario: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _dbGate.Release();
+        }
+
+        SyncScheduleStateFromRules();
+    }
+
+    private void SyncScheduleStateFromRules()
+    {
+        if (_availabilityRules.Any())
+        {
+            _globalScheduleActiveDays = _availabilityRules
+                .Where(r => r.IsActive)
+                .Select(r => r.DayOfWeek)
+                .ToHashSet();
+
+            var firstRule = _availabilityRules.FirstOrDefault(r => r.IsActive);
+            if (firstRule != null)
+            {
+                _globalWorkStart = firstRule.StartTime;
+                _globalWorkEnd = firstRule.EndTime;
+                _hasBreak = firstRule.BreakStartTime.HasValue && firstRule.BreakEndTime.HasValue;
+                if (_hasBreak)
+                {
+                    _globalBreakStart = firstRule.BreakStartTime;
+                    _globalBreakEnd = firstRule.BreakEndTime;
+                }
+            }
+
+            // Detect preset
+            var activeDaysSorted = _globalScheduleActiveDays.OrderBy(d => d).ToList();
+            if (activeDaysSorted.SequenceEqual(new[] { 1, 2, 3, 4, 5 }))
+                _schedulePreset = "mon-fri";
+            else if (activeDaysSorted.SequenceEqual(new[] { 1, 2, 3, 4, 5, 6 }))
+                _schedulePreset = "mon-sat";
+            else
+                _schedulePreset = "custom";
+        }
+    }
+
+    private void ApplySchedulePreset(string preset)
+    {
+        _schedulePreset = preset;
+        _globalScheduleActiveDays = preset switch
+        {
+            "mon-fri" => new HashSet<int> { 1, 2, 3, 4, 5 },
+            "mon-sat" => new HashSet<int> { 1, 2, 3, 4, 5, 6 },
+            _ => _globalScheduleActiveDays
+        };
+        MarkUnsaved();
+        StateHasChanged();
+    }
+
+    private void ToggleScheduleDay(int dayOfWeek)
+    {
+        if (_globalScheduleActiveDays.Contains(dayOfWeek))
+            _globalScheduleActiveDays.Remove(dayOfWeek);
+        else
+            _globalScheduleActiveDays.Add(dayOfWeek);
+
+        _schedulePreset = "custom";
+        var sorted = _globalScheduleActiveDays.OrderBy(d => d).ToList();
+        if (sorted.SequenceEqual(new[] { 1, 2, 3, 4, 5 })) _schedulePreset = "mon-fri";
+        else if (sorted.SequenceEqual(new[] { 1, 2, 3, 4, 5, 6 })) _schedulePreset = "mon-sat";
+
+        MarkUnsaved();
+        StateHasChanged();
+    }
+
+    private void AddScheduleException()
+    {
+        _blockDateSelection = null;
+        _showBlockDateModal = true;
+        StateHasChanged();
+    }
+
+    private void CancelBlockDate()
+    {
+        _showBlockDateModal = false;
+        StateHasChanged();
+    }
+
+    private void ConfirmBlockDate()
+    {
+        if (_card == null || !IsBlockDateValid()) return;
+        var selectedDate = DateOnly.FromDateTime(_blockDateSelection!.Value);
+        var newEx = new AvailabilityException
+        {
+            Id = Guid.NewGuid(),
+            CardId = _card.Id,
+            ExceptionDate = selectedDate,
+            ExceptionType = AvailabilityExceptionType.Blocked
+        };
+        _availabilityExceptions.Add(newEx);
+        DbContext.AvailabilityExceptions.Add(newEx);
+        _showBlockDateModal = false;
+        MarkUnsaved();
+        StateHasChanged();
+    }
+
+    private bool IsBlockDateValid()
+    {
+        if (_blockDateSelection == null) return false;
+        if (_blockDateSelection.Value.Date < DateTime.Today) return false;
+        var candidate = DateOnly.FromDateTime(_blockDateSelection.Value);
+        return !_availabilityExceptions.Any(e => e.ExceptionDate == candidate);
+    }
+
+    private void RemoveScheduleException(AvailabilityException ex)
+    {
+        _availabilityExceptions.Remove(ex);
+        DbContext.AvailabilityExceptions.Remove(ex);
+        MarkUnsaved();
+        StateHasChanged();
+    }
+
+    private void BuildRulesFromScheduleState()
+    {
+        if (_card == null) return;
+
+        // Remove old global rules from context
+        foreach (var old in _availabilityRules.ToList())
+        {
+            DbContext.AvailabilityRules.Remove(old);
+        }
+        _availabilityRules.Clear();
+
+        // Create new rules from UI state
+        foreach (var dayValue in new[] { 0, 1, 2, 3, 4, 5, 6 })
+        {
+            var isActive = _globalScheduleActiveDays.Contains(dayValue);
+            var rule = new AvailabilityRule
+            {
+                Id = Guid.NewGuid(),
+                CardId = _card.Id,
+                DayOfWeek = dayValue,
+                StartTime = _globalWorkStart ?? TimeSpan.FromHours(9),
+                EndTime = _globalWorkEnd ?? TimeSpan.FromHours(17),
+                BreakStartTime = _hasBreak ? _globalBreakStart : null,
+                BreakEndTime = _hasBreak ? _globalBreakEnd : null,
+                ServiceId = null,
+                IsActive = isActive
+            };
+            _availabilityRules.Add(rule);
+            DbContext.AvailabilityRules.Add(rule);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -5444,6 +6560,34 @@ else
         StateHasChanged();
     }
     
+    // Service card body expansion state
+    private HashSet<Guid> _expandedServiceBodies = new();
+    
+    private void ToggleServiceBody(Guid serviceId)
+    {
+        if (_expandedServiceBodies.Contains(serviceId))
+            _expandedServiceBodies.Remove(serviceId);
+        else
+            _expandedServiceBodies.Add(serviceId);
+    }
+    
+    private bool IsServiceBodyExpanded(Guid serviceId) => _expandedServiceBodies.Contains(serviceId);
+
+    private static string FormatDuration(int minutes)
+    {
+        if (minutes == 60) return "1 hora";
+        if (minutes > 60) return $"{minutes / 60} h {(minutes % 60 > 0 ? $"{minutes % 60} min" : "")}";
+        return $"{minutes} min";
+    }
+
+    private static string GetModalityLabel(string? modality)
+    {
+        if (modality == "presencial") return "Presencial";
+        if (modality == "online") return "Online";
+        if (modality == "domicilio") return "A domicilio";
+        return "";
+    }
+
     // Service config panel expansion state
     private HashSet<Guid> _expandedBookingConfigs = new();
     private HashSet<Guid> _expandedQuoteConfigs = new();

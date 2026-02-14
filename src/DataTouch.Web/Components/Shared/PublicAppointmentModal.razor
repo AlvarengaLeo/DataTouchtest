@@ -1,0 +1,1015 @@
+@* ═══════════════════════════════════════════════════════════════
+   PublicAppointmentModal — 4-step public booking modal/bottom-sheet.
+   Used in PublicCard for the "appointments" template.
+   All colors from --dt-* CSS variables. Uses IDbContextFactory per EF Core Guardrails.
+   Steps: Service → Date → Time → Confirm (+ Success screen)
+   ═══════════════════════════════════════════════════════════════ *@
+
+@using DataTouch.Domain.Entities
+@using DataTouch.Web.Services
+@inject AppointmentService AppointmentService
+@inject ISnackbar Snackbar
+
+<div class="pam-backdrop @(IsOpen ? "pam-backdrop--open" : "")" @onclick="HandleBackdropClick">
+    <div class="pam-modal @(IsOpen ? "pam-modal--open" : "")" @onclick:stopPropagation="true">
+        
+        @* ═══════ HEADER ═══════ *@
+        <div class="pam-header">
+            <div class="pam-header-text">
+                <h2 class="pam-header-title">@GetStepTitle()</h2>
+                <p class="pam-header-subtitle">@GetStepSubtitle()</p>
+            </div>
+            <button class="pam-close" @onclick="HandleClose" aria-label="Cerrar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+
+        @* ═══════ STEPPER ═══════ *@
+        @if (_currentStep <= 4)
+        {
+            <div class="pam-stepper">
+                @for (int i = 1; i <= 4; i++)
+                {
+                    var step = i;
+                    <div class="pam-step @(step < _currentStep ? "pam-step--done" : "") @(step == _currentStep ? "pam-step--active" : "")">
+                        <span class="pam-step-num">@(step < _currentStep ? "✓" : step.ToString())</span>
+                        <span class="pam-step-label">@GetStepLabel(step)</span>
+                    </div>
+                    @if (i < 4)
+                    {
+                        <div class="pam-step-line @(step < _currentStep ? "pam-step-line--done" : "")"></div>
+                    }
+                }
+            </div>
+        }
+
+        @* ═══════ BODY (SCROLLABLE) ═══════ *@
+        <div class="pam-body">
+            @if (_currentStep == 1)
+            {
+                @* STEP 1: SERVICE *@
+                <div class="pam-services">
+                    @if (!Services.Any())
+                    {
+                        <div class="pam-empty-state">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--dt-text-muted, rgba(26,26,46,0.3)); margin-bottom: 12px;">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            <span style="font-size: 0.95rem; font-weight: 600; color: var(--dt-text-primary, #1a1a2e);">No hay servicios disponibles</span>
+                            <span style="font-size: 0.8rem; color: var(--dt-text-muted, rgba(26,26,46,0.5)); margin-top: 4px;">Este profesional aún no ha configurado servicios para agendar.</span>
+                        </div>
+                    }
+                    @foreach (var svc in Services)
+                    {
+                        <button class="pam-service-card @(_selectedServiceId == svc.Id ? "pam-service-card--selected" : "")"
+                                @onclick="() => SelectService(svc)">
+                            <div class="pam-service-info">
+                                <span class="pam-service-name">@svc.Name</span>
+                                @if (!string.IsNullOrEmpty(svc.Description))
+                                {
+                                    <span class="pam-service-desc">@svc.Description</span>
+                                }
+                            </div>
+                            <div class="pam-service-meta">
+                                <span class="pam-service-duration">@svc.DurationMinutes min</span>
+                                @if (svc.PriceFrom.HasValue)
+                                {
+                                    <span class="pam-service-price">$@svc.PriceFrom.Value.ToString("N0")</span>
+                                }
+                            </div>
+                            @if (_selectedServiceId == svc.Id)
+                            {
+                                <span class="pam-service-check">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                </span>
+                            }
+                        </button>
+                    }
+                </div>
+            }
+            else if (_currentStep == 2)
+            {
+                @* STEP 2: DATE (CALENDAR) *@
+                <div class="pam-calendar">
+                    <div class="pam-cal-nav">
+                        <button class="pam-cal-arrow" @onclick="PrevMonth">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <span class="pam-cal-month">@_viewMonth.ToString("MMMM yyyy", _esCulture)</span>
+                        <button class="pam-cal-arrow" @onclick="NextMonth">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                    </div>
+
+                    @if (_isLoadingCalendar)
+                    {
+                        <div class="pam-loading" style="padding: 40px 0;">
+                            <div class="pam-spinner"></div>
+                            <span>Cargando disponibilidad...</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="pam-cal-weekdays">
+                            @foreach (var d in new[] { "Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do" })
+                            {
+                                <span class="pam-cal-wd">@d</span>
+                            }
+                        </div>
+                        <div class="pam-cal-grid">
+                            @foreach (var cell in GetCalendarCells())
+                            {
+                                @if (cell.Day == 0)
+                                {
+                                    <span class="pam-cal-cell pam-cal-cell--empty"></span>
+                                }
+                                else
+                                {
+                                    var date = new DateOnly(_viewMonth.Year, _viewMonth.Month, cell.Day);
+                                    var isSelected = _selectedDate == date;
+                                    var isPast = date < DateOnly.FromDateTime(DateTime.Today);
+                                    var isDisabled = isPast || !cell.HasAvailability;
+                                    <button class="pam-cal-cell @(isSelected ? "pam-cal-cell--selected" : "") @(isDisabled ? "pam-cal-cell--disabled" : "") @(cell.HasAvailability && !isPast ? "pam-cal-cell--available" : "")"
+                                            disabled="@isDisabled"
+                                            @onclick="() => SelectDate(date)">
+                                        @cell.Day
+                                        @if (cell.HasAvailability && !isPast)
+                                        {
+                                            <span class="pam-cal-dot"></span>
+                                        }
+                                    </button>
+                                }
+                            }
+                        </div>
+
+                        @if (!_monthAvailability.Any(kv => kv.Value))
+                        {
+                            <div class="pam-empty-state" style="padding: 20px 0 8px;">
+                                <span style="font-size: 0.9rem; font-weight: 600; color: var(--dt-text-primary, #1a1a2e);">No hay fechas disponibles este mes</span>
+                                <span style="font-size: 0.78rem; color: var(--dt-text-muted, rgba(26,26,46,0.5)); margin-top: 2px;">Prueba el siguiente mes o elige otro servicio.</span>
+                                <button class="pam-empty-btn" style="margin-top: 10px;" @onclick="NextMonth">Ver siguiente mes</button>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+            else if (_currentStep == 3)
+            {
+                @* STEP 3: TIME SLOTS *@
+                @if (_isLoadingSlots)
+                {
+                    <div class="pam-loading">
+                        <div class="pam-spinner"></div>
+                        <span>Cargando horarios...</span>
+                    </div>
+                }
+                else if (_availableSlots.Any())
+                {
+                    <div class="pam-slots">
+                        @foreach (var slot in _availableSlots)
+                        {
+                            var isSelected = _selectedSlot == slot;
+                            <button class="pam-slot @(isSelected ? "pam-slot--selected" : "")"
+                                    @onclick="() => SelectSlot(slot)">
+                                @slot.StartTime.ToString("h:mm tt")
+                            </button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="pam-empty-slots">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        <p class="pam-empty-title">No hay horarios disponibles</p>
+                        <p class="pam-empty-text">No hay horarios disponibles este día. Prueba otra fecha.</p>
+                        <button class="pam-empty-btn" @onclick="() => _currentStep = 2">Cambiar fecha</button>
+                    </div>
+                }
+            }
+            else if (_currentStep == 4)
+            {
+                @* STEP 4: CONFIRM *@
+                <div class="pam-confirm">
+                    <div class="pam-confirm-form">
+                        <div class="pam-field">
+                            <label class="pam-label">Nombre completo *</label>
+                            <input class="pam-input" @bind="_customerName" placeholder="Tu nombre" />
+                        </div>
+                        <div class="pam-field">
+                            <label class="pam-label">Teléfono *</label>
+                            <input class="pam-input" @bind="_customerPhone" placeholder="+503 7000-0000" />
+                        </div>
+                        <div class="pam-field">
+                            <label class="pam-label">Email (opcional)</label>
+                            <input class="pam-input" type="email" @bind="_customerEmail" placeholder="tu@email.com" />
+                        </div>
+                        <div class="pam-field">
+                            <label class="pam-label">Nota (opcional)</label>
+                            <textarea class="pam-textarea" @bind="_customerNotes" maxlength="240" rows="2" placeholder="Información adicional..."></textarea>
+                        </div>
+                    </div>
+                    <div class="pam-summary-card">
+                        <h4 class="pam-summary-title">Resumen de tu cita</h4>
+                        <div class="pam-summary-row">
+                            <span class="pam-summary-label">Servicio</span>
+                            <span class="pam-summary-value">@(SelectedService?.Name ?? "—")</span>
+                        </div>
+                        <div class="pam-summary-row">
+                            <span class="pam-summary-label">Fecha</span>
+                            <span class="pam-summary-value">@(_selectedDate?.ToString("dd MMM yyyy", _esCulture) ?? "—")</span>
+                        </div>
+                        <div class="pam-summary-row">
+                            <span class="pam-summary-label">Hora</span>
+                            <span class="pam-summary-value">@(_selectedSlot?.StartTime.ToString("h:mm tt") ?? "—") — @(_selectedSlot?.EndTime.ToString("h:mm tt") ?? "")</span>
+                        </div>
+                        <div class="pam-summary-row">
+                            <span class="pam-summary-label">Duración</span>
+                            <span class="pam-summary-value">@(SelectedService?.DurationMinutes ?? 60) min</span>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <div class="pam-error">@_errorMessage</div>
+                    }
+                </div>
+            }
+            else if (_currentStep == 5)
+            {
+                @* SUCCESS SCREEN *@
+                <div class="pam-success">
+                    <div class="pam-success-icon">
+                        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="16 8 10.5 14 8 11.5"/></svg>
+                    </div>
+                    <h3 class="pam-success-title">¡Cita confirmada!</h3>
+                    <p class="pam-success-ref">Referencia: @_appointmentRef</p>
+                    <div class="pam-summary-card">
+                        <div class="pam-summary-row">
+                            <span class="pam-summary-label">Servicio</span>
+                            <span class="pam-summary-value">@(SelectedService?.Name ?? "—")</span>
+                        </div>
+                        <div class="pam-summary-row">
+                            <span class="pam-summary-label">Fecha y hora</span>
+                            <span class="pam-summary-value">@(_selectedDate?.ToString("dd MMM yyyy", _esCulture)) · @(_selectedSlot?.StartTime.ToString("h:mm tt"))</span>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(WhatsAppNumber))
+                    {
+                        <a class="pam-wa-btn" href="@GetWhatsAppUrl()" target="_blank" rel="noopener">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            ESCRIBIR POR WHATSAPP
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+
+        @* ═══════ FOOTER ═══════ *@
+        @if (_currentStep <= 4)
+        {
+            <div class="pam-footer">
+                <button class="pam-btn-secondary" @onclick="HandleBack" disabled="@(_currentStep == 1)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                    Atrás
+                </button>
+                @if (_currentStep < 4)
+                {
+                    <button class="pam-btn-primary" @onclick="HandleNext" disabled="@(!CanAdvance)">
+                        Continuar
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                }
+                else
+                {
+                    <button class="pam-btn-primary pam-btn-confirm" @onclick="SubmitAppointment" disabled="@(!CanSubmit || _isSubmitting)">
+                        @if (_isSubmitting)
+                        {
+                            <span class="pam-spinner-sm"></span>
+                            <span>Confirmando...</span>
+                        }
+                        else
+                        {
+                            <span>CONFIRMAR CITA</span>
+                        }
+                    </button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="pam-footer">
+                <button class="pam-btn-primary" @onclick="Close">Cerrar</button>
+            </div>
+        }
+    </div>
+</div>
+
+@* ═══════ CLOSE CONFIRMATION ═══════ *@
+@if (_showCloseConfirm)
+{
+    <div class="pam-confirm-overlay" @onclick:stopPropagation="true">
+        <div class="pam-confirm-dialog">
+            <p class="pam-confirm-msg">¿Salir y perder cambios?</p>
+            <div class="pam-confirm-actions">
+                <button class="pam-btn-secondary" @onclick="() => _showCloseConfirm = false">Cancelar</button>
+                <button class="pam-btn-primary" @onclick="ForceClose">Sí, salir</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public Guid CardId { get; set; }
+    [Parameter] public List<Service> Services { get; set; } = new();
+    [Parameter] public string? WhatsAppNumber { get; set; }
+    [Parameter] public EventCallback OnSchedulerOpen { get; set; }
+    [Parameter] public EventCallback OnAppointmentCreated { get; set; }
+
+    private static readonly System.Globalization.CultureInfo _esCulture = new("es-SV");
+
+    // Wizard state
+    private int _currentStep = 1;
+    private bool _showCloseConfirm = false;
+
+    // Step 1: Service
+    private Guid? _selectedServiceId;
+    private Service? SelectedService => Services.FirstOrDefault(s => s.Id == _selectedServiceId);
+
+    // Step 2: Date
+    private DateTime _viewMonth = DateTime.Today;
+    private DateOnly? _selectedDate;
+    private Dictionary<int, bool> _monthAvailability = new();
+
+    // Step 3: Slots
+    private List<TimeSlot> _availableSlots = new();
+    private TimeSlot? _selectedSlot;
+    private bool _isLoadingSlots = false;
+
+    // Step 4: Confirm
+    private string _customerName = "";
+    private string _customerPhone = "";
+    private string _customerEmail = "";
+    private string _customerNotes = "";
+    private bool _isSubmitting = false;
+    private string? _errorMessage;
+
+    // Step 5: Success
+    private string _appointmentRef = "";
+
+    private bool CanAdvance => _currentStep switch
+    {
+        1 => _selectedServiceId.HasValue,
+        2 => _selectedDate.HasValue,
+        3 => _selectedSlot != null,
+        _ => true
+    };
+
+    private bool CanSubmit => !string.IsNullOrWhiteSpace(_customerName) && !string.IsNullOrWhiteSpace(_customerPhone);
+
+    private bool HasSelections => _selectedServiceId.HasValue || _selectedDate.HasValue || _selectedSlot != null ||
+        !string.IsNullOrWhiteSpace(_customerName) || !string.IsNullOrWhiteSpace(_customerPhone);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && _currentStep == 1 && !_selectedServiceId.HasValue)
+        {
+            _viewMonth = DateTime.Today;
+            await OnSchedulerOpen.InvokeAsync();
+        }
+    }
+
+    // ═══════ STEP NAVIGATION ═══════
+
+    private async Task HandleNext()
+    {
+        if (!CanAdvance) return;
+        _currentStep++;
+        if (_currentStep == 2)
+        {
+            await LoadMonthAvailability();
+        }
+        else if (_currentStep == 3 && _selectedDate.HasValue)
+        {
+            await LoadSlots();
+        }
+    }
+
+    private void HandleBack()
+    {
+        if (_currentStep > 1) _currentStep--;
+    }
+
+    private void HandleBackdropClick()
+    {
+        // Don't close on backdrop click per Instructions.md
+    }
+
+    private void HandleClose()
+    {
+        if (HasSelections)
+        {
+            _showCloseConfirm = true;
+        }
+        else
+        {
+            Close();
+        }
+    }
+
+    private void ForceClose()
+    {
+        _showCloseConfirm = false;
+        Close();
+    }
+
+    private void Close()
+    {
+        ResetState();
+        IsOpen = false;
+        IsOpenChanged.InvokeAsync(false);
+    }
+
+    private void ResetState()
+    {
+        _currentStep = 1;
+        _selectedServiceId = null;
+        _selectedDate = null;
+        _selectedSlot = null;
+        _availableSlots.Clear();
+        _customerName = "";
+        _customerPhone = "";
+        _customerEmail = "";
+        _customerNotes = "";
+        _errorMessage = null;
+        _appointmentRef = "";
+        _isSubmitting = false;
+        _showCloseConfirm = false;
+    }
+
+    // ═══════ STEP 1: SERVICE ═══════
+
+    private void SelectService(Service svc)
+    {
+        _selectedServiceId = svc.Id;
+    }
+
+    // ═══════ STEP 2: DATE ═══════
+
+    private bool _isLoadingCalendar = false;
+
+    private async Task LoadMonthAvailability()
+    {
+        _isLoadingCalendar = true;
+        _monthAvailability.Clear();
+        StateHasChanged();
+        try
+        {
+            _monthAvailability = await AppointmentService.GetMonthAvailabilityAsync(
+                CardId, _viewMonth.Year, _viewMonth.Month, _selectedServiceId);
+        }
+        catch
+        {
+            _monthAvailability.Clear();
+        }
+        finally
+        {
+            _isLoadingCalendar = false;
+        }
+    }
+
+    private async Task SelectDate(DateOnly date)
+    {
+        _selectedDate = date;
+        _selectedSlot = null;
+        await LoadSlots();
+        _currentStep = 3;
+    }
+
+    private async Task PrevMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(-1);
+        if (_viewMonth < new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1))
+            _viewMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        await LoadMonthAvailability();
+    }
+
+    private async Task NextMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(1);
+        await LoadMonthAvailability();
+    }
+
+    private List<CalendarCell> GetCalendarCells()
+    {
+        var cells = new List<CalendarCell>();
+        var firstDay = new DateTime(_viewMonth.Year, _viewMonth.Month, 1);
+        var startDow = ((int)firstDay.DayOfWeek + 6) % 7; // Monday=0
+
+        for (int i = 0; i < startDow; i++)
+            cells.Add(new CalendarCell { Day = 0 });
+
+        var daysInMonth = DateTime.DaysInMonth(_viewMonth.Year, _viewMonth.Month);
+        for (int d = 1; d <= daysInMonth; d++)
+        {
+            cells.Add(new CalendarCell
+            {
+                Day = d,
+                HasAvailability = _monthAvailability.TryGetValue(d, out var avail) && avail
+            });
+        }
+        return cells;
+    }
+
+    // ═══════ STEP 3: SLOTS ═══════
+
+    private async Task LoadSlots()
+    {
+        if (!_selectedDate.HasValue) return;
+        _isLoadingSlots = true;
+        _availableSlots.Clear();
+        StateHasChanged();
+        try
+        {
+            _availableSlots = await AppointmentService.GetAvailableSlotsAsync(CardId, _selectedDate.Value, _selectedServiceId);
+        }
+        catch { _availableSlots.Clear(); }
+        finally
+        {
+            _isLoadingSlots = false;
+        }
+    }
+
+    private void SelectSlot(TimeSlot slot)
+    {
+        _selectedSlot = slot;
+    }
+
+    // ═══════ STEP 4: SUBMIT ═══════
+
+    private async Task SubmitAppointment()
+    {
+        if (!CanSubmit || _selectedSlot == null || !_selectedDate.HasValue || !_selectedServiceId.HasValue)
+            return;
+
+        _isSubmitting = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var dto = new CreateAppointmentDto
+            {
+                CardId = CardId,
+                ServiceId = _selectedServiceId,
+                Date = _selectedDate.Value,
+                StartTime = _selectedSlot.StartTime,
+                CustomerName = _customerName,
+                CustomerEmail = string.IsNullOrWhiteSpace(_customerEmail)
+                    ? $"booking_{Guid.NewGuid():N}@datatouch.local"
+                    : _customerEmail,
+                CustomerPhone = _customerPhone,
+                CustomerNotes = _customerNotes,
+                InitialStatus = AppointmentStatus.Pending,
+                Source = "PublicCard"
+            };
+
+            var result = await AppointmentService.CreatePublicAppointmentAsync(dto);
+
+            if (result.Success && result.Appointment != null)
+            {
+                _appointmentRef = $"AP-{DateTime.UtcNow.Year}-{result.Appointment.Id.ToString("N")[..4].ToUpper()}";
+                _currentStep = 5;
+                await OnAppointmentCreated.InvokeAsync();
+            }
+            else
+            {
+                _errorMessage = result.Error ?? "Ese horario acaba de ocuparse. Elige otro.";
+                // Refresh slots — stay on step 4 but reload availability
+                await LoadSlots();
+                if (!_availableSlots.Any(s => s.StartTime == _selectedSlot?.StartTime))
+                {
+                    _selectedSlot = null;
+                    _currentStep = 3; // Go back to slot selection
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    // ═══════ HELPERS ═══════
+
+    private string GetStepTitle() => _currentStep switch
+    {
+        1 => "Elige un servicio",
+        2 => "Selecciona fecha",
+        3 => "Elige una hora",
+        4 => "Confirma tu cita",
+        5 => "¡Listo!",
+        _ => ""
+    };
+
+    private string GetStepSubtitle() => _currentStep switch
+    {
+        1 => "Selecciona el servicio que necesitas.",
+        2 => "Los días disponibles están resaltados.",
+        3 => "Selecciona la hora que mejor te convenga.",
+        4 => "Completa tus datos para confirmar.",
+        5 => "Tu cita ha sido registrada.",
+        _ => ""
+    };
+
+    private string GetStepLabel(int step) => step switch
+    {
+        1 => "Servicio",
+        2 => "Fecha",
+        3 => "Hora",
+        4 => "Confirmar",
+        _ => ""
+    };
+
+    private string GetWhatsAppUrl()
+    {
+        var phone = (WhatsAppNumber ?? "").Replace("+", "").Replace(" ", "").Replace("-", "");
+        var msg = System.Net.WebUtility.UrlEncode($"Hola, acabo de agendar una cita (Ref: {_appointmentRef}). Quedo atento.");
+        return $"https://wa.me/{phone}?text={msg}";
+    }
+
+    private record CalendarCell
+    {
+        public int Day { get; init; }
+        public bool HasAvailability { get; init; }
+    }
+}
+
+<style>
+    /* ═══════════════════════════════════════════════════════════════
+       PUBLIC APPOINTMENT MODAL — Theme-aware via --dt-* CSS vars
+       Always centered (matching quote-modal pattern)
+       ═══════════════════════════════════════════════════════════════ */
+
+    .pam-backdrop {
+        position: fixed; inset: 0; z-index: 9999;
+        background: var(--dt-modal-overlay, rgba(0,0,0,0.7));
+        display: flex; align-items: center; justify-content: center;
+        padding: 16px;
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.2s ease;
+        backdrop-filter: blur(4px);
+    }
+    .pam-backdrop--open { opacity: 1; pointer-events: all; }
+
+    .pam-modal {
+        background: var(--dt-modal-surface, var(--dt-surface-card, #fff));
+        display: flex; flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--dt-modal-border, rgba(0,0,0,0.08));
+        width: 100%; max-width: 640px; max-height: 85vh;
+        border-radius: 16px;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+        transform: translateY(24px); opacity: 0;
+        transition: transform 0.25s ease, opacity 0.25s ease;
+        color: var(--dt-text-primary, #1a1a2e);
+    }
+    .pam-modal--open { transform: translateY(0); opacity: 1; }
+
+    /* Header */
+    .pam-header {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        padding: 20px 24px 12px; flex-shrink: 0;
+    }
+    .pam-header-title {
+        font-size: 1.15rem; font-weight: 700;
+        color: var(--dt-text-primary, #1a1a2e); margin: 0;
+    }
+    .pam-header-subtitle {
+        font-size: 0.8rem; color: var(--dt-text-muted, rgba(26,26,46,0.5));
+        margin: 2px 0 0;
+    }
+    .pam-close {
+        background: var(--dt-surface-input, rgba(0,0,0,0.04));
+        border: none; border-radius: 50%; width: 36px; height: 36px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; color: var(--dt-text-secondary, rgba(26,26,46,0.6));
+        transition: background 0.15s;
+        flex-shrink: 0;
+    }
+    .pam-close:hover { background: var(--dt-state-hover-overlay, rgba(0,0,0,0.08)); }
+
+    /* Stepper */
+    .pam-stepper {
+        display: flex; align-items: center; justify-content: center;
+        padding: 0 24px 16px; gap: 0;
+    }
+    .pam-step {
+        display: flex; flex-direction: column; align-items: center; gap: 3px;
+        opacity: 0.35; transition: opacity 0.2s;
+    }
+    .pam-step--active, .pam-step--done { opacity: 1; }
+    .pam-step-num {
+        width: 26px; height: 26px; border-radius: 50%;
+        background: var(--dt-surface-input, rgba(0,0,0,0.06));
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.7rem; font-weight: 700;
+        color: var(--dt-text-secondary, rgba(26,26,46,0.6));
+    }
+    .pam-step--active .pam-step-num {
+        background: var(--dt-accent-primary, #34D399);
+        color: var(--dt-text-on-accent, #fff);
+    }
+    .pam-step--done .pam-step-num {
+        background: var(--dt-accent-primary, #34D399);
+        color: var(--dt-text-on-accent, #fff);
+    }
+    .pam-step-label { font-size: 0.6rem; color: var(--dt-text-muted, rgba(26,26,46,0.5)); }
+    .pam-step-line {
+        width: 32px; height: 2px; border-radius: 1px;
+        background: var(--dt-surface-input, rgba(0,0,0,0.08));
+        margin: 0 6px; align-self: flex-start; margin-top: 12px;
+    }
+    .pam-step-line--done { background: var(--dt-accent-primary, #34D399); }
+
+    /* Body */
+    .pam-body {
+        flex: 1; overflow-y: auto; padding: 0 24px 16px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Step 1: Services */
+    .pam-services { display: flex; flex-direction: column; gap: 10px; }
+    .pam-empty-state {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; padding: 40px 20px; gap: 2px;
+    }
+    .pam-service-card {
+        position: relative;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 16px; border-radius: 14px;
+        background: var(--dt-surface-input, rgba(0,0,0,0.03));
+        border: 2px solid transparent; cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+        text-align: left; width: 100%; font-family: inherit;
+        color: inherit;
+    }
+    .pam-service-card:hover { background: var(--dt-state-hover-overlay, rgba(0,0,0,0.05)); }
+    .pam-service-card--selected {
+        border-color: var(--dt-accent-primary, #34D399);
+        background: var(--dt-accent-soft, rgba(52,211,153,0.08));
+    }
+    .pam-service-info { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+    .pam-service-name { font-size: 0.9rem; font-weight: 600; color: var(--dt-text-primary, #1a1a2e); }
+    .pam-service-desc { font-size: 0.75rem; color: var(--dt-text-muted, rgba(26,26,46,0.5)); }
+    .pam-service-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-left: 12px; }
+    .pam-service-duration { font-size: 0.75rem; color: var(--dt-text-secondary, rgba(26,26,46,0.6)); }
+    .pam-service-price { font-size: 0.8rem; font-weight: 700; color: var(--dt-accent-primary, #34D399); }
+    .pam-service-check {
+        position: absolute; top: 10px; right: 10px;
+        color: var(--dt-accent-primary, #34D399);
+    }
+
+    /* Step 2: Calendar */
+    .pam-calendar { padding: 0; }
+    .pam-cal-nav {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .pam-cal-arrow {
+        background: var(--dt-surface-input, rgba(0,0,0,0.04));
+        border: none; border-radius: 50%; width: 36px; height: 36px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; color: var(--dt-text-secondary, rgba(26,26,46,0.6));
+        transition: background 0.15s;
+    }
+    .pam-cal-arrow:hover { background: var(--dt-state-hover-overlay, rgba(0,0,0,0.08)); }
+    .pam-cal-month {
+        font-size: 0.95rem; font-weight: 600; color: var(--dt-text-primary, #1a1a2e);
+        text-transform: capitalize;
+    }
+    .pam-cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+    .pam-cal-wd {
+        text-align: center; font-size: 0.7rem; font-weight: 600;
+        color: var(--dt-text-muted, rgba(26,26,46,0.4)); padding: 4px 0;
+    }
+    .pam-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .pam-cal-cell {
+        aspect-ratio: 1; display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        border-radius: 10px; font-size: 0.8rem; font-weight: 500;
+        border: none; background: transparent; cursor: pointer;
+        color: var(--dt-text-primary, #1a1a2e);
+        position: relative; transition: background 0.15s;
+        min-height: 36px;
+    }
+    .pam-cal-cell--empty { cursor: default; }
+    .pam-cal-cell--disabled { opacity: 0.25; cursor: not-allowed; }
+    .pam-cal-cell--available:hover { background: var(--dt-state-hover-overlay, rgba(0,0,0,0.05)); }
+    .pam-cal-cell--selected {
+        background: var(--dt-accent-primary, #34D399) !important;
+        color: var(--dt-text-on-accent, #fff) !important;
+    }
+    .pam-cal-dot {
+        width: 4px; height: 4px; border-radius: 50%;
+        background: var(--dt-accent-primary, #34D399);
+        position: absolute; bottom: 4px;
+    }
+    .pam-cal-cell--selected .pam-cal-dot { background: var(--dt-text-on-accent, #fff); }
+
+    /* Step 3: Slots */
+    .pam-slots {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+    }
+    .pam-slot {
+        padding: 10px 8px; border-radius: 10px; border: 2px solid transparent;
+        background: var(--dt-surface-input, rgba(0,0,0,0.03));
+        font-size: 0.85rem; font-weight: 500; cursor: pointer;
+        color: var(--dt-text-primary, #1a1a2e);
+        transition: all 0.15s; text-align: center;
+    }
+    .pam-slot:hover { background: var(--dt-state-hover-overlay, rgba(0,0,0,0.06)); }
+    .pam-slot--selected {
+        border-color: var(--dt-accent-primary, #34D399);
+        background: var(--dt-accent-soft, rgba(52,211,153,0.1));
+        color: var(--dt-accent-primary, #34D399);
+        font-weight: 700;
+    }
+
+    /* Empty slots */
+    .pam-empty-slots {
+        text-align: center; padding: 32px 16px;
+        color: var(--dt-text-muted, rgba(26,26,46,0.4));
+    }
+    .pam-empty-title { font-size: 1rem; font-weight: 600; color: var(--dt-text-primary, #1a1a2e); margin: 12px 0 4px; }
+    .pam-empty-text { font-size: 0.8rem; margin: 0 0 16px; }
+    .pam-empty-btn {
+        padding: 10px 20px; border-radius: 10px; border: none;
+        background: var(--dt-accent-primary, #34D399);
+        color: var(--dt-text-on-accent, #fff);
+        font-weight: 600; font-size: 0.85rem; cursor: pointer;
+    }
+
+    /* Loading */
+    .pam-loading {
+        display: flex; flex-direction: column; align-items: center; gap: 12px;
+        padding: 40px 0; color: var(--dt-text-muted, rgba(26,26,46,0.5));
+        font-size: 0.85rem;
+    }
+    .pam-spinner {
+        width: 32px; height: 32px; border: 3px solid var(--dt-surface-input, rgba(0,0,0,0.08));
+        border-top-color: var(--dt-accent-primary, #34D399);
+        border-radius: 50%; animation: pam-spin 0.8s linear infinite;
+    }
+    .pam-spinner-sm {
+        width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white; border-radius: 50%; animation: pam-spin 0.8s linear infinite;
+        display: inline-block;
+    }
+    @@keyframes pam-spin { to { transform: rotate(360deg); } }
+
+    /* Step 4: Confirm */
+    .pam-confirm { display: flex; flex-direction: column; gap: 16px; }
+    .pam-confirm-form { display: flex; flex-direction: column; gap: 12px; }
+    .pam-field { display: flex; flex-direction: column; gap: 4px; }
+    .pam-label {
+        font-size: 0.75rem; font-weight: 600;
+        color: var(--dt-text-secondary, rgba(26,26,46,0.6));
+    }
+    .pam-input, .pam-textarea {
+        padding: 10px 14px; border-radius: 10px;
+        border: 1px solid var(--dt-modal-border, rgba(0,0,0,0.1));
+        background: var(--dt-surface-input, rgba(0,0,0,0.02));
+        color: var(--dt-text-primary, #1a1a2e);
+        font-size: 0.85rem; font-family: inherit;
+        outline: none; transition: border-color 0.15s;
+        width: 100%; box-sizing: border-box;
+    }
+    .pam-input:focus, .pam-textarea:focus {
+        border-color: var(--dt-accent-primary, #34D399);
+    }
+    .pam-input::placeholder, .pam-textarea::placeholder {
+        color: var(--dt-text-muted, rgba(26,26,46,0.35));
+    }
+
+    /* Summary card */
+    .pam-summary-card {
+        background: var(--dt-surface-input, rgba(0,0,0,0.03));
+        border: 1px solid var(--dt-modal-border, rgba(0,0,0,0.06));
+        border-radius: 14px; padding: 16px;
+    }
+    .pam-summary-title {
+        font-size: 0.85rem; font-weight: 700;
+        color: var(--dt-text-primary, #1a1a2e);
+        margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .pam-summary-row {
+        display: flex; justify-content: space-between; padding: 6px 0;
+        border-bottom: 1px solid var(--dt-modal-border, rgba(0,0,0,0.04));
+    }
+    .pam-summary-row:last-child { border-bottom: none; }
+    .pam-summary-label { font-size: 0.8rem; color: var(--dt-text-muted, rgba(26,26,46,0.5)); }
+    .pam-summary-value { font-size: 0.8rem; font-weight: 600; color: var(--dt-text-primary, #1a1a2e); }
+
+    /* Error */
+    .pam-error {
+        padding: 10px 14px; border-radius: 10px;
+        background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+        color: #DC2626; font-size: 0.8rem; font-weight: 500;
+    }
+
+    /* Step 5: Success */
+    .pam-success { text-align: center; padding: 20px 0; }
+    .pam-success-icon { color: var(--dt-accent-primary, #34D399); margin-bottom: 16px; }
+    .pam-success-title {
+        font-size: 1.3rem; font-weight: 700;
+        color: var(--dt-text-primary, #1a1a2e); margin: 0 0 8px;
+    }
+    .pam-success-ref {
+        font-size: 0.85rem; color: var(--dt-text-muted, rgba(26,26,46,0.5));
+        margin: 0 0 20px; font-weight: 500;
+    }
+    .pam-wa-btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 12px 24px; border-radius: 50px;
+        background: #25D366; color: #fff;
+        text-decoration: none; font-weight: 700; font-size: 0.85rem;
+        margin-top: 16px; transition: filter 0.15s;
+    }
+    .pam-wa-btn:hover { filter: brightness(1.1); }
+
+    /* Footer */
+    .pam-footer {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 24px 20px; flex-shrink: 0;
+        border-top: 1px solid var(--dt-modal-border, rgba(0,0,0,0.06));
+        gap: 12px;
+    }
+    .pam-btn-secondary {
+        display: flex; align-items: center; gap: 4px;
+        padding: 10px 18px; border-radius: 10px; border: none;
+        background: var(--dt-surface-input, rgba(0,0,0,0.04));
+        color: var(--dt-text-secondary, rgba(26,26,46,0.6));
+        font-weight: 600; font-size: 0.85rem; cursor: pointer;
+        transition: background 0.15s;
+    }
+    .pam-btn-secondary:hover { background: var(--dt-state-hover-overlay, rgba(0,0,0,0.08)); }
+    .pam-btn-secondary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .pam-btn-primary {
+        display: flex; align-items: center; gap: 6px;
+        padding: 10px 22px; border-radius: 10px; border: none;
+        background: var(--dt-button-primary-bg, #34D399);
+        color: var(--dt-button-primary-text, #fff);
+        font-weight: 700; font-size: 0.85rem; cursor: pointer;
+        transition: filter 0.15s, transform 0.15s;
+        margin-left: auto;
+    }
+    .pam-btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .pam-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; filter: none; }
+
+    .pam-btn-confirm {
+        text-transform: uppercase; letter-spacing: 0.04em;
+        padding: 12px 28px; border-radius: 12px;
+    }
+
+    /* Close confirmation overlay */
+    .pam-confirm-overlay {
+        position: fixed; inset: 0; z-index: 10001;
+        background: rgba(0,0,0,0.4);
+        display: flex; align-items: center; justify-content: center;
+    }
+    .pam-confirm-dialog {
+        background: var(--dt-surface-card, #fff);
+        border-radius: 16px; padding: 24px;
+        width: min(90vw, 340px); text-align: center;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+    }
+    .pam-confirm-msg {
+        font-size: 1rem; font-weight: 600;
+        color: var(--dt-text-primary, #1a1a2e);
+        margin: 0 0 20px;
+    }
+    .pam-confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+    /* Responsive: mobile detection handled by parent */
+    @@media (max-width: 640px) {
+        .pam-modal {
+            top: auto !important; left: 0 !important; right: 0; bottom: 0;
+            transform: translateY(100%) !important;
+            width: 100% !important; max-height: 92vh;
+            border-radius: 20px 20px 0 0 !important;
+        }
+        .pam-modal--open {
+            transform: translateY(0) !important;
+        }
+        .pam-slots { grid-template-columns: repeat(3, 1fr); }
+    }
+</style>

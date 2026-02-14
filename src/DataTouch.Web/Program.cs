@@ -11,7 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddCircuitOptions(options => options.DetailedErrors = true);
 
 // Add MudBlazor
 builder.Services.AddMudServices();
@@ -69,7 +70,10 @@ builder.Services.AddScoped<GeoLocationService>();
 // ═══════════════════════════════════════════════════════════════
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<AppointmentService>();
+builder.Services.AddScoped<AppointmentDashboardService>();
 builder.Services.AddScoped<QuoteService>();
+builder.Services.AddScoped<ReservationService>();
+builder.Services.AddScoped<ReservationDashboardService>();
 
 // Quote Automations (SLA alerts, reminders)
 builder.Services.AddQuoteAutomations();
@@ -152,7 +156,10 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<DataTouchDbContext>();
     await DbInitializer.InitializeAsync(dbContext);
-    
+
+    // Apply incremental schema changes for columns added after initial creation
+    await DbInitializer.ApplySchemaUpdatesAsync(dbContext);
+
     // Force seed demo analytics for dashboard visualization
     await DbInitializer.ForceSeedDemoAnalyticsAsync(dbContext);
 }

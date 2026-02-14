@@ -159,45 +159,8 @@ h1:focus {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   MOBILE SCROLLBAR - Hide scrollbar for app-like experience
-   ══════════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 960px) {
-    /* Hide scrollbar but keep scrolling functionality */
-    html,
-    body,
-    .page,
-    main,
-    .mud-main-content,
-    .main-content-wrapper,
-    .swipe-navigation-wrapper,
-    .page-container {
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE/Edge */
-    }
-
-    html::-webkit-scrollbar,
-    body::-webkit-scrollbar,
-    .page::-webkit-scrollbar,
-    main::-webkit-scrollbar,
-    .mud-main-content::-webkit-scrollbar,
-    .main-content-wrapper::-webkit-scrollbar,
-    .swipe-navigation-wrapper::-webkit-scrollbar,
-    .page-container::-webkit-scrollbar {
-        display: none; /* Chrome/Safari/Opera */
-        width: 0;
-        height: 0;
-    }
-
-    /* Ensure smooth touch scrolling */
-    html,
-    body {
-        -webkit-overflow-scrolling: touch;
-    }
-}
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   PUBLIC CARD FORM - FORCE WHITE TEXT IN ALL INPUTS
-   This is needed because MudBlazor applies its own styles
+   PUBLIC CARD FORM - THEME-AWARE TEXT IN ALL INPUTS
+   Uses --dt-text-primary so dark themes get white, light themes get dark text
    ══════════════════════════════════════════════════════════════════════════════ */
 .landing-wrapper input,
 .landing-wrapper textarea,
@@ -219,9 +182,9 @@ h1:focus {
 .compact-input .mud-input-slot,
 .country-phone-input input,
 .phone-number-input {
-    color: #FFFFFF !important;
-    -webkit-text-fill-color: #FFFFFF !important;
-    caret-color: #A78BFA !important;
+    color: var(--dt-text-primary, #FFFFFF) !important;
+    -webkit-text-fill-color: var(--dt-text-primary, #FFFFFF) !important;
+    caret-color: var(--dt-accent-primary, #A78BFA) !important;
     opacity: 1 !important;
 }
 
@@ -235,7 +198,7 @@ h1:focus {
 .compact-input textarea::placeholder,
 .country-phone-input input::placeholder,
 .phone-number-input::placeholder {
-    color: rgba(255, 255, 255, 0.4) !important;
-    -webkit-text-fill-color: rgba(255, 255, 255, 0.4) !important;
+    color: var(--dt-text-muted, rgba(255, 255, 255, 0.4)) !important;
+    -webkit-text-fill-color: var(--dt-text-muted, rgba(255, 255, 255, 0.4)) !important;
     opacity: 1 !important;
 }

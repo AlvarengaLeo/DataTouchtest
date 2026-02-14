@@ -32,11 +32,27 @@ public class Card
     /// Gallery images for portfolio template: [{url, title, description, order}, ...]
     /// </summary>
     public string? GalleryImagesJson { get; set; }
+
+    /// <summary>
+    /// Portfolio gallery with photos/videos sections and enable flags.
+    /// Supersedes GalleryImagesJson (kept for backward compat migration).
+    /// </summary>
+    public string? PortfolioGalleryJson { get; set; }
     
     /// <summary>
     /// JSON storage for appearance customization (background, card style, buttons, etc.)
     /// </summary>
     public string? AppearanceStyleJson { get; set; }
+
+    /// <summary>
+    /// JSON storage for quote request template settings (title, subtitle, form config, etc.)
+    /// </summary>
+    public string? QuoteSettingsJson { get; set; }
+
+    /// <summary>
+    /// JSON storage for reservation template settings (min nights, max guests, extras, policies, etc.)
+    /// </summary>
+    public string? ReservationSettingsJson { get; set; }
 
     
     // ═══════════════════════════════════════════════════════════════
@@ -91,5 +107,7 @@ public class Card
     public ICollection<AvailabilityRule> AvailabilityRules { get; set; } = new List<AvailabilityRule>();
     public ICollection<AvailabilityException> AvailabilityExceptions { get; set; } = new List<AvailabilityException>();
     public ICollection<QuoteRequest> QuoteRequests { get; set; } = new List<QuoteRequest>();
+    public ICollection<ReservationRequest> ReservationRequests { get; set; } = new List<ReservationRequest>();
+    public ICollection<ReservationResource> ReservationResources { get; set; } = new List<ReservationResource>();
 }
 

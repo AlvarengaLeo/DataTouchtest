@@ -169,11 +169,7 @@ window.EChartsAnalytics = {
                     axisLabel: {
                         color: 'rgba(94, 234, 212, 0.9)',
                         fontSize: 11,
-                        fontWeight: 500,
-                        formatter: function (value) {
-                            // Format leads axis: show .0 for whole numbers, .5 for halves
-                            return value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
-                        }
+                        fontWeight: 500
                     }
                 }
             ],
@@ -254,5 +250,156 @@ window.EChartsAnalytics = {
             container._resizeObserver.disconnect();
             delete container._resizeObserver;
         }
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // QUOTE ANALYTICS CHARTS
+    // ═══════════════════════════════════════════════════════════════
+
+    _initChart: function (elementId) {
+        const container = document.getElementById(elementId);
+        if (!container) return null;
+        this.dispose(elementId);
+        const chart = echarts.init(container, 'dark');
+        this.instances.set(elementId, chart);
+        const ro = new ResizeObserver(() => chart.resize());
+        ro.observe(container);
+        container._resizeObserver = ro;
+        return chart;
+    },
+
+    /**
+     * Funnel chart: Views → CTA → Modal → Form Start → Success
+     */
+    renderFunnel: function (elementId, data) {
+        const chart = this._initChart(elementId);
+        if (!chart) return;
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(24,24,45,0.95)', borderColor: 'rgba(167,139,250,0.3)', textStyle: { color: '#fff' }, formatter: '{b}: {c}' },
+            series: [{
+                type: 'funnel',
+                left: '10%', right: '10%', top: '8%', bottom: '8%',
+                width: '80%',
+                min: 0,
+                max: Math.max(...data.values, 1),
+                minSize: '0%',
+                maxSize: '100%',
+                sort: 'descending',
+                gap: 4,
+                label: { show: true, position: 'inside', color: '#fff', fontSize: 13, fontWeight: 600, formatter: '{b}\n{c}' },
+                labelLine: { show: false },
+                itemStyle: { borderWidth: 0 },
+                data: data.labels.map((label, i) => ({
+                    value: data.values[i],
+                    name: label,
+                    itemStyle: { color: ['#8B5CF6','#A78BFA','#C084FC','#E879F9','#22D3EE'][i] || '#8B5CF6' }
+                }))
+            }]
+        });
+    },
+
+    /**
+     * Time series: dual line/bar chart (views vs success by day)
+     */
+    renderTimeSeries: function (elementId, data) {
+        const chart = this._initChart(elementId);
+        if (!chart) return;
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(24,24,45,0.95)', borderColor: 'rgba(167,139,250,0.3)', textStyle: { color: '#fff' } },
+            legend: { data: data.seriesNames, textStyle: { color: 'rgba(255,255,255,0.7)', fontSize: 12 }, top: 0 },
+            grid: { left: '4%', right: '4%', top: '14%', bottom: '10%', containLabel: true },
+            xAxis: { type: 'category', data: data.dates, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11 } },
+            yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, axisLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11 } },
+            series: data.series.map((s, i) => ({
+                name: s.name,
+                type: i === 0 ? 'bar' : 'line',
+                data: s.data,
+                barWidth: '40%',
+                smooth: true,
+                itemStyle: {
+                    color: ['#A78BFA','#22D3EE','#F59E0B','#EF4444','#10B981'][i] || '#A78BFA',
+                    borderRadius: i === 0 ? [4,4,0,0] : 0
+                },
+                lineStyle: i > 0 ? { width: 2.5 } : undefined,
+                symbol: i > 0 ? 'circle' : 'none',
+                symbolSize: 6
+            }))
+        });
+    },
+
+    /**
+     * Stacked bar chart: quote statuses
+     */
+    renderStackedBars: function (elementId, data) {
+        const chart = this._initChart(elementId);
+        if (!chart) return;
+        const colors = { 'New': '#8B5CF6', 'InReview': '#3B82F6', 'NeedsInfo': '#F59E0B', 'Quoted': '#06B6D4', 'Negotiation': '#EC4899', 'Won': '#10B981', 'Lost': '#EF4444', 'Archived': '#6B7280' };
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(24,24,45,0.95)', borderColor: 'rgba(167,139,250,0.3)', textStyle: { color: '#fff' }, formatter: '{b}: {c}' },
+            grid: { left: '4%', right: '4%', top: '8%', bottom: '8%', containLabel: true },
+            xAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, axisLabel: { color: 'rgba(255,255,255,0.6)' } },
+            yAxis: { type: 'category', data: data.labels, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 500 } },
+            series: [{
+                type: 'bar',
+                data: data.labels.map((label, i) => ({
+                    value: data.values[i],
+                    itemStyle: { color: colors[data.keys[i]] || '#8B5CF6', borderRadius: [0, 4, 4, 0] }
+                })),
+                barWidth: '50%',
+                label: { show: true, position: 'right', color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 600 }
+            }]
+        });
+    },
+
+    /**
+     * Pie chart: preferred contact breakdown
+     */
+    renderPie: function (elementId, data) {
+        const chart = this._initChart(elementId);
+        if (!chart) return;
+        const colors = ['#8B5CF6', '#22D3EE', '#F59E0B', '#10B981', '#EC4899'];
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(24,24,45,0.95)', borderColor: 'rgba(167,139,250,0.3)', textStyle: { color: '#fff' }, formatter: '{b}: {c} ({d}%)' },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['50%', '50%'],
+                avoidLabelOverlap: true,
+                padAngle: 3,
+                itemStyle: { borderRadius: 6 },
+                label: { show: true, color: 'rgba(255,255,255,0.8)', fontSize: 12, formatter: '{b}\n{d}%' },
+                data: data.labels.map((label, i) => ({
+                    value: data.values[i],
+                    name: label,
+                    itemStyle: { color: colors[i % colors.length] }
+                }))
+            }]
+        });
+    },
+
+    /**
+     * Horizontal bar chart: deadline/urgency breakdown
+     */
+    renderHorizontalBar: function (elementId, data) {
+        const chart = this._initChart(elementId);
+        if (!chart) return;
+        const colors = ['#8B5CF6', '#A78BFA', '#C084FC', '#E879F9', '#F0ABFC'];
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(24,24,45,0.95)', borderColor: 'rgba(167,139,250,0.3)', textStyle: { color: '#fff' }, formatter: '{b}: {c}' },
+            grid: { left: '4%', right: '8%', top: '8%', bottom: '8%', containLabel: true },
+            xAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, axisLabel: { color: 'rgba(255,255,255,0.6)' } },
+            yAxis: { type: 'category', data: data.labels, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 12 } },
+            series: [{
+                type: 'bar',
+                data: data.values.map((v, i) => ({ value: v, itemStyle: { color: colors[i % colors.length], borderRadius: [0, 4, 4, 0] } })),
+                barWidth: '50%',
+                label: { show: true, position: 'right', color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 600 }
+            }]
+        });
     }
 };

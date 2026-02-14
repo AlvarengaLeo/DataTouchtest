@@ -19,9 +19,19 @@ public class AvailabilityRule
     /// <summary>End time of availability window</summary>
     public TimeSpan EndTime { get; set; }
     
+    /// <summary>Break start time (optional lunch/rest)</summary>
+    public TimeSpan? BreakStartTime { get; set; }
+    
+    /// <summary>Break end time (optional lunch/rest)</summary>
+    public TimeSpan? BreakEndTime { get; set; }
+    
+    /// <summary>Service-specific override (null = global rule)</summary>
+    public Guid? ServiceId { get; set; }
+    
     /// <summary>Whether this day is active for bookings</summary>
     public bool IsActive { get; set; } = true;
     
     // Navigation
     public Card Card { get; set; } = default!;
+    public Service? Service { get; set; }
 }

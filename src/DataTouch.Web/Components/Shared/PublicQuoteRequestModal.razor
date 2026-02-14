@@ -1,0 +1,351 @@
+@* ═══════════════════════════════════════════════════════════════════════════
+   PUBLIC QUOTE REQUEST MODAL - Single-Step Form
+   For quote-request template cards (no service catalog)
+   ═══════════════════════════════════════════════════════════════════════════ *@
+@using DataTouch.Web.Services
+@using DataTouch.Web.Models
+
+<MudDialog Class="public-quote-request-modal">
+    <TitleContent>
+        <div class="pqr-header">
+            <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Size="Size.Medium" Class="pqr-header-icon" />
+            <MudText Typo="Typo.h6">@Settings.BlockTitle</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_isSubmitting)
+        {
+            <div class="pqr-loading">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.body1" Class="mt-3">Enviando tu solicitud...</MudText>
+            </div>
+        }
+        else if (_isSuccess)
+        {
+            <div class="pqr-success">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+                <MudText Typo="Typo.h5" Class="mt-3">@Settings.SuccessMessage</MudText>
+                @if (!string.IsNullOrEmpty(_requestNumber))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1">
+                        Referencia: @_requestNumber
+                    </MudText>
+                }
+                @if (!string.IsNullOrEmpty(WhatsAppNumber) && _preferredContact == "WhatsApp")
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Success" Class="mt-4"
+                               StartIcon="@Icons.Custom.Brands.WhatsApp"
+                               Href="@($"https://wa.me/{WhatsAppNumber}?text=Hola, acabo de enviar una solicitud de cotización ({_requestNumber}).")"
+                               Target="_blank">
+                        Abrir WhatsApp
+                    </MudButton>
+                }
+                <MudButton Variant="Variant.Text" Color="Color.Default" Class="mt-2" OnClick="Close">
+                    Cerrar
+                </MudButton>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="pqr-error">
+                <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" Size="Size.Large" />
+                <MudText Typo="Typo.body1" Class="mt-3">@_errorMessage</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="ClearError">
+                    Intentar de nuevo
+                </MudButton>
+            </div>
+        }
+        else
+        {
+            <div class="pqr-form">
+                @if (!string.IsNullOrEmpty(Settings.BlockSubtitle))
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">@Settings.BlockSubtitle</MudText>
+                }
+
+                @* Name (always required) *@
+                <MudTextField @bind-Value="_fullName"
+                              Label="Nombre completo"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true"
+                              RequiredError="El nombre es requerido"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Person"
+                              Class="mb-3" />
+
+                @* Email *@
+                <MudTextField @bind-Value="_email"
+                              Label="@(Settings.EmailRequired ? "Correo electrónico *" : "Correo electrónico (opcional)")"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              InputType="InputType.Email"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Email"
+                              Class="mb-3" />
+
+                @* Phone *@
+                <div class="mb-3">
+                    <CountryPhoneInput @bind-Value="_phone"
+                                       @bind-CountryCode="_phoneCountryCode"
+                                       @bind-E164Value="_phoneE164"
+                                       Required="@Settings.PhoneRequired"
+                                       @bind-IsValid="_isPhoneValid" />
+                </div>
+
+                @if (!Settings.EmailRequired && !Settings.PhoneRequired)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3" Style="font-style: italic;">
+                        * Se requiere al menos un medio de contacto (email o teléfono)
+                    </MudText>
+                }
+
+                @* Details (always required) *@
+                <MudTextField @bind-Value="_details"
+                              Label="Detalles de tu solicitud"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Lines="4"
+                              Required="true"
+                              RequiredError="Describe lo que necesitas"
+                              Placeholder="Cuéntame qué necesitas, el contexto del proyecto, especificaciones, etc."
+                              Class="mb-3" />
+
+                @* Budget (conditional) *@
+                @if (Settings.ShowBudgetField)
+                {
+                    <MudSelect T="string" @bind-Value="_budget"
+                               Label="Presupuesto aproximado"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.AttachMoney"
+                               Class="mb-3">
+                        <MudSelectItem T="string" Value="@("")">Sin especificar</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("$1–500")">$1 – $500</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("$500–2,000")">$500 – $2,000</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("$2,000–5,000")">$2,000 – $5,000</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("$5,000–10,000")">$5,000 – $10,000</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("$10,000+")">$10,000+</MudSelectItem>
+                    </MudSelect>
+                }
+
+                @* Deadline (conditional) *@
+                @if (Settings.ShowDeadlineField)
+                {
+                    <MudSelect T="string" @bind-Value="_deadline"
+                               Label="¿Para cuándo lo necesitas?"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.Schedule"
+                               Class="mb-3">
+                        <MudSelectItem T="string" Value="@("")">Sin especificar</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Esta semana")">Esta semana</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("2 semanas")">2 semanas</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("1 mes")">1 mes</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Sin prisa")">Sin prisa</MudSelectItem>
+                    </MudSelect>
+                }
+
+                @* Preferred Contact (conditional) *@
+                @if (Settings.ShowPreferredContactField)
+                {
+                    <MudSelect T="string" @bind-Value="_preferredContact"
+                               Label="Preferencia de contacto"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.ContactPhone"
+                               Class="mb-3">
+                        <MudSelectItem T="string" Value="@("")">Sin preferencia</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("WhatsApp")">WhatsApp</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Llamada")">Llamada</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Email")">Email</MudSelectItem>
+                    </MudSelect>
+                }
+
+                @if (Settings.ShowLegalText && !string.IsNullOrEmpty(Settings.LegalText))
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 mb-2" Style="font-style: italic;">
+                        @Settings.LegalText
+                    </MudText>
+                }
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (!_isSubmitting && !_isSuccess && string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+            <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="@(!CanSubmit)"
+                       StartIcon="@Icons.Material.Filled.Send">
+                Enviar solicitud
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Inject] private QuoteService QuoteService { get; set; } = default!;
+    [Inject] private CardAnalyticsService AnalyticsService { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    [CascadingParameter] IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public Guid CardId { get; set; }
+    [Parameter] public QuoteSettingsModel Settings { get; set; } = new();
+    [Parameter] public string? WhatsAppNumber { get; set; }
+
+    // Form fields
+    private string _fullName = "";
+    private string _email = "";
+    private string _phone = "";
+    private string _phoneCountryCode = "SV";
+    private string? _phoneE164;
+    private bool _isPhoneValid = false;
+    private string _details = "";
+    private string _budget = "";
+    private string _deadline = "";
+    private string _preferredContact = "";
+
+    // State
+    private bool _isSubmitting = false;
+    private bool _isSuccess = false;
+    private string? _errorMessage;
+    private string? _requestNumber;
+    private string _idempotencyKey = Guid.NewGuid().ToString();
+
+    private bool CanSubmit
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_fullName)) return false;
+            if (string.IsNullOrWhiteSpace(_details)) return false;
+
+            // Email validation if required
+            if (Settings.EmailRequired && !IsValidEmail(_email)) return false;
+
+            // Phone validation if required
+            if (Settings.PhoneRequired && string.IsNullOrWhiteSpace(_phone)) return false;
+
+            // At least one contact method required
+            var hasEmail = IsValidEmail(_email);
+            var hasPhone = !string.IsNullOrWhiteSpace(_phone);
+            if (!hasEmail && !hasPhone) return false;
+
+            return true;
+        }
+    }
+
+    private bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return false;
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(email);
+            return addr.Address == email.Trim();
+        }
+        catch { return false; }
+    }
+
+    private async Task Submit()
+    {
+        if (!CanSubmit) return;
+
+        _isSubmitting = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            await AnalyticsService.TrackQuoteSubmitAttemptAsync(CardId);
+
+            var dto = new CreatePublicCardQuoteDto
+            {
+                CardId = CardId,
+                CustomerName = _fullName.Trim(),
+                CustomerEmail = IsValidEmail(_email) ? _email.Trim().ToLowerInvariant() : null,
+                CustomerPhone = !string.IsNullOrWhiteSpace(_phone) ? _phone.Trim() : null,
+                CustomerPhoneCountryCode = !string.IsNullOrWhiteSpace(_phone) ? _phoneCountryCode : null,
+                Details = _details.Trim(),
+                Budget = !string.IsNullOrEmpty(_budget) ? _budget : null,
+                Deadline = !string.IsNullOrEmpty(_deadline) ? _deadline : null,
+                PreferredContact = !string.IsNullOrEmpty(_preferredContact) ? _preferredContact : null,
+                IdempotencyKey = _idempotencyKey
+            };
+
+            var result = await QuoteService.CreateQuoteFromPublicCardRequestAsync(dto);
+
+            if (result.Success)
+            {
+                _isSuccess = true;
+                _requestNumber = result.RequestNumber;
+                await AnalyticsService.TrackQuoteSubmitSuccessAsync(CardId, result.Quote?.Id);
+
+                if (result.IsDuplicate)
+                {
+                    Snackbar.Add("Tu solicitud ya fue registrada anteriormente", Severity.Info);
+                }
+            }
+            else
+            {
+                _errorMessage = result.Error ?? "Error al enviar la solicitud";
+                await AnalyticsService.TrackQuoteSubmitErrorAsync(CardId, result.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Error inesperado. Por favor intenta de nuevo.";
+            await AnalyticsService.TrackQuoteSubmitErrorAsync(CardId, ex.Message);
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ClearError()
+    {
+        _errorMessage = null;
+        StateHasChanged();
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+    private void Close() => MudDialog?.Close(DialogResult.Ok(true));
+}
+
+<style>
+    .public-quote-request-modal {
+        max-width: 520px;
+    }
+
+    .pqr-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .pqr-header-icon {
+        color: var(--mud-palette-primary);
+    }
+
+    .pqr-form {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pqr-loading,
+    .pqr-success,
+    .pqr-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        text-align: center;
+        min-height: 200px;
+    }
+</style>

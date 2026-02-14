@@ -365,7 +365,7 @@
     
     private string SelectedCountryCode => CountryCode;
     private bool HasError => _validationResult != null && !_validationResult.IsValid && _isTouched && !string.IsNullOrEmpty(_nationalNumber);
-    private bool IsValid => _validationResult?.IsValid ?? false;
+    [Parameter] public bool IsValid { get; set; }
     
     protected override void OnInitialized()
     {
@@ -452,6 +452,7 @@
         
         _validationResult = PhoneService.ValidatePhone(_selectedCountry.Code, _nationalNumber);
         _currentDigits = _validationResult.CurrentLength;
+        IsValid = _validationResult?.IsValid ?? false;
     }
     
     private async Task NotifyValueChanges()

@@ -1,0 +1,304 @@
+@* ═══════════════════════════════════════════════════════════════
+   AppointmentBookingBlock — Single source of truth for the "Agendar Cita" CTA block.
+   Used identically in: PublicCard, MyCard (LivePreview), TemplateLibrary.
+   All colors come from --dt-* CSS variables (injected by parent context).
+   Pattern: same as QuoteRequestBlock.razor (Compact + ContainerStyle params).
+   ═══════════════════════════════════════════════════════════════ *@
+
+<div class="abb @(Compact ? "abb--compact" : "")" style="@ContainerStyle">
+    <div class="abb__header">
+        <svg class="abb__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <h3 class="abb__title">@Title</h3>
+    </div>
+    <p class="abb__subtitle">@Subtitle</p>
+
+    @if (Services != null && Services.Any())
+    {
+        <div class="abb__services">
+            @foreach (var svc in Services.Take(Compact ? 2 : 4))
+            {
+                <div class="abb__service-item">
+                    <span class="abb__service-name">@svc.Name</span>
+                    <span class="abb__service-meta">
+                        @(svc.DurationMinutes) min
+                        @if (svc.Price.HasValue)
+                        {
+                            <span> · $@svc.Price.Value.ToString("N0")</span>
+                        }
+                    </span>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="abb__info">
+        <span class="abb__info-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            @DurationLabel
+        </span>
+        <span class="abb__info-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            @TimezoneLabel
+        </span>
+    </div>
+
+    <button type="button" class="abb__cta" @onclick="OnBookClick">
+        <svg class="abb__cta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+            <line x1="12" y1="14" x2="12" y2="18"></line>
+            <line x1="10" y1="16" x2="14" y2="16"></line>
+        </svg>
+        @CtaLabel
+    </button>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "AGENDAR CITA";
+    [Parameter] public string Subtitle { get; set; } = "Elige servicio, fecha y una hora disponible.";
+    [Parameter] public string CtaLabel { get; set; } = "AGENDAR CITA";
+    [Parameter] public string DurationLabel { get; set; } = "60 min";
+    [Parameter] public string TimezoneLabel { get; set; } = "Hora local";
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public EventCallback OnBookClick { get; set; }
+    /// <summary>Optional inline style for injecting CSS variables (e.g. in TemplateLibrary).</summary>
+    [Parameter] public string? ContainerStyle { get; set; }
+    /// <summary>Services to display. If null/empty, shows generic info only.</summary>
+    [Parameter] public List<ServiceDisplayItem>? Services { get; set; }
+
+    /// <summary>Lightweight display model for services in the booking block.</summary>
+    public class ServiceDisplayItem
+    {
+        public string Name { get; set; } = "";
+        public int DurationMinutes { get; set; } = 60;
+        public decimal? Price { get; set; }
+    }
+}
+
+<style>
+    /* ═══════════════════════════════════════════════════════════════
+       APPOINTMENT BOOKING BLOCK — Shared component styles
+       Colors from --dt-* CSS variables (ThemeHelper); contrast-safe.
+       ═══════════════════════════════════════════════════════════════ */
+
+    .abb {
+        margin: 24px 0 20px;
+        width: 100%;
+        text-align: center;
+        padding: 24px 20px;
+        background: var(--dt-modal-surface2, rgba(0, 0, 0, 0.025));
+        border: 1px solid var(--dt-modal-border, rgba(0, 0, 0, 0.08));
+        border-radius: 16px;
+        box-sizing: border-box;
+    }
+
+    .abb__header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .abb__icon {
+        width: 22px;
+        height: 22px;
+        color: var(--dt-accent-primary, #7C3AED);
+        flex-shrink: 0;
+    }
+
+    .abb__title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--dt-text-primary, rgba(26, 26, 46, 0.95));
+        margin: 0;
+        line-height: 1.3;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .abb__subtitle {
+        font-size: 0.85rem;
+        color: var(--dt-text-muted, rgba(26, 26, 46, 0.5));
+        margin: 0 0 16px;
+        line-height: 1.4;
+    }
+
+    /* Services list */
+    .abb__services {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+        text-align: left;
+    }
+
+    .abb__service-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        background: var(--dt-surface-input, rgba(0, 0, 0, 0.03));
+        border: 1px solid var(--dt-modal-border, rgba(0, 0, 0, 0.06));
+        border-radius: 10px;
+        transition: background 0.15s ease;
+    }
+
+    .abb__service-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--dt-text-primary, rgba(26, 26, 46, 0.9));
+    }
+
+    .abb__service-meta {
+        font-size: 0.75rem;
+        color: var(--dt-text-secondary, rgba(26, 26, 46, 0.6));
+        white-space: nowrap;
+    }
+
+    /* Info row */
+    .abb__info {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .abb__info-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75rem;
+        color: var(--dt-text-secondary, rgba(26, 26, 46, 0.6));
+    }
+
+    .abb__info-item svg {
+        color: var(--dt-accent-primary, #7C3AED);
+        flex-shrink: 0;
+    }
+
+    /* CTA button */
+    .abb__cta {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 12px 24px;
+        border: none;
+        border-radius: var(--dt-button-shape, 50px);
+        background: var(--dt-button-primary-bg, linear-gradient(135deg, #34D399, #06B6D4));
+        color: var(--dt-button-primary-text, white);
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: filter 0.15s ease, transform 0.15s ease;
+        box-shadow: 0 4px 14px var(--dt-accent-soft, rgba(52, 211, 153, 0.25));
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        line-height: 1.4;
+    }
+
+    .abb__cta:hover {
+        filter: brightness(1.08);
+        transform: translateY(-1px);
+    }
+
+    .abb__cta:active {
+        transform: translateY(0);
+    }
+
+    .abb__cta:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .abb__cta-icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+
+    /* ───────────────────────────────────────────────────────────────
+       COMPACT MODE — Phone preview / Template preview sizing
+       Same visual hierarchy, proportionally scaled down.
+       ─────────────────────────────────────────────────────────────── */
+
+    .abb--compact {
+        margin: 16px 0 12px;
+        padding: 14px 12px;
+        border-radius: 14px;
+    }
+
+    .abb--compact .abb__header {
+        gap: 5px;
+        margin-bottom: 5px;
+    }
+
+    .abb--compact .abb__icon {
+        width: 15px;
+        height: 15px;
+    }
+
+    .abb--compact .abb__title {
+        font-size: 0.7rem;
+    }
+
+    .abb--compact .abb__subtitle {
+        font-size: 0.55rem;
+        margin: 0 0 10px;
+    }
+
+    .abb--compact .abb__services {
+        gap: 5px;
+        margin-bottom: 10px;
+    }
+
+    .abb--compact .abb__service-item {
+        padding: 6px 10px;
+        border-radius: 8px;
+    }
+
+    .abb--compact .abb__service-name {
+        font-size: 0.6rem;
+    }
+
+    .abb--compact .abb__service-meta {
+        font-size: 0.5rem;
+    }
+
+    .abb--compact .abb__info {
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .abb--compact .abb__info-item {
+        font-size: 0.5rem;
+        gap: 3px;
+    }
+
+    .abb--compact .abb__info-item svg {
+        width: 10px;
+        height: 10px;
+    }
+
+    .abb--compact .abb__cta {
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        gap: 5px;
+    }
+
+    .abb--compact .abb__cta-icon {
+        width: 13px;
+        height: 13px;
+    }
+</style>

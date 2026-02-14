@@ -50,6 +50,34 @@ public static class ThemeHelper
             --dt-semantic-available: {tokens.SemanticAvailable};
             --dt-semantic-email: {tokens.SemanticEmail};
             --dt-semantic-call: {tokens.SemanticCall};
+            
+            --dt-modal-overlay: {(tokens.BgIsDark ? "rgba(0, 0, 0, 0.7)" : "rgba(0, 0, 0, 0.4)")};
+            --dt-modal-surface: {(tokens.BgIsDark ? "rgba(18, 14, 35, 0.97)" : "#FFFFFF")};
+            --dt-modal-surface2: {(tokens.BgIsDark ? "rgba(255, 255, 255, 0.035)" : "rgba(0, 0, 0, 0.025)")};
+            --dt-modal-border: {(tokens.BgIsDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)")};
+            --dt-modal-divider: {(tokens.BgIsDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.06)")};
+            --dt-modal-close-bg: {(tokens.BgIsDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)")};
+            --dt-modal-close-color: {(tokens.BgIsDark ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)")};
+            --dt-modal-close-hover-bg: {(tokens.BgIsDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)")};
+            --dt-modal-close-hover-color: {(tokens.BgIsDark ? "rgba(255, 255, 255, 0.8)" : "rgba(0, 0, 0, 0.7)")};
+            --dt-modal-input-label-bg: {(tokens.BgIsDark ? "rgba(18, 14, 35, 0.95)" : "rgba(255, 255, 255, 0.95)")};
+            
+            --dt-button-radius: {GetBorderRadius(tokens.ButtonShape)};
+            --dt-input-radius: {(tokens.ButtonShape == "square" ? "4px" : "8px")};
+
+            /* ── Bridge: legacy --surface-* aliases → resolved from same tokens ── */
+            --surface-text-primary: {tokens.TextPrimary};
+            --surface-text-secondary: {tokens.TextSecondary};
+            --surface-text-muted: {tokens.TextMuted};
+            --surface-input-bg: {tokens.SurfaceInput};
+            --surface-input-border: {tokens.SurfaceInputBorder};
+            --surface-input-text: {tokens.TextPrimary};
+            --surface-input-placeholder: {tokens.TextMuted};
+            --surface-icon: {tokens.TextSecondary};
+            --surface-chip-bg: {tokens.SurfaceChip};
+            --surface-chip-text: {tokens.TextSecondary};
+            --surface-chip-border: {tokens.SurfaceChipBorder};
+            --surface-label-text: {tokens.TextSecondary};
         ".Trim();
     }
     

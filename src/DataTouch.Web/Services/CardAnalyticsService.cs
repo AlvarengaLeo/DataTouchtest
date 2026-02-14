@@ -79,6 +79,49 @@ public class CardAnalyticsService
         await TrackEventAsync(cardId, "share", metadata != null ? System.Text.Json.JsonSerializer.Serialize(metadata) : null);
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // QUOTE REQUEST TEMPLATE EVENTS
+    // ═══════════════════════════════════════════════════════════════
+
+    public async Task TrackQuoteCtaClickAsync(Guid cardId) =>
+        await TrackEventAsync(cardId, "quote_cta_click");
+
+    public async Task TrackQuoteFormStartAsync(Guid cardId) =>
+        await TrackEventAsync(cardId, "quote_form_start");
+
+    public async Task TrackQuoteModalOpenAsync(Guid cardId) =>
+        await TrackEventAsync(cardId, "quote_modal_open");
+
+    public async Task TrackQuoteSubmitAttemptAsync(Guid cardId) =>
+        await TrackEventAsync(cardId, "quote_submit_attempt");
+
+    public async Task TrackQuoteSubmitSuccessAsync(Guid cardId, Guid? quoteId = null) =>
+        await TrackEventAsync(cardId, "quote_submit_success",
+            quoteId.HasValue ? System.Text.Json.JsonSerializer.Serialize(new { quote_id = quoteId }) : null);
+
+    public async Task TrackQuoteSubmitErrorAsync(Guid cardId, string? error = null) =>
+        await TrackEventAsync(cardId, "quote_submit_error",
+            !string.IsNullOrEmpty(error) ? System.Text.Json.JsonSerializer.Serialize(new { error }) : null);
+
+    // ═══════════════════════════════════════════════════════════════
+    // APPOINTMENTS TEMPLATE EVENTS
+    // ═══════════════════════════════════════════════════════════════
+
+    public async Task TrackSchedulerOpenAsync(Guid cardId) =>
+        await TrackEventAsync(cardId, "scheduler_open");
+
+    public async Task TrackSchedulerStepAsync(Guid cardId, int step) =>
+        await TrackEventAsync(cardId, "scheduler_step",
+            System.Text.Json.JsonSerializer.Serialize(new { step }));
+
+    public async Task TrackAppointmentBookedAsync(Guid cardId, Guid? appointmentId = null) =>
+        await TrackEventAsync(cardId, "appointment_booked",
+            appointmentId.HasValue ? System.Text.Json.JsonSerializer.Serialize(new { appointment_id = appointmentId }) : null);
+
+    public async Task TrackAppointmentErrorAsync(Guid cardId, string? error = null) =>
+        await TrackEventAsync(cardId, "appointment_error",
+            !string.IsNullOrEmpty(error) ? System.Text.Json.JsonSerializer.Serialize(new { error }) : null);
+
     /// <summary>
     /// Método genérico para registrar cualquier evento
     /// </summary>
@@ -153,6 +196,136 @@ public class CardAnalyticsService
             .ToListAsync();
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // QUOTE ANALYTICS QUERIES (for /analytics/quotes dashboard)
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Gets quote funnel counts for a date range, optionally filtered by cardId.
+    /// Returns counts for: page_view, quote_cta_click, quote_modal_open, quote_form_start, quote_submit_attempt, quote_submit_success, quote_submit_error
+    /// </summary>
+    public async Task<Dictionary<string, int>> GetQuoteFunnelAsync(DateTime from, DateTime to, Guid? cardId = null)
+    {
+        var eventTypes = new[] { "page_view", "quote_cta_click", "quote_modal_open", "quote_form_start", "quote_submit_attempt", "quote_submit_success", "quote_submit_error" };
+
+        var query = _context.CardAnalytics
+            .Where(a => a.Timestamp >= from && a.Timestamp < to)
+            .Where(a => eventTypes.Contains(a.EventType));
+
+        if (cardId.HasValue)
+            query = query.Where(a => a.CardId == cardId.Value);
+
+        var grouped = await query
+            .GroupBy(a => a.EventType)
+            .Select(g => new { EventType = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var result = eventTypes.ToDictionary(e => e, e => 0);
+        foreach (var g in grouped)
+            result[g.EventType] = g.Count;
+
+        return result;
+    }
+
+    /// <summary>
+    /// Gets daily event counts for time series charts.
+    /// </summary>
+    public async Task<List<DailyEventCount>> GetDailyQuoteEventsAsync(DateTime from, DateTime to, Guid? cardId = null)
+    {
+        var relevantEvents = new[] { "page_view", "quote_cta_click", "quote_modal_open", "quote_submit_success", "quote_submit_error" };
+
+        var query = _context.CardAnalytics
+            .Where(a => a.Timestamp >= from && a.Timestamp < to)
+            .Where(a => relevantEvents.Contains(a.EventType));
+
+        if (cardId.HasValue)
+            query = query.Where(a => a.CardId == cardId.Value);
+
+        return await query
+            .GroupBy(a => new { a.Timestamp.Date, a.EventType })
+            .Select(g => new DailyEventCount { Date = g.Key.Date, EventType = g.Key.EventType, Count = g.Count() })
+            .OrderBy(d => d.Date)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Gets quote metadata aggregations (preferred contact, deadline hints).
+    /// Reads from QuoteRequests table directly.
+    /// </summary>
+    public async Task<QuoteMetadataAggregation> GetQuoteMetadataAsync(DateTime from, DateTime to, Guid? cardId = null)
+    {
+        var query = _context.Set<DataTouch.Domain.Entities.QuoteRequest>()
+            .Where(q => q.CreatedAt >= from && q.CreatedAt < to);
+
+        if (cardId.HasValue)
+            query = query.Where(q => q.CardId == cardId.Value);
+
+        var quotes = await query.Select(q => new
+        {
+            q.CustomFieldsJson,
+            q.Status
+        }).ToListAsync();
+
+        var preferredContacts = new List<string>();
+        var deadlines = new List<string>();
+
+        foreach (var q in quotes)
+        {
+            if (!string.IsNullOrEmpty(q.CustomFieldsJson))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(q.CustomFieldsJson);
+                    if (doc.RootElement.TryGetProperty("preferredContact", out var pc) && pc.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        var val = pc.GetString();
+                        if (!string.IsNullOrEmpty(val)) preferredContacts.Add(val);
+                    }
+                    if (doc.RootElement.TryGetProperty("deadline", out var dl) && dl.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        var val = dl.GetString();
+                        if (!string.IsNullOrEmpty(val)) deadlines.Add(val);
+                    }
+                }
+                catch { /* ignore malformed JSON */ }
+            }
+        }
+
+        return new QuoteMetadataAggregation
+        {
+            PreferredContactBreakdown = preferredContacts
+                .GroupBy(c => c)
+                .ToDictionary(g => g.Key, g => g.Count()),
+            DeadlineBreakdown = deadlines
+                .GroupBy(d => d)
+                .ToDictionary(g => g.Key, g => g.Count()),
+            StatusBreakdown = quotes
+                .GroupBy(q => q.Status.ToString())
+                .ToDictionary(g => g.Key, g => g.Count())
+        };
+    }
+
+    /// <summary>
+    /// Gets all cards that have quote-related events for the card filter dropdown.
+    /// </summary>
+    public async Task<List<CardFilterItem>> GetCardsWithQuoteEventsAsync()
+    {
+        var quoteEventTypes = new[] { "quote_cta_click", "quote_modal_open", "quote_form_start", "quote_submit_attempt", "quote_submit_success" };
+
+        var cardIds = await _context.CardAnalytics
+            .Where(a => quoteEventTypes.Contains(a.EventType))
+            .Select(a => a.CardId)
+            .Distinct()
+            .ToListAsync();
+
+        var cards = await _context.Cards
+            .Where(c => cardIds.Contains(c.Id))
+            .Select(c => new CardFilterItem { Id = c.Id, FullName = c.FullName ?? "Sin nombre", Slug = c.Slug })
+            .ToListAsync();
+
+        return cards;
+    }
+
     private string? GetClientIpAddress(HttpContext? context)
     {
         if (context == null) return null;
@@ -198,4 +371,25 @@ public class CardStats
     public int UniqueVisitors { get; set; }
     public Dictionary<string, int> DeviceBreakdown { get; set; } = new();
     public Dictionary<DateTime, int> DailyViews { get; set; } = new();
+}
+
+public class DailyEventCount
+{
+    public DateTime Date { get; set; }
+    public string EventType { get; set; } = "";
+    public int Count { get; set; }
+}
+
+public class QuoteMetadataAggregation
+{
+    public Dictionary<string, int> PreferredContactBreakdown { get; set; } = new();
+    public Dictionary<string, int> DeadlineBreakdown { get; set; } = new();
+    public Dictionary<string, int> StatusBreakdown { get; set; } = new();
+}
+
+public class CardFilterItem
+{
+    public Guid Id { get; set; }
+    public string FullName { get; set; } = "";
+    public string? Slug { get; set; }
 }

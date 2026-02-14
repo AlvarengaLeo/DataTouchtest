@@ -35,6 +35,9 @@ DataTouch convierte tarjetas NFC/QR en puntos de entrada digital para captura de
 - **Componentes modulares** (galería, video, enlaces personalizados)
 - **QR Code dinámico** con branding personalizado
 - **Compatible con NFC** para tap-to-share
+- **Sincronización de temas** entre preview y tarjeta pública
+- **Plantilla de Cotizaciones** con colores personalizados
+- **Avatar y redes sociales** con estilos temáticos
 
 ### 📅 Sistema de Reservas (Booking)
 - **Calendario inteligente** con disponibilidad configurable

@@ -2,9 +2,11 @@
 @layout MainLayout
 @inject DataTouchDbContext DbContext
 @inject QuoteService QuoteService
+@inject CardAnalyticsService AnalyticsService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @using DataTouch.Domain.Entities
 @using DataTouch.Infrastructure.Data
 @using DataTouch.Web.Services
@@ -44,6 +46,13 @@
             <MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" />
         </button>
     </div>
+
+    @* ═══════════════════════════════════════════════════════════════
+       TABS: GESTIÓN + DASHBOARD
+       ═══════════════════════════════════════════════════════════════ *@
+    <MudTabs ActivePanelIndex="_activeTab" ActivePanelIndexChanged="OnTabChanged"
+             Rounded="true" ApplyEffectsToContainer="true" Class="quotes-tabs mb-4">
+        <MudTabPanel Text="Gestión" Icon="@Icons.Material.Filled.TableChart">
 
     @* ═══════════════════════════════════════════════════════════════
        STATUS COUNTS (KPI Cards)
@@ -141,7 +150,7 @@
                     <HeaderContent>
                         <MudTh>Solicitud</MudTh>
                         <MudTh>Cliente</MudTh>
-                        <MudTh>Servicio</MudTh>
+                        <MudTh>Origen</MudTh>
                         <MudTh>Estado</MudTh>
                         <MudTh>Fecha</MudTh>
                         <MudTh>SLA</MudTh>
@@ -157,8 +166,13 @@
                                 <span class="customer-email">@context.CustomerEmail</span>
                             </div>
                         </MudTd>
-                        <MudTd DataLabel="Servicio">
-                            <span class="service-name">@context.Service?.Name</span>
+                        <MudTd DataLabel="Origen">
+                            @{
+                                var origin = GetQuoteOrigin(context);
+                            }
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@origin.Color">
+                                @origin.Label
+                            </MudChip>
                         </MudTd>
                         <MudTd DataLabel="Estado">
                             <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
@@ -250,6 +264,164 @@
             </MudText>
         </MudPaper>
     }
+
+        </MudTabPanel>
+
+        @* ═══════════════════════════════════════════════════════════════
+           DASHBOARD TAB
+           ═══════════════════════════════════════════════════════════════ *@
+        <MudTabPanel Text="Dashboard" Icon="@Icons.Material.Filled.Analytics">
+            <div class="qa-filters">
+                <div class="qa-filter-chips">
+                    <MudChipSet T="string" SelectedValue="@_dashRange" SelectedValueChanged="OnDashRangeChanged" SelectionMode="SelectionMode.SingleSelection">
+                        <MudChip T="string" Value="@("7")">7 días</MudChip>
+                        <MudChip T="string" Value="@("15")">15 días</MudChip>
+                        <MudChip T="string" Value="@("30")">30 días</MudChip>
+                    </MudChipSet>
+                </div>
+                @if (_dashCards.Count > 1)
+                {
+                    <div class="qa-card-filter">
+                        <MudSelect T="Guid?" Value="_dashCardId" Label="Filtrar por tarjeta" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" ValueChanged="OnDashCardChanged">
+                            <MudSelectItem T="Guid?" Value="@((Guid?)null)">Todas las tarjetas</MudSelectItem>
+                            @foreach (var card in _dashCards)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)card.Id)">@card.FullName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+                }
+            </div>
+
+            @if (_dashLoading)
+            {
+                <div class="qa-loading">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+                </div>
+            }
+            else
+            {
+                @* ═══════════════ KPI CARDS ═══════════════ *@
+                <div class="qa-kpis">
+                    <div class="qa-kpi">
+                        <div class="qa-kpi-icon" style="background: rgba(139,92,246,0.15); color: #A78BFA;">
+                            <MudIcon Icon="@Icons.Material.Filled.Visibility" />
+                        </div>
+                        <div class="qa-kpi-data">
+                            <span class="qa-kpi-value">@_dashFunnel.GetValueOrDefault("page_view", 0)</span>
+                            <span class="qa-kpi-label">Vistas</span>
+                        </div>
+                    </div>
+                    <div class="qa-kpi">
+                        <div class="qa-kpi-icon" style="background: rgba(236,72,153,0.15); color: #EC4899;">
+                            <MudIcon Icon="@Icons.Material.Filled.TouchApp" />
+                        </div>
+                        <div class="qa-kpi-data">
+                            <span class="qa-kpi-value">@_dashFunnel.GetValueOrDefault("quote_cta_click", 0)</span>
+                            <span class="qa-kpi-label">Clicks CTA</span>
+                        </div>
+                    </div>
+                    <div class="qa-kpi">
+                        <div class="qa-kpi-icon" style="background: rgba(34,211,238,0.15); color: #22D3EE;">
+                            <MudIcon Icon="@Icons.Material.Filled.OpenInNew" />
+                        </div>
+                        <div class="qa-kpi-data">
+                            <span class="qa-kpi-value">@_dashFunnel.GetValueOrDefault("quote_modal_open", 0)</span>
+                            <span class="qa-kpi-label">Modal abierto</span>
+                        </div>
+                    </div>
+                    <div class="qa-kpi">
+                        <div class="qa-kpi-icon" style="background: rgba(245,158,11,0.15); color: #F59E0B;">
+                            <MudIcon Icon="@Icons.Material.Filled.Edit" />
+                        </div>
+                        <div class="qa-kpi-data">
+                            <span class="qa-kpi-value">@_dashFunnel.GetValueOrDefault("quote_form_start", 0)</span>
+                            <span class="qa-kpi-label">Inicio form</span>
+                        </div>
+                    </div>
+                    <div class="qa-kpi">
+                        <div class="qa-kpi-icon" style="background: rgba(16,185,129,0.15); color: #10B981;">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                        </div>
+                        <div class="qa-kpi-data">
+                            <span class="qa-kpi-value">@_dashFunnel.GetValueOrDefault("quote_submit_success", 0)</span>
+                            <span class="qa-kpi-label">Enviados</span>
+                        </div>
+                    </div>
+                    <div class="qa-kpi">
+                        <div class="qa-kpi-icon" style="background: rgba(239,68,68,0.15); color: #EF4444;">
+                            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" />
+                        </div>
+                        <div class="qa-kpi-data">
+                            <span class="qa-kpi-value">@_dashFunnel.GetValueOrDefault("quote_submit_error", 0)</span>
+                            <span class="qa-kpi-label">Errores</span>
+                        </div>
+                    </div>
+                    <div class="qa-kpi qa-kpi-highlight">
+                        <div class="qa-kpi-icon" style="background: rgba(139,92,246,0.2); color: #C084FC;">
+                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" />
+                        </div>
+                        <div class="qa-kpi-data">
+                            <span class="qa-kpi-value">@_dashConversion.ToString("F1")%</span>
+                            <span class="qa-kpi-label">Conversión</span>
+                        </div>
+                    </div>
+                    <div class="qa-kpi">
+                        <div class="qa-kpi-icon" style="background: rgba(167,139,250,0.15); color: #A78BFA;">
+                            <MudIcon Icon="@Icons.Material.Filled.Mouse" />
+                        </div>
+                        <div class="qa-kpi-data">
+                            <span class="qa-kpi-value">@_dashCtr.ToString("F1")%</span>
+                            <span class="qa-kpi-label">CTR</span>
+                        </div>
+                    </div>
+                </div>
+
+                @* ═══════════════ CHARTS ═══════════════ *@
+                <div class="qa-charts-grid">
+                    <div class="qa-chart-card qa-chart-wide">
+                        <div class="qa-chart-title">
+                            <MudIcon Icon="@Icons.Material.Filled.FilterAlt" Size="Size.Small" Style="color: #A78BFA;" />
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 600;">Funnel de Conversión</MudText>
+                        </div>
+                        <div id="dash-chart-funnel" class="qa-chart-container" style="height: 340px;"></div>
+                    </div>
+
+                    <div class="qa-chart-card qa-chart-wide">
+                        <div class="qa-chart-title">
+                            <MudIcon Icon="@Icons.Material.Filled.Timeline" Size="Size.Small" Style="color: #22D3EE;" />
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 600;">Solicitudes por Día</MudText>
+                        </div>
+                        <div id="dash-chart-timeseries" class="qa-chart-container" style="height: 300px;"></div>
+                    </div>
+
+                    <div class="qa-chart-card">
+                        <div class="qa-chart-title">
+                            <MudIcon Icon="@Icons.Material.Filled.BarChart" Size="Size.Small" Style="color: #F59E0B;" />
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 600;">Estado de Cotizaciones</MudText>
+                        </div>
+                        <div id="dash-chart-status" class="qa-chart-container" style="height: 280px;"></div>
+                    </div>
+
+                    <div class="qa-chart-card">
+                        <div class="qa-chart-title">
+                            <MudIcon Icon="@Icons.Material.Filled.ContactPhone" Size="Size.Small" Style="color: #10B981;" />
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 600;">Preferencia de Contacto</MudText>
+                        </div>
+                        <div id="dash-chart-contact" class="qa-chart-container" style="height: 280px;"></div>
+                    </div>
+
+                    <div class="qa-chart-card">
+                        <div class="qa-chart-title">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Style="color: #EC4899;" />
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 600;">Urgencia / Deadline</MudText>
+                        </div>
+                        <div id="dash-chart-deadline" class="qa-chart-container" style="height: 280px;"></div>
+                    </div>
+                </div>
+            }
+        </MudTabPanel>
+    </MudTabs>
 </MudContainer>
 
 @* ═══════════════════════════════════════════════════════════════
@@ -415,20 +587,47 @@
     private string _dateRange = "all";
     
     private string _newNote = "";
+    private int _activeTab = 0;
     
     // TODO: Get from auth
     private Guid _currentOrgId = Guid.Empty;
     private Guid _currentCardId = Guid.Empty;
     
+    // Dashboard state
+    private bool _dashLoading = false;
+    private bool _dashLoaded = false;
+    private string _dashRange = "30";
+    private Guid? _dashCardId;
+    private Dictionary<string, int> _dashFunnel = new();
+    private List<DailyEventCount> _dashDaily = new();
+    private QuoteMetadataAggregation _dashMeta = new();
+    private List<CardFilterItem> _dashCards = new();
+    private double _dashConversion;
+    private double _dashCtr;
+    
     protected override async Task OnInitializedAsync()
     {
-        // Get org/card from session/claims
-        var card = await DbContext.Cards.FirstOrDefaultAsync();
-        if (card != null)
+        // No auth yet — derive org/card from the most recent quote, then fallback to any active card
+        var latestQuote = await DbContext.QuoteRequests
+            .OrderByDescending(q => q.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (latestQuote != null)
         {
-            _currentOrgId = card.OrganizationId;
-            _currentCardId = card.Id;
+            _currentOrgId = latestQuote.OrganizationId;
+            _currentCardId = latestQuote.CardId;
         }
+        else
+        {
+            var card = await DbContext.Cards.FirstOrDefaultAsync(c => c.IsActive);
+            if (card != null)
+            {
+                _currentOrgId = card.OrganizationId;
+                _currentCardId = card.Id;
+            }
+        }
+
+        Console.WriteLine($"[Quotes] Resolved OrgId={_currentOrgId}, CardId={_currentCardId}");
         
         await LoadServices();
         await LoadQuotes();
@@ -453,6 +652,8 @@
             .Where(q => q.Status != QuoteStatus.Archived)
             .OrderByDescending(q => q.CreatedAt)
             .ToListAsync();
+
+        Console.WriteLine($"[Quotes] LoadQuotes: OrgId={_currentOrgId}, found {_quotes.Count} quotes");
         
         _statusCounts = _quotes
             .GroupBy(q => q.Status)
@@ -620,6 +821,26 @@
         return ($"{(int)remaining.TotalDays}d", Color.Success);
     }
 
+    private (string Label, Color Color) GetQuoteOrigin(QuoteRequest quote)
+    {
+        // Check CustomFieldsJson for source
+        if (!string.IsNullOrEmpty(quote.CustomFieldsJson))
+        {
+            try
+            {
+                var fields = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(quote.CustomFieldsJson);
+                if (fields.TryGetProperty("source", out var src) && src.GetString() == "PublicCard")
+                    return ("Tarjeta Pública", Color.Info);
+            }
+            catch { }
+        }
+
+        if (quote.Service != null)
+            return (quote.Service.Name, Color.Primary);
+
+        return ("Manual", Color.Default);
+    }
+
     private string GetStatusBadgeClass(QuoteStatus status) => status switch
     {
         QuoteStatus.New => "status-new",
@@ -641,6 +862,151 @@
         Color.Success => "sla-success",
         _ => ""
     };
+
+    // ═══════════════════════════════════════════════════════════════
+    // DASHBOARD TAB METHODS
+    // ═══════════════════════════════════════════════════════════════
+
+    private async Task OnTabChanged(int index)
+    {
+        _activeTab = index;
+        if (index == 1 && !_dashLoaded)
+        {
+            _dashCards = await AnalyticsService.GetCardsWithQuoteEventsAsync();
+            await LoadDashboardData();
+        }
+    }
+
+    private async Task OnDashRangeChanged(string value)
+    {
+        _dashRange = value ?? "30";
+        await LoadDashboardData();
+    }
+
+    private async Task OnDashCardChanged(Guid? value)
+    {
+        _dashCardId = value;
+        await LoadDashboardData();
+    }
+
+    private (DateTime from, DateTime to) GetDashDateRange()
+    {
+        var to = DateTime.UtcNow;
+        var from = _dashRange switch
+        {
+            "7" => to.AddDays(-7),
+            "15" => to.AddDays(-15),
+            _ => to.AddDays(-30)
+        };
+        return (from, to);
+    }
+
+    private async Task LoadDashboardData()
+    {
+        _dashLoading = true;
+        StateHasChanged();
+
+        var (from, to) = GetDashDateRange();
+
+        _dashFunnel = await AnalyticsService.GetQuoteFunnelAsync(from, to, _dashCardId);
+        _dashDaily = await AnalyticsService.GetDailyQuoteEventsAsync(from, to, _dashCardId);
+        _dashMeta = await AnalyticsService.GetQuoteMetadataAsync(from, to, _dashCardId);
+
+        var views = _dashFunnel.GetValueOrDefault("page_view", 0);
+        var success = _dashFunnel.GetValueOrDefault("quote_submit_success", 0);
+        var ctaClicks = _dashFunnel.GetValueOrDefault("quote_cta_click", 0);
+        _dashConversion = views > 0 ? (double)success / views * 100 : 0;
+        _dashCtr = views > 0 ? (double)ctaClicks / views * 100 : 0;
+
+        _dashLoading = false;
+        _dashLoaded = true;
+        StateHasChanged();
+
+        await Task.Delay(50);
+        await RenderDashCharts();
+    }
+
+    private async Task RenderDashCharts()
+    {
+        try
+        {
+            // 1. Funnel
+            await JSRuntime.InvokeVoidAsync("EChartsAnalytics.renderFunnel", "dash-chart-funnel", new
+            {
+                labels = new[] { "Vistas", "Click CTA", "Modal abierto", "Inicio form", "Enviados" },
+                values = new[]
+                {
+                    _dashFunnel.GetValueOrDefault("page_view", 0),
+                    _dashFunnel.GetValueOrDefault("quote_cta_click", 0),
+                    _dashFunnel.GetValueOrDefault("quote_modal_open", 0),
+                    _dashFunnel.GetValueOrDefault("quote_form_start", 0),
+                    _dashFunnel.GetValueOrDefault("quote_submit_success", 0)
+                }
+            });
+
+            // 2. Time Series
+            var (from, to) = GetDashDateRange();
+            var allDates = Enumerable.Range(0, (int)(to - from).TotalDays)
+                .Select(d => from.AddDays(d).Date)
+                .ToList();
+
+            var viewsByDay = _dashDaily.Where(e => e.EventType == "page_view").ToDictionary(e => e.Date.Date, e => e.Count);
+            var successByDay = _dashDaily.Where(e => e.EventType == "quote_submit_success").ToDictionary(e => e.Date.Date, e => e.Count);
+
+            await JSRuntime.InvokeVoidAsync("EChartsAnalytics.renderTimeSeries", "dash-chart-timeseries", new
+            {
+                dates = allDates.Select(d => d.ToString("dd/MM")).ToArray(),
+                seriesNames = new[] { "Vistas", "Cotizaciones enviadas" },
+                series = new object[]
+                {
+                    new { name = "Vistas", data = allDates.Select(d => viewsByDay.GetValueOrDefault(d, 0)).ToArray() },
+                    new { name = "Cotizaciones enviadas", data = allDates.Select(d => successByDay.GetValueOrDefault(d, 0)).ToArray() }
+                }
+            });
+
+            // 3. Status Bars
+            var statusLabels = new Dictionary<string, string>
+            {
+                ["New"] = "Nuevas", ["InReview"] = "En revisión", ["NeedsInfo"] = "Necesita info",
+                ["Quoted"] = "Cotizada", ["Negotiation"] = "Negociación", ["Won"] = "Ganada",
+                ["Lost"] = "Perdida", ["Archived"] = "Archivada"
+            };
+            var statusData = _dashMeta.StatusBreakdown.Where(kvp => kvp.Value > 0).OrderByDescending(kvp => kvp.Value).ToList();
+            if (statusData.Count > 0)
+            {
+                await JSRuntime.InvokeVoidAsync("EChartsAnalytics.renderStackedBars", "dash-chart-status", new
+                {
+                    labels = statusData.Select(s => statusLabels.GetValueOrDefault(s.Key, s.Key)).ToArray(),
+                    values = statusData.Select(s => s.Value).ToArray(),
+                    keys = statusData.Select(s => s.Key).ToArray()
+                });
+            }
+
+            // 4. Preferred Contact Pie
+            if (_dashMeta.PreferredContactBreakdown.Count > 0)
+            {
+                await JSRuntime.InvokeVoidAsync("EChartsAnalytics.renderPie", "dash-chart-contact", new
+                {
+                    labels = _dashMeta.PreferredContactBreakdown.Keys.ToArray(),
+                    values = _dashMeta.PreferredContactBreakdown.Values.ToArray()
+                });
+            }
+
+            // 5. Deadline Horizontal Bar
+            if (_dashMeta.DeadlineBreakdown.Count > 0)
+            {
+                await JSRuntime.InvokeVoidAsync("EChartsAnalytics.renderHorizontalBar", "dash-chart-deadline", new
+                {
+                    labels = _dashMeta.DeadlineBreakdown.Keys.ToArray(),
+                    values = _dashMeta.DeadlineBreakdown.Values.ToArray()
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Dashboard chart rendering error: {ex.Message}");
+        }
+    }
 }
 
 <style>
@@ -1132,6 +1498,90 @@
         color: var(--mud-palette-text-secondary);
     }
 
+    /* ═══════════════ DASHBOARD TAB STYLES ═══════════════ */
+    .quotes-tabs {
+        margin-bottom: 1rem;
+    }
+
+    .qa-filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+    }
+
+    .qa-filter-chips { display: flex; gap: 8px; }
+    .qa-card-filter { min-width: 220px; }
+    .qa-loading { display: flex; justify-content: center; padding: 80px 0; }
+
+    .qa-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .qa-kpi {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+
+    .qa-kpi:hover {
+        background: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.1);
+    }
+
+    .qa-kpi-highlight {
+        background: rgba(139,92,246,0.08);
+        border-color: rgba(139,92,246,0.2);
+    }
+
+    .qa-kpi-icon {
+        width: 40px; height: 40px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .qa-kpi-data { display: flex; flex-direction: column; }
+    .qa-kpi-value { font-size: 1.4rem; font-weight: 700; color: white; line-height: 1.2; }
+    .qa-kpi-label { font-size: 0.75rem; color: rgba(255,255,255,0.5); font-weight: 500; }
+
+    .qa-charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .qa-chart-wide { grid-column: 1 / -1; }
+
+    .qa-chart-card {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .qa-chart-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .qa-chart-container { width: 100%; }
+
     /* ═══════════════ TABLET BREAKPOINT (601px - 1024px) ═══════════════ */
     @@media (max-width: 1024px) and (min-width: 601px) {
         .desktop-only { display: none !important; }
@@ -1271,6 +1721,10 @@
         .quick-actions .mud-button {
             width: 100%;
         }
+
+        .qa-charts-grid { grid-template-columns: 1fr; }
+        .qa-kpis { grid-template-columns: repeat(2, 1fr); }
+        .qa-filters { flex-direction: column; align-items: stretch; }
     }
 
     /* ═══════════════ SMALL MOBILE (max 430px) ═══════════════ */

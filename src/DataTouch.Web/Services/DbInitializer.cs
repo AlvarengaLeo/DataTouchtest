@@ -10,6 +10,165 @@ public static class DbInitializer
     public static bool UseDemoSeed { get; set; } = true;
 
     /// <summary>
+    /// Apply incremental schema changes for columns added after initial EnsureCreated.
+    /// Uses IF NOT EXISTS to be idempotent (safe to run multiple times).
+    /// </summary>
+    public static async Task ApplySchemaUpdatesAsync(DataTouchDbContext context)
+    {
+        var updates = new[]
+        {
+            // QuoteSettingsJson on Cards (added for quote-request template)
+            @"IF COL_LENGTH('Cards', 'QuoteSettingsJson') IS NULL
+              ALTER TABLE [Cards] ADD [QuoteSettingsJson] NVARCHAR(MAX) NULL;",
+
+            // CustomFieldsJson on QuoteRequests (added for quote-request metadata)
+            @"IF COL_LENGTH('QuoteRequests', 'CustomFieldsJson') IS NULL
+              ALTER TABLE [QuoteRequests] ADD [CustomFieldsJson] NVARCHAR(MAX) NULL;",
+
+            // Make ServiceId nullable on QuoteRequests (for quote-request template quotes without service)
+            // Note: This alters the column type; the FK already allows NULL via SetNull delete behavior
+            @"IF EXISTS (
+                SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'QuoteRequests' AND COLUMN_NAME = 'ServiceId' AND IS_NULLABLE = 'NO'
+              )
+              BEGIN
+                  -- Drop FK constraint first
+                  DECLARE @fkName NVARCHAR(256);
+                  SELECT @fkName = fk.name
+                  FROM sys.foreign_keys fk
+                  INNER JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+                  INNER JOIN sys.columns c ON fkc.parent_column_id = c.column_id AND fkc.parent_object_id = c.object_id
+                  WHERE OBJECT_NAME(fk.parent_object_id) = 'QuoteRequests' AND c.name = 'ServiceId';
+
+                  IF @fkName IS NOT NULL
+                      EXEC('ALTER TABLE [QuoteRequests] DROP CONSTRAINT [' + @fkName + ']');
+
+                  ALTER TABLE [QuoteRequests] ALTER COLUMN [ServiceId] UNIQUEIDENTIFIER NULL;
+
+                  -- Re-add FK
+                  ALTER TABLE [QuoteRequests] ADD CONSTRAINT [FK_QuoteRequests_Services_ServiceId]
+                      FOREIGN KEY ([ServiceId]) REFERENCES [Services]([Id]) ON DELETE SET NULL;
+              END;",
+
+            // Make CustomerEmail nullable on QuoteRequests (phone-only contact allowed)
+            @"IF EXISTS (
+                SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'QuoteRequests' AND COLUMN_NAME = 'CustomerEmail' AND IS_NULLABLE = 'NO'
+              )
+              ALTER TABLE [QuoteRequests] ALTER COLUMN [CustomerEmail] NVARCHAR(255) NULL;",
+
+            // AvailabilityRule: add BreakStartTime, BreakEndTime columns
+            @"IF COL_LENGTH('AvailabilityRules', 'BreakStartTime') IS NULL
+              ALTER TABLE [AvailabilityRules] ADD [BreakStartTime] TIME NULL;",
+
+            @"IF COL_LENGTH('AvailabilityRules', 'BreakEndTime') IS NULL
+              ALTER TABLE [AvailabilityRules] ADD [BreakEndTime] TIME NULL;",
+
+            // AvailabilityRule: add ServiceId for per-service schedule override
+            @"IF COL_LENGTH('AvailabilityRules', 'ServiceId') IS NULL
+              ALTER TABLE [AvailabilityRules] ADD [ServiceId] UNIQUEIDENTIFIER NULL;",
+
+            // Drop old unique index (CardId, DayOfWeek) and recreate as (CardId, DayOfWeek, ServiceId)
+            @"IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AvailabilityRules_CardId_DayOfWeek' AND object_id = OBJECT_ID('AvailabilityRules'))
+              DROP INDEX [IX_AvailabilityRules_CardId_DayOfWeek] ON [AvailabilityRules];",
+
+            @"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AvailabilityRules_CardId_DayOfWeek_ServiceId' AND object_id = OBJECT_ID('AvailabilityRules'))
+              CREATE UNIQUE INDEX [IX_AvailabilityRules_CardId_DayOfWeek_ServiceId] ON [AvailabilityRules] ([CardId], [DayOfWeek], [ServiceId]);",
+
+            // Service: add UseGlobalSchedule
+            @"IF COL_LENGTH('Services', 'UseGlobalSchedule') IS NULL
+              ALTER TABLE [Services] ADD [UseGlobalSchedule] BIT NOT NULL DEFAULT 1;",
+
+            // ReservationSettingsJson on Cards (added for reservations-range template)
+            @"IF COL_LENGTH('Cards', 'ReservationSettingsJson') IS NULL
+              ALTER TABLE [Cards] ADD [ReservationSettingsJson] NVARCHAR(MAX) NULL;",
+
+            // ReservationResources table
+            @"IF OBJECT_ID('ReservationResources', 'U') IS NULL
+              CREATE TABLE [ReservationResources] (
+                  [Id] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                  [CardId] UNIQUEIDENTIFIER NOT NULL,
+                  [Name] NVARCHAR(200) NOT NULL,
+                  [Description] NVARCHAR(1000) NULL,
+                  [MaxGuests] INT NOT NULL DEFAULT 10,
+                  [PricePerNight] DECIMAL(10,2) NULL,
+                  [IsActive] BIT NOT NULL DEFAULT 1,
+                  [DisplayOrder] INT NOT NULL DEFAULT 0,
+                  [BlockedDatesJson] NVARCHAR(MAX) NULL,
+                  [CreatedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                  [UpdatedAt] DATETIME2 NULL,
+                  CONSTRAINT [FK_ReservationResources_Cards] FOREIGN KEY ([CardId]) REFERENCES [Cards]([Id]) ON DELETE CASCADE
+              );",
+
+            @"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReservationResources_CardId' AND object_id = OBJECT_ID('ReservationResources'))
+              CREATE INDEX [IX_ReservationResources_CardId] ON [ReservationResources] ([CardId]);",
+
+            // ReservationRequests table
+            @"IF OBJECT_ID('ReservationRequests', 'U') IS NULL
+              CREATE TABLE [ReservationRequests] (
+                  [Id] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+                  [OrganizationId] UNIQUEIDENTIFIER NOT NULL,
+                  [CardId] UNIQUEIDENTIFIER NOT NULL,
+                  [ResourceId] UNIQUEIDENTIFIER NULL,
+                  [LeadId] UNIQUEIDENTIFIER NULL,
+                  [RequestNumber] NVARCHAR(20) NOT NULL,
+                  [FromDate] DATETIME2 NOT NULL,
+                  [ToDate] DATETIME2 NOT NULL,
+                  [Nights] INT NOT NULL DEFAULT 1,
+                  [GuestsAdults] INT NOT NULL DEFAULT 1,
+                  [GuestsChildren] INT NOT NULL DEFAULT 0,
+                  [ExtrasJson] NVARCHAR(MAX) NULL,
+                  [Notes] NVARCHAR(2000) NULL,
+                  [ContactName] NVARCHAR(200) NOT NULL,
+                  [ContactPhone] NVARCHAR(50) NULL,
+                  [ContactPhoneCountryCode] NVARCHAR(10) NULL,
+                  [ContactEmail] NVARCHAR(255) NULL,
+                  [Status] NVARCHAR(20) NOT NULL DEFAULT 'New',
+                  [StatusReason] NVARCHAR(500) NULL,
+                  [Source] NVARCHAR(50) NOT NULL DEFAULT 'PublicCard',
+                  [TemplateKey] NVARCHAR(50) NOT NULL DEFAULT 'ReservationsRange',
+                  [IpAddress] NVARCHAR(50) NULL,
+                  [UserAgent] NVARCHAR(500) NULL,
+                  [IdempotencyKey] NVARCHAR(100) NULL,
+                  [InternalNotes] NVARCHAR(2000) NULL,
+                  [CreatedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                  [UpdatedAt] DATETIME2 NULL,
+                  CONSTRAINT [FK_ReservationRequests_Cards] FOREIGN KEY ([CardId]) REFERENCES [Cards]([Id]) ON DELETE CASCADE,
+                  CONSTRAINT [FK_ReservationRequests_Organizations] FOREIGN KEY ([OrganizationId]) REFERENCES [Organizations]([Id]),
+                  CONSTRAINT [FK_ReservationRequests_Resources] FOREIGN KEY ([ResourceId]) REFERENCES [ReservationResources]([Id]) ON DELETE NO ACTION
+              );",
+
+            @"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReservationRequests_CardId' AND object_id = OBJECT_ID('ReservationRequests'))
+              CREATE INDEX [IX_ReservationRequests_CardId] ON [ReservationRequests] ([CardId]);",
+
+            @"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReservationRequests_Status' AND object_id = OBJECT_ID('ReservationRequests'))
+              CREATE INDEX [IX_ReservationRequests_Status] ON [ReservationRequests] ([Status]);",
+
+            @"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ReservationRequests_CardId_FromDate' AND object_id = OBJECT_ID('ReservationRequests'))
+              CREATE INDEX [IX_ReservationRequests_CardId_FromDate] ON [ReservationRequests] ([CardId], [FromDate]);",
+
+            // PortfolioGalleryJson on Cards (photos + videos with enable flags)
+            @"IF COL_LENGTH('Cards', 'PortfolioGalleryJson') IS NULL
+              ALTER TABLE [Cards] ADD [PortfolioGalleryJson] NVARCHAR(MAX) NULL;",
+        };
+
+        foreach (var sql in updates)
+        {
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync(sql);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Schema update FAILED: {ex.Message}");
+                Console.WriteLine($"  SQL: {sql.Substring(0, Math.Min(sql.Length, 200))}...");
+            }
+        }
+
+        Console.WriteLine("Schema updates applied successfully.");
+    }
+
+    /// <summary>
     /// Force seed demo analytics data to existing database (without deleting it).
     /// Call this to add demo data for dashboard visualization.
     /// </summary>

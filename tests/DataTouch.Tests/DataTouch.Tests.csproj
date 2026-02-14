@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DataTouch.Domain\DataTouch.Domain.csproj" />
     <ProjectReference Include="..\..\src\DataTouch.Infrastructure\DataTouch.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\DataTouch.Web\DataTouch.Web.csproj" />
   </ItemGroup>
 
 </Project>

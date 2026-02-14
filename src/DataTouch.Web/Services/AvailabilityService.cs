@@ -28,15 +28,48 @@ public class AvailabilityService
 
     /// <summary>
     /// Calculate all possible time slots for a specific date based on availability rules.
+    /// Supports optional serviceId for per-service schedule overrides and break times.
     /// </summary>
-    public async Task<List<TimeSlot>> CalculateSlotsForDateAsync(Guid cardId, DateOnly date, int durationMinutes = DefaultDurationMinutes)
+    public async Task<List<TimeSlot>> CalculateSlotsForDateAsync(
+        Guid cardId, DateOnly date, int durationMinutes = DefaultDurationMinutes, Guid? serviceId = null)
     {
         var slots = new List<TimeSlot>();
         var dayOfWeek = (int)date.DayOfWeek;
 
-        // Get availability rule for this day
-        var rule = await _db.AvailabilityRules
-            .FirstOrDefaultAsync(r => r.CardId == cardId && r.DayOfWeek == dayOfWeek && r.IsActive);
+        // Per-service override: check if service has UseGlobalSchedule=false and own rules
+        AvailabilityRule? rule = null;
+        if (serviceId.HasValue)
+        {
+            var svc = await _db.Services.FindAsync(serviceId.Value);
+            if (svc != null && !svc.UseGlobalSchedule)
+            {
+                rule = await _db.AvailabilityRules
+                    .FirstOrDefaultAsync(r => r.CardId == cardId && r.DayOfWeek == dayOfWeek 
+                                           && r.ServiceId == serviceId.Value && r.IsActive);
+            }
+        }
+
+        // Fallback to global rule
+        rule ??= await _db.AvailabilityRules
+            .FirstOrDefaultAsync(r => r.CardId == cardId && r.DayOfWeek == dayOfWeek 
+                                   && r.ServiceId == null && r.IsActive);
+
+        // Fallback: if NO rules exist at all for this card, use default Mon-Fri 9-17
+        if (rule == null)
+        {
+            var hasAnyRules = await _db.AvailabilityRules.AnyAsync(r => r.CardId == cardId);
+            if (!hasAnyRules && dayOfWeek >= 1 && dayOfWeek <= 5) // Mon-Fri
+            {
+                rule = new AvailabilityRule
+                {
+                    CardId = cardId,
+                    DayOfWeek = dayOfWeek,
+                    StartTime = TimeSpan.FromHours(9),
+                    EndTime = TimeSpan.FromHours(17),
+                    IsActive = true
+                };
+            }
+        }
 
         // Check for exceptions on this date
         var exceptions = await _db.AvailabilityExceptions
@@ -50,13 +83,22 @@ public class AvailabilityService
             return slots; // Empty - day is blocked
         }
 
-        // Collect all time windows
+        // Collect all time windows (split by break if present)
         var timeWindows = new List<(TimeSpan Start, TimeSpan End)>();
 
-        // Add regular rule if exists
         if (rule != null)
         {
-            timeWindows.Add((rule.StartTime, rule.EndTime));
+            if (rule.BreakStartTime.HasValue && rule.BreakEndTime.HasValue
+                && rule.BreakStartTime.Value > rule.StartTime && rule.BreakEndTime.Value < rule.EndTime)
+            {
+                // Split into pre-break and post-break windows
+                timeWindows.Add((rule.StartTime, rule.BreakStartTime.Value));
+                timeWindows.Add((rule.BreakEndTime.Value, rule.EndTime));
+            }
+            else
+            {
+                timeWindows.Add((rule.StartTime, rule.EndTime));
+            }
         }
 
         // Add extra hours from exceptions
@@ -121,9 +163,9 @@ public class AvailabilityService
 
         if (isDayBlocked) return false;
 
-        // Check if there's a rule for this day
+        // Check if there's a global rule for this day
         var hasRule = await _db.AvailabilityRules
-            .AnyAsync(r => r.CardId == cardId && r.DayOfWeek == dayOfWeek && r.IsActive);
+            .AnyAsync(r => r.CardId == cardId && r.DayOfWeek == dayOfWeek && r.IsActive && r.ServiceId == null);
 
         // Check for extra hours
         var hasExtraHours = await _db.AvailabilityExceptions
@@ -132,6 +174,128 @@ public class AvailabilityService
                           e.ExceptionType == AvailabilityExceptionType.ExtraHours);
 
         return hasRule || hasExtraHours;
+    }
+
+    /// <summary>
+    /// Batch check: which days in a month have at least 1 available slot?
+    /// Returns Dictionary&lt;dayNumber, hasAvailability&gt;. Much faster than per-day calls.
+    /// </summary>
+    public async Task<Dictionary<int, bool>> GetMonthAvailabilityAsync(
+        Guid cardId, int year, int month, int durationMinutes = DefaultDurationMinutes)
+    {
+        var result = new Dictionary<int, bool>();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var daysInMonth = DateTime.DaysInMonth(year, month);
+
+        // Load ALL rules for this card once
+        var allRules = await _db.AvailabilityRules
+            .Where(r => r.CardId == cardId && r.IsActive)
+            .ToListAsync();
+
+        // If no rules exist, use default Mon-Fri 9-17
+        var useDefaults = !allRules.Any();
+
+        // Load ALL exceptions for this month once
+        var monthStart = new DateOnly(year, month, 1);
+        var monthEnd = new DateOnly(year, month, daysInMonth);
+        var allExceptions = await _db.AvailabilityExceptions
+            .Where(e => e.CardId == cardId && e.ExceptionDate >= monthStart && e.ExceptionDate <= monthEnd)
+            .ToListAsync();
+
+        // Load ALL booked appointments for this month once
+        var apptStart = monthStart.ToDateTime(TimeOnly.MinValue);
+        var apptEnd = monthEnd.ToDateTime(TimeOnly.MaxValue);
+        var bookedAppointments = await _db.Appointments
+            .Where(a => a.CardId == cardId &&
+                        a.StartDateTime >= apptStart && a.StartDateTime <= apptEnd &&
+                        a.Status != AppointmentStatus.Cancelled)
+            .Select(a => new { a.StartDateTime, a.EndDateTime })
+            .ToListAsync();
+
+        for (int d = 1; d <= daysInMonth; d++)
+        {
+            var date = new DateOnly(year, month, d);
+
+            // Past days are never available
+            if (date < today) { result[d] = false; continue; }
+
+            var dayOfWeek = (int)date.DayOfWeek;
+            var dayExceptions = allExceptions.Where(e => e.ExceptionDate == date).ToList();
+
+            // Whole-day block?
+            if (dayExceptions.Any(e => e.ExceptionType == AvailabilityExceptionType.Blocked &&
+                                       e.StartTime == null && e.EndTime == null))
+            {
+                result[d] = false; continue;
+            }
+
+            // Determine time windows (break-aware)
+            var timeWindows = new List<(TimeSpan Start, TimeSpan End)>();
+
+            var rule = allRules.FirstOrDefault(r => r.DayOfWeek == dayOfWeek && r.ServiceId == null);
+            if (rule != null)
+            {
+                if (rule.BreakStartTime.HasValue && rule.BreakEndTime.HasValue
+                    && rule.BreakStartTime.Value > rule.StartTime && rule.BreakEndTime.Value < rule.EndTime)
+                {
+                    timeWindows.Add((rule.StartTime, rule.BreakStartTime.Value));
+                    timeWindows.Add((rule.BreakEndTime.Value, rule.EndTime));
+                }
+                else
+                {
+                    timeWindows.Add((rule.StartTime, rule.EndTime));
+                }
+            }
+            else if (useDefaults && dayOfWeek >= 1 && dayOfWeek <= 5)
+            {
+                timeWindows.Add((TimeSpan.FromHours(9), TimeSpan.FromHours(17)));
+            }
+
+            foreach (var ex in dayExceptions.Where(e => e.ExceptionType == AvailabilityExceptionType.ExtraHours))
+            {
+                if (ex.StartTime.HasValue && ex.EndTime.HasValue)
+                    timeWindows.Add((ex.StartTime.Value, ex.EndTime.Value));
+            }
+
+            if (!timeWindows.Any()) { result[d] = false; continue; }
+
+            // Blocked time ranges for this day
+            var blockedRanges = dayExceptions
+                .Where(e => e.ExceptionType == AvailabilityExceptionType.Blocked &&
+                           e.StartTime.HasValue && e.EndTime.HasValue)
+                .Select(e => (Start: e.StartTime!.Value, End: e.EndTime!.Value))
+                .ToList();
+
+            // Booked appointments for this day
+            var dayBooked = bookedAppointments
+                .Where(a => DateOnly.FromDateTime(a.StartDateTime) == date)
+                .ToList();
+
+            // Check if at least 1 slot fits
+            var hasSlot = false;
+            foreach (var window in timeWindows)
+            {
+                var slotStart = window.Start;
+                while (slotStart.Add(TimeSpan.FromMinutes(durationMinutes)) <= window.End)
+                {
+                    var slotEnd = slotStart.Add(TimeSpan.FromMinutes(durationMinutes));
+                    var slotStartDt = date.ToDateTime(TimeOnly.FromTimeSpan(slotStart));
+                    var slotEndDt = date.ToDateTime(TimeOnly.FromTimeSpan(slotEnd));
+
+                    var isBlocked = blockedRanges.Any(b => slotStart < b.End && slotEnd > b.Start);
+                    var isBooked = dayBooked.Any(b => slotStartDt < b.EndDateTime && slotEndDt > b.StartDateTime);
+
+                    if (!isBlocked && !isBooked) { hasSlot = true; break; }
+
+                    slotStart = slotEnd.Add(TimeSpan.FromMinutes(DefaultBufferMinutes));
+                }
+                if (hasSlot) break;
+            }
+
+            result[d] = hasSlot;
+        }
+
+        return result;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -170,6 +334,8 @@ public class AvailabilityService
                 DayOfWeek = dto.DayOfWeek,
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
+                BreakStartTime = dto.BreakStartTime,
+                BreakEndTime = dto.BreakEndTime,
                 IsActive = dto.IsActive
             });
         }
@@ -258,5 +424,7 @@ public class AvailabilityRuleDto
     public int DayOfWeek { get; set; } // 0=Sunday, 6=Saturday
     public TimeSpan StartTime { get; set; }
     public TimeSpan EndTime { get; set; }
+    public TimeSpan? BreakStartTime { get; set; }
+    public TimeSpan? BreakEndTime { get; set; }
     public bool IsActive { get; set; } = true;
 }

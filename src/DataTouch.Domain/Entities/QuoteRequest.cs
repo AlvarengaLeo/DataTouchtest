@@ -12,8 +12,8 @@ public class QuoteRequest
     public Guid OrganizationId { get; set; }
     public Guid CardId { get; set; }
     
-    // Service requested
-    public Guid ServiceId { get; set; }
+    // Service requested (nullable for quote-request template which has no service catalog)
+    public Guid? ServiceId { get; set; }
     
     // Lead reference (for CRM integration)
     public Guid? LeadId { get; set; }
@@ -23,7 +23,7 @@ public class QuoteRequest
     
     // Customer info (denormalized for quick access)
     public string CustomerName { get; set; } = default!;
-    public string CustomerEmail { get; set; } = default!;
+    public string? CustomerEmail { get; set; }
     public string? CustomerPhone { get; set; }
     public string? CustomerPhoneCountryCode { get; set; }
     public string? CustomerCompany { get; set; }
@@ -74,7 +74,7 @@ public class QuoteRequest
     // Navigation properties
     public Organization Organization { get; set; } = default!;
     public Card Card { get; set; } = default!;
-    public Service Service { get; set; } = default!;
+    public Service? Service { get; set; }
     public User? Owner { get; set; }
     public Appointment? ConvertedAppointment { get; set; }
 }
