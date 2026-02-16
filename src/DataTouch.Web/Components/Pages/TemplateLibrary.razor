@@ -1642,17 +1642,17 @@
     // Mock data for portfolio gallery preview
     private static readonly List<DataTouch.Web.Models.GalleryItemModel> _mockPortfolioPhotos = new()
     {
-        new() { Url = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop", Title = "Montañas", Order = 0 },
-        new() { Url = "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&h=300&fit=crop", Title = "Naturaleza", Order = 1 },
-        new() { Url = "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=400&h=300&fit=crop", Title = "Cascada", Order = 2 },
-        new() { Url = "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&h=300&fit=crop", Title = "Paisaje", Order = 3 },
+        new() { Url = "/images/templates/template-1.jpg", Title = "Montañas", Order = 0 },
+        new() { Url = "/images/templates/template-2.jpg", Title = "Naturaleza", Order = 1 },
+        new() { Url = "/images/templates/template-3.jpg", Title = "Cascada", Order = 2 },
+        new() { Url = "/images/templates/template-4.jpg", Title = "Paisaje", Order = 3 },
     };
 
     private static readonly List<DataTouch.Web.Models.GalleryItemModel> _mockPortfolioVideos = new()
     {
-        new() { Url = "#", Title = "Reel Creativo", ThumbnailUrl = "https://images.unsplash.com/photo-1536240478700-b869070f9279?w=400&h=300&fit=crop", Order = 0 },
-        new() { Url = "#", Title = "Behind the Scenes", ThumbnailUrl = "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=400&h=300&fit=crop", Order = 1 },
-        new() { Url = "#", Title = "Showreel 2025", Order = 2 },
+        new() { Url = "#", Title = "Reel Creativo", ThumbnailUrl = "/images/templates/template-5.jpg", Order = 0 },
+        new() { Url = "#", Title = "Behind the Scenes", ThumbnailUrl = "/images/templates/template-6.jpg", Order = 1 },
+        new() { Url = "#", Title = "Showreel 2025", ThumbnailUrl = "/images/templates/template-3.jpg", Order = 2 },
     };
 
     // User data for portfolio preview
@@ -1712,11 +1712,7 @@
         new() { Name = "Portafolio Creativo", Description = "Galería visual para creativos y artistas.", HeroGradient = "linear-gradient(135deg, #8B5CF6, #EC4899)", IsPortfolio = true, TemplateType = "portfolio-creative" },
         new() { Name = "Cotizaciones (Solicitud)", Description = "Formulario directo para solicitar cotizaciones.", HeroGradient = "linear-gradient(135deg, #F59E0B, #EF4444)", IsQuoteRequest = true, TemplateType = "quote-request" },
         new() { Name = "Citas (Agenda)", Description = "Agenda citas con slots por hora.", HeroGradient = "linear-gradient(135deg, #34D399, #06B6D4)", IsAppointments = true, TemplateType = "appointments" },
-        new() { Name = "Reservas (Rango)", Description = "Reservas hotel-style con rango de fechas.", HeroGradient = "linear-gradient(135deg, #D97706, #B45309)", IsReservations = true, TemplateType = "reservations-range" },
-        new() { Name = "Creative", Description = "Stand out with modern designs.", HeroGradient = "linear-gradient(135deg, #ec4899, #f97316)", TemplateType = "creative" },
-        new() { Name = "Minimal", Description = "Clean and distraction-free.", HeroGradient = "linear-gradient(135deg, #6b7280, #4b5563)", TemplateType = "minimal" },
-        new() { Name = "Professional", Description = "Best for sales and enterprise.", HeroGradient = "linear-gradient(135deg, #6366f1, #8b5cf6)", TemplateType = "professional" },
-        new() { Name = "Corporate", Description = "Strong branding presence.", HeroGradient = "linear-gradient(135deg, #0ea5e9, #3b82f6)", TemplateType = "corporate" }
+        new() { Name = "Reservas (Rango)", Description = "Reservas hotel-style con rango de fechas.", HeroGradient = "linear-gradient(135deg, #D97706, #B45309)", IsReservations = true, TemplateType = "reservations-range" }
     };
 
     private TemplateData? SelectedTemplate => _templates.Count > 0 ? _templates[_activeIndex] : null;

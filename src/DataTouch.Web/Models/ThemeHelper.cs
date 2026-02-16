@@ -64,6 +64,7 @@ public static class ThemeHelper
             
             --dt-button-radius: {GetBorderRadius(tokens.ButtonShape)};
             --dt-input-radius: {(tokens.ButtonShape == "square" ? "4px" : "8px")};
+            --dt-radius-media: 12px;
 
             /* ── Bridge: legacy --surface-* aliases → resolved from same tokens ── */
             --surface-text-primary: {tokens.TextPrimary};

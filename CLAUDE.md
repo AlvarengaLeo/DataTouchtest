@@ -490,6 +490,19 @@ USUARIO                TEMPLATELIBRARY.RAZOR          MYCARD.RAZOR              
 3. Replace markup in all 3 surfaces with `<ComponentName>` tag.
 4. Add CSS using `var(--dt-*)` variables — no hardcoded hex.
 
+### VIDEO UPLOAD & PREVIEW PIPELINE (Portfolio Template)
+
+**Upload limit:** 200 MB for videos, defined in `MyCard.razor:UploadGalleryVideo()` — two locations: `file.Size > 200 * 1024 * 1024` (validation) and `OpenReadStream(200 * 1024 * 1024)` (stream). Image uploads remain at 5 MB.
+
+**Video preview strategy:**
+- **Editor grid** (`MyCard.razor`): Uses `<video src="..." muted preload="metadata">` to render the browser's first-frame thumbnail. Falls back to `gallery-video-thumb` placeholder if URL is `#` or empty.
+- **Shared component** (`PortfolioGalleryBlock.razor`): Renders `<img>` if `ThumbnailUrl` is set, otherwise shows `pgb-video-placeholder` (gradient + icon). Play icon overlay on all video cards.
+- **Template preview** (`TemplateLibrary.razor`): Mock videos use `ThumbnailUrl` pointing to Unsplash images — no real video files needed.
+
+**Consistency across 3 surfaces:** All use `<PortfolioGalleryBlock>` with `EnablePhotos`/`EnableVideos` flags + `Photos`/`Videos` lists. Editor grid is the only surface with its own video card markup (for upload/reorder/delete actions).
+
+**Data model:** `PortfolioGalleryModel` (`Models/PortfolioGalleryModel.cs`) — `EnablePhotos` (bool), `EnableVideos` (bool), `Photos` (List), `Videos` (List). Each item is `GalleryItemModel` with `Url`, `ThumbnailUrl?`, `Title?`, `Order`.
+
 ### HOW TO ADD A NEW TEMPLATE TYPE
 
 1. Add entry to `_templates` list in `TemplateLibrary.razor` (~line 1862).

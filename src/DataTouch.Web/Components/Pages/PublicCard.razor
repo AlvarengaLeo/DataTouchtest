@@ -11,6 +11,7 @@
 @inject DataTouch.Web.Services.AppointmentService AppointmentService
 @inject DataTouch.Web.Services.ReservationService ReservationService
 @inject ILogger<PublicCard> Logger
+@implements IDisposable
 @using DataTouch.Web.Models
 @using DataTouch.Web.Components.Shared
 
@@ -498,6 +499,60 @@ else
                     {
                         <button class="lightbox-nav lightbox-prev" @onclick="PrevImage" @onclick:stopPropagation="true">‹</button>
                         <button class="lightbox-nav lightbox-next" @onclick="NextImage" @onclick:stopPropagation="true">›</button>
+                    }
+                </div>
+            </div>
+        }
+
+        @* ─────────────────────────────────────────────────────────
+           VIDEO LIGHTBOX MODAL (Gallery Video)
+           ───────────────────────────────────────────────────────── *@
+        @if (_videoLightboxOpen && _selectedVideo != null)
+        {
+            <div class="lightbox-overlay" @onclick="CloseVideoLightbox">
+                <button class="lightbox-close" @onclick="CloseVideoLightbox">×</button>
+                <div class="lightbox-content lightbox-content--video" @onclick:stopPropagation="true">
+                    @if (_videoPlayError)
+                    {
+                        <div class="lightbox-video-error">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="15" y1="9" x2="9" y2="15" />
+                                <line x1="9" y1="9" x2="15" y2="15" />
+                            </svg>
+                            <p>No se pudo reproducir el video. Intenta de nuevo.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <video @key="_selectedVideo.Url"
+                               id="lightbox-video-player"
+                               src="@_selectedVideo.Url"
+                               poster="@(_selectedVideo.ThumbnailUrl ?? "")"
+                               controls
+                               autoplay
+                               playsinline
+                               preload="auto"
+                               class="lightbox-video">
+                        </video>
+                    }
+                    @if (!string.IsNullOrEmpty(_selectedVideo.Title))
+                    {
+                        <div class="lightbox-caption">
+                            <h3>@_selectedVideo.Title</h3>
+                        </div>
+                    }
+                    @{
+                        var videoList = _portfolioGallery.Videos.OrderBy(v => v.Order).ToList();
+                    }
+                    @if (videoList.Count > 1)
+                    {
+                        <button class="lightbox-nav lightbox-prev"
+                                @onclick="PrevVideo" @onclick:stopPropagation="true"
+                                disabled="@(_selectedVideoIndex <= 0)">‹</button>
+                        <button class="lightbox-nav lightbox-next"
+                                @onclick="NextVideo" @onclick:stopPropagation="true"
+                                disabled="@(_selectedVideoIndex >= videoList.Count - 1)">›</button>
                     }
                 </div>
             </div>
@@ -1041,6 +1096,7 @@ else
         line-height: 1.6 !important;
         max-width: 340px;
         margin: 0 auto 20px;
+        text-align: center;
     }
 
     /* Redes sociales - fila compacta */
@@ -1422,6 +1478,42 @@ else
         max-height: 70vh;
         border-radius: 16px;
         object-fit: contain;
+    }
+
+    .lightbox-content--video {
+        width: 90vw;
+        max-width: 800px;
+    }
+
+    .lightbox-video {
+        width: 100%;
+        max-height: 70vh;
+        border-radius: 16px;
+        background: #000;
+        display: block;
+    }
+
+    .lightbox-video-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 48px 24px;
+        color: rgba(255, 255, 255, 0.6);
+        text-align: center;
+        min-height: 200px;
+    }
+
+    .lightbox-video-error p {
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .lightbox-nav:disabled {
+        opacity: 0.25;
+        cursor: default;
+        pointer-events: none;
     }
     
     .lightbox-caption {
@@ -2525,6 +2617,13 @@ else
     private GalleryImageModel? _selectedImage;
     private int _selectedIndex = 0;
     
+    // Video Lightbox
+    private bool _videoLightboxOpen = false;
+    private DataTouch.Web.Models.GalleryItemModel? _selectedVideo;
+    private int _selectedVideoIndex = 0;
+    private bool _videoPlayError = false;
+    private DotNetObjectReference<PublicCard>? _lightboxDotNetRef;
+    
     // Services (Services Template)
     private List<DataTouch.Domain.Entities.Service> _services = new();
     private bool _isServicesTemplate = false;
@@ -3131,31 +3230,31 @@ END:VCARD";
     }
     
     // Gallery click handlers (bridge from shared component to lightbox)
-    private void OnGalleryPhotoClick(DataTouch.Web.Models.GalleryItemModel item)
+    private async Task OnGalleryPhotoClick(DataTouch.Web.Models.GalleryItemModel item)
     {
         var match = _galleryImages.FirstOrDefault(i => i.Url == item.Url);
-        if (match != null) OpenLightbox(match);
+        if (match != null) await OpenLightbox(match);
     }
 
-    private void OnGalleryVideoClick(DataTouch.Web.Models.GalleryItemModel item)
+    private async Task OnGalleryVideoClick(DataTouch.Web.Models.GalleryItemModel item)
     {
-        // Open video in new tab (simple approach — can be enhanced with modal player later)
-        if (!string.IsNullOrEmpty(item.Url))
-            Navigation.NavigateTo(item.Url, forceLoad: true);
+        await OpenVideoLightbox(item);
     }
 
     // Gallery Lightbox Methods
-    private void OpenLightbox(GalleryImageModel image)
+    private async Task OpenLightbox(GalleryImageModel image)
     {
         _selectedImage = image;
         _selectedIndex = _galleryImages.OrderBy(i => i.Order).ToList().IndexOf(image);
         _lightboxOpen = true;
+        await RegisterKeyboardListener();
     }
     
-    private void CloseLightbox()
+    private async Task CloseLightbox()
     {
         _lightboxOpen = false;
         _selectedImage = null;
+        await RemoveKeyboardListener();
     }
     
     private void PrevImage()
@@ -3173,6 +3272,105 @@ END:VCARD";
         _selectedIndex = (_selectedIndex + 1) % ordered.Count;
         _selectedImage = ordered[_selectedIndex];
     }
+
+    // Video Lightbox Methods
+    private async Task OpenVideoLightbox(DataTouch.Web.Models.GalleryItemModel video)
+    {
+        var ordered = _portfolioGallery.Videos.OrderBy(v => v.Order).ToList();
+        _selectedVideo = video;
+        _selectedVideoIndex = ordered.IndexOf(video);
+        if (_selectedVideoIndex < 0) _selectedVideoIndex = 0;
+        _videoPlayError = false;
+        _videoLightboxOpen = true;
+        StateHasChanged();
+        await RegisterKeyboardListener();
+        // Init the video player via JS (attach error listeners + call .load())
+        _lightboxDotNetRef ??= DotNetObjectReference.Create(this);
+        try { await JSRuntime.InvokeVoidAsync("initVideoPlayer", "#lightbox-video-player", _lightboxDotNetRef); } catch { }
+    }
+
+    private async Task CloseVideoLightbox()
+    {
+        try { await JSRuntime.InvokeVoidAsync("pauseVideo", "#lightbox-video-player"); } catch { }
+        _videoLightboxOpen = false;
+        _selectedVideo = null;
+        _videoPlayError = false;
+        await RemoveKeyboardListener();
+    }
+
+    private async Task PrevVideo()
+    {
+        var ordered = _portfolioGallery.Videos.OrderBy(v => v.Order).ToList();
+        if (ordered.Count == 0 || _selectedVideoIndex <= 0) return;
+        try { await JSRuntime.InvokeVoidAsync("pauseVideo", "#lightbox-video-player"); } catch { }
+        _selectedVideoIndex--;
+        _selectedVideo = ordered[_selectedVideoIndex];
+        _videoPlayError = false;
+        StateHasChanged();
+        // Reload the video element with the new src
+        _lightboxDotNetRef ??= DotNetObjectReference.Create(this);
+        try { await JSRuntime.InvokeVoidAsync("reloadVideo", "#lightbox-video-player", _lightboxDotNetRef); } catch { }
+    }
+
+    private async Task NextVideo()
+    {
+        var ordered = _portfolioGallery.Videos.OrderBy(v => v.Order).ToList();
+        if (ordered.Count == 0 || _selectedVideoIndex >= ordered.Count - 1) return;
+        try { await JSRuntime.InvokeVoidAsync("pauseVideo", "#lightbox-video-player"); } catch { }
+        _selectedVideoIndex++;
+        _selectedVideo = ordered[_selectedVideoIndex];
+        _videoPlayError = false;
+        StateHasChanged();
+        // Reload the video element with the new src
+        _lightboxDotNetRef ??= DotNetObjectReference.Create(this);
+        try { await JSRuntime.InvokeVoidAsync("reloadVideo", "#lightbox-video-player", _lightboxDotNetRef); } catch { }
+    }
+
+    [JSInvokable]
+    public void OnVideoPlayError()
+    {
+        _videoPlayError = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    // Keyboard listener for lightboxes (ESC / ← / →)
+    private async Task RegisterKeyboardListener()
+    {
+        _lightboxDotNetRef ??= DotNetObjectReference.Create(this);
+        try { await JSRuntime.InvokeVoidAsync("addLightboxKeyListener", _lightboxDotNetRef); } catch { }
+    }
+
+    private async Task RemoveKeyboardListener()
+    {
+        if (!_lightboxOpen && !_videoLightboxOpen)
+        {
+            try { await JSRuntime.InvokeVoidAsync("removeLightboxKeyListener"); } catch { }
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnLightboxKeyClose()
+    {
+        if (_videoLightboxOpen) await CloseVideoLightbox();
+        else if (_lightboxOpen) await CloseLightbox();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnLightboxKeyPrev()
+    {
+        if (_videoLightboxOpen) await PrevVideo();
+        else if (_lightboxOpen) PrevImage();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnLightboxKeyNext()
+    {
+        if (_videoLightboxOpen) await NextVideo();
+        else if (_lightboxOpen) NextImage();
+        StateHasChanged();
+    }
     private string GetFullPhoneForLink()
     {
         if (_card == null) return "";
@@ -3187,5 +3385,10 @@ END:VCARD";
         var code = _card.WhatsAppCountryCode?.Replace("+", "") ?? ""; // WA expects 52... not +52
         var number = _card.WhatsAppNumber?.Replace(" ", "").Replace("-", "") ?? "";
         return $"{code}{number}";
+    }
+
+    public void Dispose()
+    {
+        _lightboxDotNetRef?.Dispose();
     }
 }

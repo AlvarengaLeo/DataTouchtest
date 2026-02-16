@@ -1,4 +1,5 @@
 @using DataTouch.Web.Models
+@inject IJSRuntime JS
 
 @* ═══════════════════════════════════════════════════════════════════════════
    PORTFOLIO GALLERY BLOCK — Shared component for Photos & Videos carousels
@@ -9,19 +10,33 @@
 {
     <div class="pgb-section">
         <h4 class="pgb-title">FOTOS</h4>
-        <div class="pgb-carousel @(Compact ? "pgb-carousel--compact" : "")">
-            @foreach (var photo in Photos.OrderBy(p => p.Order))
+        <div class="pgb-carousel-wrapper">
+            @if (Photos.Count() > 1)
             {
-                <div class="pgb-card pgb-card--photo @(Compact ? "" : "pgb-card--interactive")"
-                     @onclick="() => HandlePhotoClick(photo)">
-                    <img src="@photo.Url" alt="@(photo.Title ?? "Foto")" loading="lazy" />
-                    @if (!string.IsNullOrEmpty(photo.Title))
-                    {
-                        <div class="pgb-card-overlay">
-                            <span>@photo.Title</span>
-                        </div>
-                    }
-                </div>
+                <button class="pgb-arrow pgb-arrow--left @(Compact ? "pgb-arrow--compact" : "")" @onclick="() => ScrollCarousel(_photosCarouselId, -1)" aria-label="Anterior">
+                    <svg width="@(Compact ? 12 : 16)" height="@(Compact ? 12 : 16)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
+                </button>
+            }
+            <div id="@_photosCarouselId" class="pgb-carousel @(Compact ? "pgb-carousel--compact" : "")">
+                @foreach (var photo in Photos.OrderBy(p => p.Order))
+                {
+                    <div class="pgb-card pgb-card--photo pgb-skeleton @(Compact ? "" : "pgb-card--interactive")"
+                         @onclick="() => HandlePhotoClick(photo)">
+                        <img src="@photo.Url" alt="@(photo.Title ?? "Foto")" loading="lazy" />
+                        @if (!string.IsNullOrEmpty(photo.Title))
+                        {
+                            <div class="pgb-card-overlay">
+                                <span>@photo.Title</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            @if (Photos.Count() > 1)
+            {
+                <button class="pgb-arrow pgb-arrow--right @(Compact ? "pgb-arrow--compact" : "")" @onclick="() => ScrollCarousel(_photosCarouselId, 1)" aria-label="Siguiente">
+                    <svg width="@(Compact ? 12 : 16)" height="@(Compact ? 12 : 16)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9,6 15,12 9,18"/></svg>
+                </button>
             }
         </div>
     </div>
@@ -31,36 +46,58 @@
 {
     <div class="pgb-section">
         <h4 class="pgb-title">VIDEOS</h4>
-        <div class="pgb-carousel @(Compact ? "pgb-carousel--compact" : "")">
-            @foreach (var video in Videos.OrderBy(v => v.Order))
+        <div class="pgb-carousel-wrapper">
+            @if (Videos.Count() > 1)
             {
-                <div class="pgb-card pgb-card--video @(Compact ? "" : "pgb-card--interactive")"
-                     @onclick="() => HandleVideoClick(video)">
-                    @if (!string.IsNullOrEmpty(video.ThumbnailUrl))
-                    {
-                        <img src="@video.ThumbnailUrl" alt="@(video.Title ?? "Video")" loading="lazy" />
-                    }
-                    else
-                    {
-                        <div class="pgb-video-placeholder">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <rect x="2" y="4" width="20" height="16" rx="2" />
-                                <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none" />
+                <button class="pgb-arrow pgb-arrow--left @(Compact ? "pgb-arrow--compact" : "")" @onclick="() => ScrollCarousel(_videosCarouselId, -1)" aria-label="Anterior">
+                    <svg width="@(Compact ? 12 : 16)" height="@(Compact ? 12 : 16)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
+                </button>
+            }
+            <div id="@_videosCarouselId" class="pgb-carousel @(Compact ? "pgb-carousel--compact" : "")">
+                @foreach (var video in Videos.OrderBy(v => v.Order))
+                {
+                    <div class="pgb-card pgb-card--video pgb-skeleton @(Compact ? "" : "pgb-card--interactive")"
+                         @onclick="() => HandleVideoClick(video)">
+                        @if (!string.IsNullOrEmpty(video.ThumbnailUrl))
+                        {
+                            <img src="@video.ThumbnailUrl" alt="@(video.Title ?? "Video")" loading="lazy" />
+                        }
+                        else if (!string.IsNullOrEmpty(video.Url) && video.Url != "#")
+                        {
+                            <video src="@(video.Url + "#t=0.1")" muted preload="metadata" class="pgb-video-frame" style="pointer-events:none;"></video>
+                        }
+                        else
+                        {
+                            <div class="pgb-video-placeholder">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                                    <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none" />
+                                </svg>
+                                @if (!string.IsNullOrEmpty(video.Title))
+                                {
+                                    <span class="pgb-placeholder-title">@video.Title</span>
+                                }
+                            </div>
+                        }
+                        <div class="pgb-play-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                <polygon points="8,5 19,12 8,19" />
                             </svg>
                         </div>
-                    }
-                    <div class="pgb-play-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                            <polygon points="8,5 19,12 8,19" />
-                        </svg>
+                        @if (!string.IsNullOrEmpty(video.Title))
+                        {
+                            <div class="pgb-card-overlay">
+                                <span>@video.Title</span>
+                            </div>
+                        }
                     </div>
-                    @if (!string.IsNullOrEmpty(video.Title))
-                    {
-                        <div class="pgb-card-overlay">
-                            <span>@video.Title</span>
-                        </div>
-                    }
-                </div>
+                }
+            </div>
+            @if (Videos.Count() > 1)
+            {
+                <button class="pgb-arrow pgb-arrow--right @(Compact ? "pgb-arrow--compact" : "")" @onclick="() => ScrollCarousel(_videosCarouselId, 1)" aria-label="Siguiente">
+                    <svg width="@(Compact ? 12 : 16)" height="@(Compact ? 12 : 16)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9,6 15,12 9,18"/></svg>
+                </button>
             }
         </div>
     </div>
@@ -74,6 +111,14 @@
     [Parameter] public bool Compact { get; set; } = false;
     [Parameter] public EventCallback<GalleryItemModel> OnPhotoClick { get; set; }
     [Parameter] public EventCallback<GalleryItemModel> OnVideoClick { get; set; }
+
+    private string _photosCarouselId = $"pgb-photos-{Guid.NewGuid():N}";
+    private string _videosCarouselId = $"pgb-videos-{Guid.NewGuid():N}";
+
+    private async Task ScrollCarousel(string elementId, int direction)
+    {
+        await JS.InvokeVoidAsync("scrollCarousel", elementId, direction);
+    }
 
     private async Task HandlePhotoClick(GalleryItemModel item)
     {
@@ -130,7 +175,7 @@
         flex: 0 0 65%;
         scroll-snap-align: start;
         aspect-ratio: 4 / 3;
-        border-radius: var(--dt-button-radius, 12px);
+        border-radius: var(--dt-radius-media, 12px);
         overflow: hidden;
         position: relative;
         background: var(--dt-surface-input, rgba(30, 41, 59, 0.5));
@@ -204,8 +249,34 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--dt-surface-input, rgba(30, 41, 59, 0.5));
+        background: linear-gradient(135deg, var(--dt-surface-input, rgba(30, 41, 59, 0.5)), var(--dt-surface-card, rgba(15, 23, 42, 0.6)));
         color: var(--dt-text-muted, rgba(255, 255, 255, 0.4));
+    }
+
+    .pgb-video-placeholder svg {
+        opacity: 0.6;
+        transition: opacity 0.2s ease;
+    }
+
+    .pgb-card--video:hover .pgb-video-placeholder svg {
+        opacity: 0.9;
+    }
+
+    .pgb-placeholder-title {
+        display: block;
+        margin-top: 8px;
+        font-size: 0.65rem;
+        font-weight: 500;
+        color: var(--dt-text-muted, rgba(255, 255, 255, 0.4));
+        text-align: center;
+    }
+
+    .pgb-video-frame {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        background: var(--dt-surface-input, rgba(30, 41, 59, 0.5));
     }
 
     /* Compact overrides */
@@ -222,5 +293,84 @@
     .pgb-carousel--compact .pgb-card-overlay {
         font-size: 0.55rem;
         padding: 4px 6px;
+    }
+
+    /* ── Carousel wrapper + navigation arrows ── */
+    .pgb-carousel-wrapper {
+        position: relative;
+    }
+
+    .pgb-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.25s ease, background 0.2s ease;
+        backdrop-filter: blur(4px);
+    }
+
+    .pgb-carousel-wrapper:hover .pgb-arrow {
+        opacity: 0.85;
+    }
+
+    .pgb-arrow:hover {
+        background: var(--dt-accent-primary, rgba(139, 92, 246, 0.85));
+        opacity: 1;
+    }
+
+    .pgb-arrow--left { left: 6px; }
+    .pgb-arrow--right { right: 6px; }
+
+    /* Compact mode arrows (smaller, always visible at low opacity) */
+    .pgb-arrow.pgb-arrow--compact {
+        width: 24px;
+        height: 24px;
+        opacity: 0.35;
+        background: rgba(0, 0, 0, 0.45);
+    }
+
+    .pgb-carousel-wrapper:hover .pgb-arrow.pgb-arrow--compact {
+        opacity: 0.65;
+    }
+
+    .pgb-arrow.pgb-arrow--compact:hover {
+        opacity: 1;
+        background: var(--dt-accent-primary, rgba(139, 92, 246, 0.85));
+    }
+
+    .pgb-arrow--compact.pgb-arrow--left { left: 3px; }
+    .pgb-arrow--compact.pgb-arrow--right { right: 3px; }
+
+    /* ── Skeleton shimmer while content loads ── */
+    .pgb-skeleton {
+        background: linear-gradient(90deg,
+            var(--dt-surface-input, rgba(30, 41, 59, 0.5)) 25%,
+            rgba(255, 255, 255, 0.06) 50%,
+            var(--dt-surface-input, rgba(30, 41, 59, 0.5)) 75%);
+        background-size: 200% 100%;
+        animation: pgb-shimmer 1.5s ease-in-out infinite;
+    }
+
+    .pgb-skeleton img,
+    .pgb-skeleton video,
+    .pgb-skeleton .pgb-video-placeholder {
+        position: relative;
+        z-index: 1;
+    }
+
+    @@keyframes pgb-shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
     }
 </style>

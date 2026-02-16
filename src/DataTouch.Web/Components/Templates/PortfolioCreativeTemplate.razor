@@ -50,6 +50,21 @@
             </section>
         }
 
+        @* Social Links *@
+        @if (SocialLinks?.Any() == true)
+        {
+            <section class="social-section">
+                <div class="social-icons">
+                    @foreach (var link in SocialLinks)
+                    {
+                        <a href="@link.Url" target="_blank" rel="noopener" class="social-icon" title="@link.Platform">
+                            @GetSocialIcon(link.Platform)
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+
         @* ─────────────────────────────────────────────────────────────────────
            GALLERY SECTION - Main Feature
            ───────────────────────────────────────────────────────────────────── *@
@@ -122,21 +137,6 @@
                 </div>
             </div>
         </section>
-
-        @* Social Links *@
-        @if (SocialLinks?.Any() == true)
-        {
-            <section class="social-section">
-                <div class="social-icons">
-                    @foreach (var link in SocialLinks)
-                    {
-                        <a href="@link.Url" target="_blank" rel="noopener" class="social-icon" title="@link.Platform">
-                            @GetSocialIcon(link.Platform)
-                        </a>
-                    }
-                </div>
-            </section>
-        }
     </main>
 
     @* ─────────────────────────────────────────────────────────────────────
@@ -298,6 +298,7 @@
         color: var(--text-secondary);
         line-height: 1.6;
         margin: 0;
+        text-align: center;
     }
 
     /* ─────────────────────────────────────────────────────────────────────

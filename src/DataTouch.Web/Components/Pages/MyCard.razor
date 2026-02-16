@@ -24,6 +24,47 @@ else
 {
     <div class="mycard-container">
         @* ═══════════════════════════════════════════════════════════════
+           MOBILE TOP BAR (hidden on desktop, sticky on ≤600px)
+           ═══════════════════════════════════════════════════════════════ *@
+        <div class="mobile-top-bar">
+            <span class="mobile-top-title">MI TARJETA</span>
+            <div class="mobile-top-actions">
+                @if (_isSaving)
+                {
+                    <span class="mobile-status-chip mobile-chip-saving">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Inherit" Style="width:14px;height:14px;" />
+                        Guardando
+                    </span>
+                }
+                else if (_hasUnsavedChanges)
+                {
+                    <span class="mobile-status-chip mobile-chip-unsaved">SIN GUARDAR</span>
+                }
+                else
+                {
+                    <span class="mobile-status-chip mobile-chip-saved">GUARDADO</span>
+                }
+                <button class="mobile-preview-toggle" @onclick="ToggleMobilePreview" aria-label="Vista previa">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        @* ═══════════════════════════════════════════════════════════════
+           MOBILE PUBLIC LINK BLOCK (hidden on desktop)
+           ═══════════════════════════════════════════════════════════════ *@
+        <div class="mobile-public-link">
+            <div class="mobile-link-row">
+                <span class="mobile-link-url">@(string.IsNullOrEmpty(_publicUrl) ? "Generando link..." : _publicUrl.Replace("http://", "").Replace("https://", ""))</span>
+                <button class="mobile-copy-btn" @onclick="CopyUrl">COPIAR</button>
+            </div>
+            <span class="mobile-link-hint">Este link es público.</span>
+        </div>
+
+        @* ═══════════════════════════════════════════════════════════════
            PAGE HEADER - PREMIUM ENTERPRISE STYLE
            ═══════════════════════════════════════════════════════════════ *@
         <header class="page-header">
@@ -76,7 +117,7 @@ else
                    LEVEL 2 (COLLAPSIBLE): APARIENCIA
                    ───────────────────────────────────────────────────────── *@
                 <section class="section-card section-level-2 section-appearance">
-                    <div class="section-header section-header-collapsible" @onclick="ToggleAppearanceSection">
+                    <div class="section-header section-header-collapsible" @onclick="() => ToggleMobileAccordion(nameof(_appearanceSectionExpanded))">
                         <div class="section-icon icon-appearance">
                             <MudIcon Icon="@Icons.Material.Filled.Palette" Size="Size.Medium" />
                         </div>
@@ -209,7 +250,7 @@ else
                    LEVEL 1: IDENTIDAD - Unified with Profile Photo (Collapsible)
                    ───────────────────────────────────────────────────────── *@
                 <section class="section-card section-level-1 identity-unified">
-                    <div class="section-header identity-header-with-avatar section-header-collapsible" @onclick="() => _identitySectionExpanded = !_identitySectionExpanded">
+                    <div class="section-header identity-header-with-avatar section-header-collapsible" @onclick="() => ToggleMobileAccordion(nameof(_identitySectionExpanded))">
                         @* Left: Icon + Title *@
                         <div class="section-header-left">
                             <div class="section-icon icon-identity">
@@ -217,7 +258,7 @@ else
                             </div>
                             <div class="section-header-text">
                                 <h2 class="section-title">Identidad</h2>
-                                <p class="section-description">Cómo te verán en tu tarjeta pública</p>
+                                <p class="section-description">@GetIdentitySummary()</p>
                             </div>
                         </div>
                         
@@ -336,13 +377,13 @@ else
                    LEVEL 2: CONTACT INFORMATION (Collapsible)
                    ───────────────────────────────────────────────────────── *@
                 <section class="section-card section-level-2">
-                    <div class="section-header section-header-collapsible" @onclick="() => _contactSectionExpanded = !_contactSectionExpanded">
+                    <div class="section-header section-header-collapsible" @onclick="() => ToggleMobileAccordion(nameof(_contactSectionExpanded))">
                         <div class="section-icon icon-contact">
                             <MudIcon Icon="@Icons.Material.Filled.ContactPhone" Size="Size.Medium" />
                         </div>
                         <div class="section-header-text">
                             <h2 class="section-title">Información de contacto</h2>
-                            <p class="section-description">Cómo te pueden contactar</p>
+                            <p class="section-description">@GetContactSummary()</p>
                         </div>
                         <MudIcon Icon="@(_contactSectionExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" 
                                  Class="section-collapse-icon" />
@@ -359,57 +400,63 @@ else
                                 </div>
                                 
                                 @* Phone with Country Selector *@
-                                <div class="form-row phone-row">
-                                    <MudSelect T="string" 
-                                               @bind-Value="_card.PhoneCountryCode" 
-                                               Label="País" 
-                                               Variant="Variant.Outlined" 
-                                               Class="country-select"
-                                               AnchorOrigin="Origin.BottomCenter">
-                                        @foreach (var country in _countries)
-                                        {
-                                            <MudSelectItem Value="@country.Code">
-                                                <div class="country-option">
-                                                    <span class="country-flag">@country.Flag</span>
-                                                    <span class="country-code">@country.Code</span>
-                                                </div>
-                                            </MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                    <MudTextField @bind-Value="_card.Phone" 
-                                                  Label="Teléfono (llamadas)" 
-                                                  Variant="Variant.Outlined"
-                                                  MaxLength="@GetPhoneMaxLength()"
-                                                  Immediate="true"
-                                                  Class="phone-input"
-                                                  @oninput="MarkUnsaved" />
+                                <div class="contact-group">
+                                    <label class="contact-group-label">Teléfono</label>
+                                    <div class="form-row phone-row">
+                                        <MudSelect T="string" 
+                                                   @bind-Value="_card.PhoneCountryCode" 
+                                                   Label="Código" 
+                                                   Variant="Variant.Outlined" 
+                                                   Class="country-select"
+                                                   AnchorOrigin="Origin.BottomCenter">
+                                            @foreach (var country in _countries)
+                                            {
+                                                <MudSelectItem Value="@country.Code">
+                                                    <div class="country-option">
+                                                        <span class="country-flag">@country.Flag</span>
+                                                        <span class="country-code">@country.Code</span>
+                                                    </div>
+                                                </MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        <MudTextField @bind-Value="_card.Phone" 
+                                                      Label="Número" 
+                                                      Variant="Variant.Outlined"
+                                                      MaxLength="@GetPhoneMaxLength()"
+                                                      Immediate="true"
+                                                      Class="phone-input"
+                                                      @oninput="MarkUnsaved" />
+                                    </div>
                                 </div>
 
                                 @* WhatsApp with Country Selector *@
-                                <div class="form-row phone-row">
-                                    <MudSelect T="string" 
-                                               @bind-Value="_card.WhatsAppCountryCode" 
-                                               Label="País" 
-                                               Variant="Variant.Outlined" 
-                                               Class="country-select"
-                                               AnchorOrigin="Origin.BottomCenter">
-                                        @foreach (var country in _countries)
-                                        {
-                                            <MudSelectItem Value="@country.Code">
-                                                <div class="country-option">
-                                                    <span class="country-flag">@country.Flag</span>
-                                                    <span class="country-code">@country.Code</span>
-                                                </div>
-                                            </MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                    <MudTextField @bind-Value="_card.WhatsAppNumber" 
-                                                  Label="WhatsApp (mensajes)" 
-                                                  Variant="Variant.Outlined"
-                                                  MaxLength="@GetWhatsAppMaxLength()"
-                                                  Immediate="true"
-                                                  Class="phone-input"
-                                                  @oninput="MarkUnsaved" />
+                                <div class="contact-group">
+                                    <label class="contact-group-label">WhatsApp</label>
+                                    <div class="form-row phone-row">
+                                        <MudSelect T="string" 
+                                                   @bind-Value="_card.WhatsAppCountryCode" 
+                                                   Label="Código" 
+                                                   Variant="Variant.Outlined" 
+                                                   Class="country-select"
+                                                   AnchorOrigin="Origin.BottomCenter">
+                                            @foreach (var country in _countries)
+                                            {
+                                                <MudSelectItem Value="@country.Code">
+                                                    <div class="country-option">
+                                                        <span class="country-flag">@country.Flag</span>
+                                                        <span class="country-code">@country.Code</span>
+                                                    </div>
+                                                </MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        <MudTextField @bind-Value="_card.WhatsAppNumber" 
+                                                      Label="Número" 
+                                                      Variant="Variant.Outlined"
+                                                      MaxLength="@GetWhatsAppMaxLength()"
+                                                      Immediate="true"
+                                                      Class="phone-input"
+                                                      @oninput="MarkUnsaved" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -420,7 +467,7 @@ else
                    LEVEL 2 (COLLAPSIBLE): ACTION BUTTONS
                    ───────────────────────────────────────────────────────── *@
                 <section class="section-card section-level-2">
-                    <div class="section-header section-header-collapsible" @onclick="ToggleActionButtonsSection">
+                    <div class="section-header section-header-collapsible" @onclick="() => ToggleMobileAccordion(nameof(_actionButtonsSectionExpanded))">
                         <div class="section-icon icon-cta">
                             <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Medium" />
                         </div>
@@ -481,7 +528,7 @@ else
                    LEVEL 3 (COLLAPSIBLE): SOCIAL PROFILES
                    ───────────────────────────────────────────────────────── *@
                 <section class="section-card section-level-3">
-                    <div class="section-header section-header-collapsible" @onclick="ToggleSocialSection">
+                    <div class="section-header section-header-collapsible" @onclick="() => ToggleMobileAccordion(nameof(_socialSectionExpanded))">
                         <div class="section-icon icon-social">
                             <MudIcon Icon="@Icons.Material.Filled.Share" Size="Size.Medium" />
                         </div>
@@ -570,15 +617,18 @@ else
                 @if (_isPortfolioTemplate)
                 {
                     <section class="section-card section-level-1 section-portfolio">
-                        <div class="section-header">
+                        <div class="section-header section-header-collapsible" @onclick="() => ToggleMobileAccordion(nameof(_gallerySectionExpanded))">
                             <div class="section-icon icon-gallery">
                                 <MudIcon Icon="@Icons.Material.Filled.PhotoLibrary" Size="Size.Medium" />
                             </div>
                             <div class="section-header-text">
                                 <h2 class="section-title">Galería de Proyectos</h2>
-                                <p class="section-description">Muestra tu trabajo creativo con fotos y videos</p>
+                                <p class="section-description">Fotos @_galleryImages.Count • Videos @_portfolioGallery.Videos.Count</p>
                             </div>
+                            <MudIcon Icon="@(_gallerySectionExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" 
+                                     Class="section-collapse-icon" />
                         </div>
+                        <MudCollapse Expanded="_gallerySectionExpanded">
                         <div class="section-content">
                             @* Content toggles *@
                             <div class="gallery-toggles">
@@ -704,12 +754,19 @@ else
                                                         {
                                                             <img src="@video.ThumbnailUrl" alt="@(video.Title ?? $"Video {index + 1}")" />
                                                         }
+                                                        else if (!string.IsNullOrEmpty(video.Url) && video.Url != "#")
+                                                        {
+                                                            <video src="@video.Url" muted preload="metadata" class="gallery-video-preview"></video>
+                                                        }
                                                         else
                                                         {
                                                             <div class="gallery-video-thumb">
                                                                 <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Size="Size.Large" />
                                                             </div>
                                                         }
+                                                        <div class="gallery-video-play-badge">
+                                                            <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" />
+                                                        </div>
                                                         <div class="gallery-item-overlay">
                                                             <button class="gallery-item-btn" @onclick="() => MoveGalleryVideo(video, -1)" 
                                                                     disabled="@(index == 0)" title="Mover arriba">
@@ -745,6 +802,7 @@ else
                                 }
                             </div>
                         </div>
+                        </MudCollapse>
                     </section>
                 }
 
@@ -1328,6 +1386,34 @@ else
             </main>
 
             @* ═══════════════════════════════════════════════════════════════
+               MOBILE BOTTOM BAR (hidden on desktop, fixed on ≤600px)
+               ═══════════════════════════════════════════════════════════════ *@
+            <div class="mobile-bottom-bar @(_hasUnsavedChanges ? "" : "mobile-bottom-hidden")">
+                <button class="mobile-save-btn" @onclick="SaveCard" disabled="@_isSaving">
+                    @if (_isSaving)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Inherit" Style="width:16px;height:16px;" />
+                        <span>GUARDANDO...</span>
+                    }
+                    else
+                    {
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        <span>GUARDAR CAMBIOS</span>
+                    }
+                </button>
+                <button class="mobile-preview-btn-bottom" @onclick="ToggleMobilePreview">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+            </div>
+
+            @* ═══════════════════════════════════════════════════════════════
                RIGHT COLUMN: PREMIUM IPHONE-STYLE LIVE PREVIEW (STICKY)
                ═══════════════════════════════════════════════════════════════ *@
             <aside class="preview-sidebar">
@@ -1398,17 +1484,6 @@ else
                                         <p class="phone-bio phone-bio-placeholder">Tu biografía aparecerá aquí...</p>
                                     }
 
-                                    @* Portfolio Gallery Preview (conditional) — Shared Component *@
-                                    @if (_isPortfolioTemplate)
-                                    {
-                                        <PortfolioGalleryBlock
-                                            Photos="@_portfolioGallery.Photos"
-                                            Videos="@_portfolioGallery.Videos"
-                                            EnablePhotos="@_portfolioGallery.EnablePhotos"
-                                            EnableVideos="@_portfolioGallery.EnableVideos"
-                                            Compact="true" />
-                                    }
-
                                     @* Social Icons — Shared Component *@
                                     <SocialLinksRow
                                         LinkedIn="@_socialLinks?.LinkedIn"
@@ -1419,6 +1494,32 @@ else
                                         Website="@_socialLinks?.Website"
                                         Compact="true"
                                         IsPreview="true" />
+
+                                    @* Status Chips *@
+                                    <div class="phone-status-chips">
+                                        <span class="phone-chip">
+                                            <span class="chip-dot"></span> Disponible
+                                        </span>
+                                        <span class="phone-chip">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                            Responde &lt; 1h
+                                        </span>
+                                        <span class="phone-chip">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                            El Salvador
+                                        </span>
+                                    </div>
+
+                                    @* Portfolio Gallery Preview (conditional) — Shared Component *@
+                                    @if (_isPortfolioTemplate)
+                                    {
+                                        <PortfolioGalleryBlock
+                                            Photos="@_portfolioGallery.Photos"
+                                            Videos="@_portfolioGallery.Videos"
+                                            EnablePhotos="@_portfolioGallery.EnablePhotos"
+                                            EnableVideos="@_portfolioGallery.EnableVideos"
+                                            Compact="true" />
+                                    }
 
                                     @* Quote Request Block - BEFORE CTAs to match PublicCard layout *@
                                     @if (_isQuoteRequestTemplate)
@@ -1463,24 +1564,9 @@ else
                                             PoliciesLabel="@(_reservationSettings.ShowPolicies ? "Políticas" : null)" />
                                     }
 
-                                    @* Status Chips and CTA Buttons - Show on ALL templates *@
+                                    @* CTA Buttons *@
                                     @if (true)
                                     {
-                                        @* Status Chips *@
-                                        <div class="phone-status-chips">
-                                            <span class="phone-chip">
-                                                <span class="chip-dot"></span> Disponible
-                                            </span>
-                                            <span class="phone-chip">
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                                Responde &lt; 1h
-                                            </span>
-                                            <span class="phone-chip">
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                                                El Salvador
-                                            </span>
-                                        </div>
-
                                         @* CTA Buttons - Matching Public Card *@
                                         <div class="phone-cta-container btn-shape-@_cardStyle.ButtonShape btn-style-@_cardStyle.ButtonStyle">
                                             @* Primary CTA: Guardar Contacto (Full Width) *@
@@ -1746,6 +1832,95 @@ else
             </aside>
         </div>
     </div>
+
+    @* ═══════════════════════════════════════════════════════════════
+       MOBILE PREVIEW OVERLAY (full-screen, hidden on desktop)
+       ═══════════════════════════════════════════════════════════════ *@
+    @if (_mobilePreviewOpen)
+    {
+        <div class="mobile-preview-overlay" @onclick="CloseMobilePreview">
+            <div class="mobile-preview-content" @onclick:stopPropagation="true">
+                @* Overlay Header *@
+                <div class="mobile-overlay-header">
+                    <span class="mobile-overlay-title">VISTA PREVIA</span>
+                    <button class="mobile-overlay-close" @onclick="CloseMobilePreview" aria-label="Cerrar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+
+                @* Overlay Body — Reuses existing phone preview *@
+                <div class="mobile-overlay-body">
+                    <div class="iphone-frame">
+                        <div class="dynamic-island"></div>
+                        <div class="iphone-screen">
+                            <div class="phone-card-header">
+                                <div class="status-bar">
+                                    <span class="status-time">9:41</span>
+                                    <div class="status-icons">
+                                        <MudIcon Icon="@Icons.Material.Filled.SignalCellularAlt" Size="Size.Small" />
+                                        <MudIcon Icon="@Icons.Material.Filled.Wifi" Size="Size.Small" />
+                                        <MudIcon Icon="@Icons.Material.Filled.BatteryFull" Size="Size.Small" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="phone-card-content @(_cardStyle.ContrastMode)" style="@(ThemeHelper.GenerateCssVariables(_themeTokens))">
+                                <div class="phone-card-body">
+                                    @* Avatar *@
+                                    <div class="phone-avatar-container">
+                                        @if (!string.IsNullOrEmpty(_card.ProfileImageUrl))
+                                        {
+                                            <div class="phone-avatar">
+                                                <img src="@_card.ProfileImageUrl" alt="@_card.FullName" />
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="phone-avatar phone-avatar-initials">
+                                                <span>@GetInitials(_card.FullName)</span>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    @* Name / Title / Company *@
+                                    <h2 class="phone-name">@(string.IsNullOrEmpty(_card.FullName) ? "Tu Nombre" : _card.FullName)</h2>
+                                    <p class="phone-title">@(string.IsNullOrEmpty(_card.Title) ? "Tu cargo" : _card.Title)</p>
+                                    <p class="phone-company">@GetDisplayCompanyName()</p>
+
+                                    @* Bio *@
+                                    @if (!string.IsNullOrEmpty(_card.Bio))
+                                    {
+                                        <p class="phone-bio">@_card.Bio</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @* Overlay Footer *@
+                <div class="mobile-overlay-footer">
+                    <a href="@_publicUrl" target="_blank" class="mobile-overlay-link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                            <polyline points="15 3 21 3 21 9"/>
+                            <line x1="10" y1="14" x2="21" y2="3"/>
+                        </svg>
+                        VER TARJETA PÚBLICA
+                    </a>
+                    <button class="mobile-overlay-copy" @onclick="CopyUrl">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        COPIAR LINK
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 <style>
@@ -2106,6 +2281,15 @@ else
         font-size: 0.75rem;
         color: var(--dt-text-muted, #6B7280);
         margin-top: 8px;
+    }
+
+    /* Contact Group (wraps phone rows with label) */
+    .contact-group {
+        grid-column: 1 / -1;
+    }
+
+    .contact-group-label {
+        display: none; /* Hidden on desktop, shown on mobile */
     }
 
     /* Phone Row */
@@ -3217,7 +3401,7 @@ else
         color: var(--dt-text-muted, #D1D5DB);
         line-height: 1.6;
         margin: 0 0 20px 0;
-        text-align: left;
+        text-align: center;
     }
 
     .phone-bio-placeholder {
@@ -4022,6 +4206,28 @@ else
     }
     .gallery-editor-item--video {
         position: relative;
+    }
+    .gallery-video-preview {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        display: block;
+        background: var(--dt-surface-2, #1F2937);
+    }
+    .gallery-video-play-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        z-index: 1;
     }
     
     /* ═══════════════════════════════════════════════════════════════
@@ -4879,6 +5085,557 @@ else
         font-size: 0.76rem; color: var(--mud-palette-text-secondary);
         margin: 0.25rem 0 0;
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MOBILE-ONLY ELEMENTS — Hidden by default (desktop)
+       ═══════════════════════════════════════════════════════════════ */
+    .mobile-top-bar,
+    .mobile-public-link,
+    .mobile-bottom-bar,
+    .mobile-preview-overlay {
+        display: none;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MOBILE RESPONSIVE — ≤ 600px
+       ═══════════════════════════════════════════════════════════════ */
+    @@media (max-width: 600px) {
+
+        /* ── Hide desktop elements ── */
+        .page-header {
+            display: none !important;
+        }
+        .preview-sidebar {
+            display: none !important;
+        }
+        .save-section {
+            display: none !important;
+        }
+
+        /* ── Container adjustments ── */
+        .mycard-container {
+            padding: 0 0 80px 0;
+        }
+
+        .editor-layout {
+            grid-template-columns: 1fr !important;
+            gap: 12px;
+            padding: 0 12px;
+        }
+
+        .editor-main {
+            gap: 12px;
+        }
+
+        /* ── MOBILE TOP BAR (sticky) ── */
+        .mobile-top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 12px 16px;
+            background: var(--dt-surface-1, #111827);
+            border-bottom: 1px solid var(--dt-border-default, #233044);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .mobile-top-title {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--dt-text-primary, #E5E7EB);
+        }
+
+        .mobile-top-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mobile-status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        .mobile-chip-saving {
+            background: var(--dt-info-bg, rgba(37, 99, 235, 0.1));
+            color: var(--dt-info, #2563EB);
+            border: 1px solid var(--dt-info-border, rgba(37, 99, 235, 0.3));
+        }
+
+        .mobile-chip-unsaved {
+            background: var(--dt-warning-bg, rgba(217, 119, 6, 0.1));
+            color: var(--dt-warning, #D97706);
+            border: 1px solid var(--dt-warning-border, rgba(217, 119, 6, 0.3));
+        }
+
+        .mobile-chip-saved {
+            background: var(--dt-success-bg, rgba(22, 163, 74, 0.1));
+            color: var(--dt-success, #16A34A);
+            border: 1px solid var(--dt-success-border, rgba(22, 163, 74, 0.3));
+        }
+
+        .mobile-preview-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            min-height: 44px;
+            min-width: 44px;
+            border-radius: var(--dt-radius-lg, 12px);
+            border: 1px solid var(--dt-border-default, #233044);
+            background: var(--dt-surface-2, #162234);
+            color: var(--dt-text-primary, #E5E7EB);
+            cursor: pointer;
+            transition: background 150ms ease, border-color 150ms ease;
+        }
+
+        .mobile-preview-toggle:hover,
+        .mobile-preview-toggle:active {
+            background: var(--dt-accent-primary, #8B5CF6);
+            border-color: var(--dt-accent-primary, #8B5CF6);
+            color: #fff;
+        }
+
+        /* ── MOBILE PUBLIC LINK ── */
+        .mobile-public-link {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 10px 16px;
+            background: var(--dt-surface-1, #111827);
+            border-bottom: 1px solid var(--dt-border-default, #233044);
+        }
+
+        .mobile-link-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mobile-link-url {
+            flex: 1;
+            font-size: 0.75rem;
+            color: var(--dt-text-secondary, #9CA3AF);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        .mobile-copy-btn {
+            padding: 6px 14px;
+            min-height: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--dt-accent-primary, #8B5CF6);
+            background: transparent;
+            color: var(--dt-accent-primary, #8B5CF6);
+            font-size: 0.6875rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            transition: background 150ms ease;
+            white-space: nowrap;
+        }
+
+        .mobile-copy-btn:active {
+            background: rgba(139, 92, 246, 0.15);
+        }
+
+        .mobile-link-hint {
+            font-size: 0.6875rem;
+            color: var(--dt-text-muted, #6B7280);
+        }
+
+        /* ── MOBILE BOTTOM BAR (fixed) ── */
+        .mobile-bottom-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 99;
+            padding: 12px 16px;
+            background: var(--dt-surface-1, #111827);
+            border-top: 1px solid var(--dt-border-default, #233044);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: transform 200ms ease, opacity 200ms ease;
+        }
+
+        .mobile-bottom-hidden {
+            transform: translateY(100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .mobile-save-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 20px;
+            min-height: 48px;
+            border-radius: var(--dt-radius-lg, 12px);
+            border: none;
+            background: var(--dt-accent-primary, #8B5CF6);
+            color: #fff;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            transition: background 150ms ease, opacity 150ms ease;
+        }
+
+        .mobile-save-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .mobile-save-btn:active:not(:disabled) {
+            background: var(--dt-accent-secondary, #7C3AED);
+        }
+
+        .mobile-preview-btn-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            min-width: 48px;
+            min-height: 48px;
+            border-radius: var(--dt-radius-lg, 12px);
+            border: 1px solid var(--dt-border-default, #233044);
+            background: var(--dt-surface-2, #162234);
+            color: var(--dt-text-primary, #E5E7EB);
+            cursor: pointer;
+            transition: background 150ms ease;
+        }
+
+        .mobile-preview-btn-bottom:active {
+            background: var(--dt-accent-primary, #8B5CF6);
+            color: #fff;
+        }
+
+        /* ── MOBILE PREVIEW OVERLAY ── */
+        .mobile-preview-overlay {
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            animation: mobileOverlayFadeIn 200ms ease;
+        }
+
+        @@keyframes mobileOverlayFadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        .mobile-preview-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-height: 100dvh;
+            overflow: hidden;
+        }
+
+        .mobile-overlay-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: var(--dt-surface-1, #111827);
+            border-bottom: 1px solid var(--dt-border-default, #233044);
+            flex-shrink: 0;
+        }
+
+        .mobile-overlay-title {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--dt-text-primary, #E5E7EB);
+        }
+
+        .mobile-overlay-close {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            min-width: 44px;
+            min-height: 44px;
+            border-radius: var(--dt-radius-md, 8px);
+            border: 1px solid var(--dt-border-default, #233044);
+            background: var(--dt-surface-2, #162234);
+            color: var(--dt-text-primary, #E5E7EB);
+            cursor: pointer;
+            transition: background 150ms ease;
+        }
+
+        .mobile-overlay-close:active {
+            background: rgba(239, 68, 68, 0.2);
+            color: #EF4444;
+        }
+
+        .mobile-overlay-body {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px 16px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .mobile-overlay-body .iphone-frame {
+            width: 100%;
+            max-width: 340px;
+            transform: scale(0.95);
+        }
+
+        .mobile-overlay-footer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--dt-surface-1, #111827);
+            border-top: 1px solid var(--dt-border-default, #233044);
+            flex-shrink: 0;
+        }
+
+        .mobile-overlay-link {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px 16px;
+            min-height: 44px;
+            border-radius: var(--dt-radius-lg, 12px);
+            border: 1px solid var(--dt-accent-primary, #8B5CF6);
+            background: transparent;
+            color: var(--dt-accent-primary, #8B5CF6);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 150ms ease;
+        }
+
+        .mobile-overlay-link:active {
+            background: rgba(139, 92, 246, 0.15);
+        }
+
+        .mobile-overlay-copy {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px 16px;
+            min-height: 44px;
+            border-radius: var(--dt-radius-lg, 12px);
+            border: none;
+            background: var(--dt-accent-primary, #8B5CF6);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: background 150ms ease;
+        }
+
+        .mobile-overlay-copy:active {
+            background: var(--dt-accent-secondary, #7C3AED);
+        }
+
+        /* ── Section card mobile tweaks ── */
+        .section-card {
+            border-radius: var(--dt-radius-lg, 12px);
+        }
+
+        .section-header {
+            padding: 14px 12px;
+        }
+
+        .section-content {
+            padding: 12px;
+        }
+
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+        }
+
+        .section-description {
+            font-size: 0.75rem;
+        }
+
+        /* ── Form grid — single column on mobile ── */
+        .form-grid {
+            grid-template-columns: 1fr !important;
+        }
+
+        .form-row {
+            grid-column: span 1 !important;
+        }
+
+        /* ── Appearance presets — horizontal scroll ── */
+        .appearance-presets-grid {
+            display: flex !important;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scroll-snap-type: x mandatory;
+            gap: 8px;
+            padding-bottom: 8px;
+        }
+
+        .appearance-presets-grid > * {
+            scroll-snap-align: start;
+            flex-shrink: 0;
+        }
+
+        /* ── Identity avatar — stacked ── */
+        .identity-header-with-avatar {
+            flex-wrap: wrap;
+        }
+
+        .identity-avatar-section {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        /* ── Toggle grid — 1 column on mobile for readability ── */
+        .toggle-grid {
+            grid-template-columns: 1fr !important;
+            gap: 8px;
+        }
+
+        .toggle-item {
+            padding: 10px 12px;
+            min-height: 44px;
+        }
+
+        .toggle-label span {
+            font-size: 0.85rem;
+        }
+
+        /* ── Gallery columns — stacked ── */
+        .gallery-columns {
+            flex-direction: column !important;
+        }
+
+        .gallery-column {
+            width: 100% !important;
+        }
+
+        .gallery-upload-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        /* ─────────────────────────────────────────────
+           CONTACT GROUP — phone/whatsapp on mobile
+           ───────────────────────────────────────────── */
+        .contact-group {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .contact-group-label {
+            display: block !important;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--dt-text-secondary, #8899AA);
+            padding: 4px 0 0;
+        }
+
+        .phone-row {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 8px;
+            align-items: flex-start;
+            grid-column: 1 / -1;
+        }
+
+        /* MudBlazor wraps components in .mud-input-control */
+        .phone-row .country-select,
+        .phone-row > .mud-input-control:first-child {
+            flex: 0 0 100px !important;
+            width: 100px !important;
+            min-width: 0 !important;
+            max-width: 100px !important;
+        }
+
+        .phone-row .phone-input,
+        .phone-row > .mud-input-control:last-child {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+            width: auto !important;
+        }
+
+        /* Prevent MudBlazor label overflow in narrow fields */
+        .phone-row .mud-input-label {
+            font-size: 0.75rem !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        /* ── Social profiles — compact on mobile ── */
+        .section-level-3 .form-grid {
+            gap: 8px !important;
+        }
+
+        .section-level-3 .form-row {
+            margin-bottom: 0;
+        }
+
+        .section-level-3 .mud-input-control {
+            font-size: 0.85rem;
+        }
+
+        /* Truncate long URLs in social inputs */
+        .section-level-3 .mud-input-slot,
+        .section-level-3 input {
+            text-overflow: ellipsis !important;
+            overflow: hidden !important;
+            white-space: nowrap !important;
+        }
+
+        /* ── Scroll lock when overlay is open ── */
+        body:has(.mobile-preview-overlay) {
+            overflow: hidden !important;
+        }
+    }
 </style>
 
 @code {
@@ -4886,6 +5643,8 @@ else
     private bool _isLoading = true;
     private bool _isSaving = false;
     private bool _hasUnsavedChanges = false;
+    private bool _mobilePreviewOpen = false;
+    private bool _gallerySectionExpanded = true;
     private bool _initCompleted = false;
     private bool _pendingDbSave = false;
     private readonly SemaphoreSlim _dbGate = new(1, 1);
@@ -5460,6 +6219,27 @@ else
         _socialSectionExpanded = !_socialSectionExpanded;
     }
 
+    private void ToggleMobilePreview()
+    {
+        _mobilePreviewOpen = !_mobilePreviewOpen;
+    }
+
+    private void CloseMobilePreview()
+    {
+        _mobilePreviewOpen = false;
+    }
+
+    private int CountActiveButtons()
+    {
+        if (_card == null) return 0;
+        int count = 0;
+        if (_card.ShowSaveContact) count++;
+        if (_card.ShowWhatsApp) count++;
+        if (_card.ShowCall) count++;
+        if (_card.ShowEmail) count++;
+        return count;
+    }
+
     private string GetDisplayCompanyName()
     {
         if (!string.IsNullOrEmpty(_card?.CompanyName))
@@ -5492,21 +6272,76 @@ else
         _actionButtonsSectionExpanded = !_actionButtonsSectionExpanded;
     }
 
-    private int CountActiveButtons()
+    /// <summary>
+    /// Accordion: opens the target section and closes all others.
+    /// On desktop, this still functions as a normal toggle since sections are independent.
+    /// </summary>
+    private void ToggleMobileAccordion(string sectionName)
     {
-        if (_card == null) return 0;
-        int count = 0;
-        if (_card.ShowSaveContact) count++;
-        if (_card.ShowWhatsApp) count++;
-        if (_card.ShowCall) count++;
-        if (_card.ShowEmail) count++;
-        return count;
+        // Toggle the target section
+        bool newValue;
+        switch (sectionName)
+        {
+            case nameof(_appearanceSectionExpanded):
+                _appearanceSectionExpanded = !_appearanceSectionExpanded;
+                newValue = _appearanceSectionExpanded;
+                break;
+            case nameof(_identitySectionExpanded):
+                _identitySectionExpanded = !_identitySectionExpanded;
+                newValue = _identitySectionExpanded;
+                break;
+            case nameof(_contactSectionExpanded):
+                _contactSectionExpanded = !_contactSectionExpanded;
+                newValue = _contactSectionExpanded;
+                break;
+            case nameof(_actionButtonsSectionExpanded):
+                _actionButtonsSectionExpanded = !_actionButtonsSectionExpanded;
+                newValue = _actionButtonsSectionExpanded;
+                break;
+            case nameof(_socialSectionExpanded):
+                _socialSectionExpanded = !_socialSectionExpanded;
+                newValue = _socialSectionExpanded;
+                break;
+            case nameof(_gallerySectionExpanded):
+                _gallerySectionExpanded = !_gallerySectionExpanded;
+                newValue = _gallerySectionExpanded;
+                break;
+            default:
+                return;
+        }
+
+        // If opened, close all others (accordion behavior)
+        if (newValue)
+        {
+            if (sectionName != nameof(_appearanceSectionExpanded)) _appearanceSectionExpanded = false;
+            if (sectionName != nameof(_identitySectionExpanded)) _identitySectionExpanded = false;
+            if (sectionName != nameof(_contactSectionExpanded)) _contactSectionExpanded = false;
+            if (sectionName != nameof(_actionButtonsSectionExpanded)) _actionButtonsSectionExpanded = false;
+            if (sectionName != nameof(_socialSectionExpanded)) _socialSectionExpanded = false;
+            if (sectionName != nameof(_gallerySectionExpanded)) _gallerySectionExpanded = false;
+        }
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // APPEARANCE SECTION METHODS
-    // ═══════════════════════════════════════════════════════════════
-    private void ToggleAppearanceSection() => _appearanceSectionExpanded = !_appearanceSectionExpanded;
+    private string GetIdentitySummary()
+    {
+        if (_card == null) return "Cómo te verán en tu tarjeta pública";
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(_card.FullName)) parts.Add(_card.FullName);
+        if (!string.IsNullOrEmpty(_card.Title)) parts.Add(_card.Title);
+        var company = GetDisplayCompanyName();
+        if (!string.IsNullOrEmpty(company) && company != "Mi Empresa") parts.Add(company);
+        return parts.Count > 0 ? string.Join(" • ", parts) : "Cómo te verán en tu tarjeta pública";
+    }
+
+    private string GetContactSummary()
+    {
+        if (_card == null) return "Cómo te pueden contactar";
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(_card.Email)) parts.Add("Email");
+        if (!string.IsNullOrEmpty(_card.Phone)) parts.Add("Teléfono");
+        if (!string.IsNullOrEmpty(_card.WhatsAppNumber)) parts.Add("WhatsApp");
+        return parts.Count > 0 ? string.Join(" • ", parts) : "Cómo te pueden contactar";
+    }
     private void ToggleAdvancedMode() => _advancedModeExpanded = !_advancedModeExpanded;
 
     private void ApplyPreset(string presetId)
@@ -6139,9 +6974,9 @@ else
 
         try
         {
-            if (file.Size > 50 * 1024 * 1024)
+            if (file.Size > 200 * 1024 * 1024)
             {
-                Snackbar.Add("Video muy pesado. Máximo 50 MB permitido.", Severity.Error);
+                Snackbar.Add("Video muy pesado. Máximo 200 MB permitido. Intenta comprimir el archivo.", Severity.Error);
                 return;
             }
 
@@ -6159,7 +6994,7 @@ else
             var fileName = $"{Guid.NewGuid()}{extension}";
             var filePath = Path.Combine(uploadsFolder, fileName);
 
-            using (var stream = file.OpenReadStream(50 * 1024 * 1024))
+            using (var stream = file.OpenReadStream(200 * 1024 * 1024))
             using (var fs = new FileStream(filePath, FileMode.Create))
             {
                 await stream.CopyToAsync(fs);
