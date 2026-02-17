@@ -24,47 +24,6 @@ else
 {
     <div class="mycard-container">
         @* ═══════════════════════════════════════════════════════════════
-           MOBILE TOP BAR (hidden on desktop, sticky on ≤600px)
-           ═══════════════════════════════════════════════════════════════ *@
-        <div class="mobile-top-bar">
-            <span class="mobile-top-title">MI TARJETA</span>
-            <div class="mobile-top-actions">
-                @if (_isSaving)
-                {
-                    <span class="mobile-status-chip mobile-chip-saving">
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Inherit" Style="width:14px;height:14px;" />
-                        Guardando
-                    </span>
-                }
-                else if (_hasUnsavedChanges)
-                {
-                    <span class="mobile-status-chip mobile-chip-unsaved">SIN GUARDAR</span>
-                }
-                else
-                {
-                    <span class="mobile-status-chip mobile-chip-saved">GUARDADO</span>
-                }
-                <button class="mobile-preview-toggle" @onclick="ToggleMobilePreview" aria-label="Vista previa">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        @* ═══════════════════════════════════════════════════════════════
-           MOBILE PUBLIC LINK BLOCK (hidden on desktop)
-           ═══════════════════════════════════════════════════════════════ *@
-        <div class="mobile-public-link">
-            <div class="mobile-link-row">
-                <span class="mobile-link-url">@(string.IsNullOrEmpty(_publicUrl) ? "Generando link..." : _publicUrl.Replace("http://", "").Replace("https://", ""))</span>
-                <button class="mobile-copy-btn" @onclick="CopyUrl">COPIAR</button>
-            </div>
-            <span class="mobile-link-hint">Este link es público.</span>
-        </div>
-
-        @* ═══════════════════════════════════════════════════════════════
            PAGE HEADER - PREMIUM ENTERPRISE STYLE
            ═══════════════════════════════════════════════════════════════ *@
         <header class="page-header">
@@ -390,23 +349,51 @@ else
                     </div>
                     <MudCollapse Expanded="_contactSectionExpanded">
                         <div class="section-content">
-                            <div class="form-grid">
-                                <div class="form-row form-row-full">
-                                    <MudTextField @bind-Value="_card.Email" 
-                                                  Label="Email" 
-                                                  Variant="Variant.Outlined" 
-                                                  InputType="InputType.Email"
-                                                  @oninput="MarkUnsaved" />
+                            @* Centered Header *@
+                            <div class="contact-centered-header">
+                                <div class="contact-header-icon">
+                                    <MudIcon Icon="@Icons.Material.Filled.AlternateEmail" Size="Size.Medium" />
                                 </div>
-                                
-                                @* Phone with Country Selector *@
-                                <div class="contact-group">
-                                    <label class="contact-group-label">Teléfono</label>
+                                <h2 class="contact-header-title">Información de contacto</h2>
+                                <p class="contact-header-subtitle">Email • Teléfono • WhatsApp</p>
+                            </div>
+
+                            @* Email Row — tap to edit *@
+                            @if (_editingContactField == "email")
+                            {
+                                <div class="contact-edit-inline">
+                                    <MudTextField @bind-Value="_card.Email"
+                                                  Variant="Variant.Outlined"
+                                                  InputType="InputType.Email"
+                                                  Immediate="true"
+                                                  @oninput="MarkUnsaved" />
+                                    <button class="social-edit-btn social-edit-save" @onclick="StopEditContact">Listo</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="ios-row contact-email-row" @onclick="EditEmail">
+                                    <div class="contact-email-icon">
+                                        <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
+                                    </div>
+                                    <span class="ios-row-primary">@(string.IsNullOrEmpty(_card.Email) ? "Agregar email" : _card.Email)</span>
+                                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Class="ios-row-chevron" />
+                                </div>
+                            }
+
+                            @* Teléfonos subsection label *@
+                            <div class="contact-subsection-title">Teléfonos</div>
+
+                            @* Phone Card *@
+                            @if (_editingContactField == "phone")
+                            {
+                                <div class="contact-edit-inline">
+                                    <div class="contact-edit-label">Teléfono</div>
                                     <div class="form-row phone-row">
-                                        <MudSelect T="string" 
-                                                   @bind-Value="_card.PhoneCountryCode" 
-                                                   Label="Código" 
-                                                   Variant="Variant.Outlined" 
+                                        <MudSelect T="string"
+                                                   @bind-Value="_card.PhoneCountryCode"
+                                                   Label="Código"
+                                                   Variant="Variant.Outlined"
                                                    Class="country-select"
                                                    AnchorOrigin="Origin.BottomCenter">
                                             @foreach (var country in _countries)
@@ -419,24 +406,54 @@ else
                                                 </MudSelectItem>
                                             }
                                         </MudSelect>
-                                        <MudTextField @bind-Value="_card.Phone" 
-                                                      Label="Número" 
+                                        <MudTextField @bind-Value="_card.Phone"
+                                                      Label="Número"
                                                       Variant="Variant.Outlined"
                                                       MaxLength="@GetPhoneMaxLength()"
                                                       Immediate="true"
                                                       Class="phone-input"
                                                       @oninput="MarkUnsaved" />
                                     </div>
+                                    <button class="social-edit-btn social-edit-save" @onclick="StopEditContact">Listo</button>
                                 </div>
+                            }
+                            else if (!string.IsNullOrEmpty(_card.Phone))
+                            {
+                                <div class="contact-phone-card" @onclick="EditPhone">
+                                    <span class="phone-card-flag">@(GetCountryForCode(_card.PhoneCountryCode)?.Flag ?? "📞")</span>
+                                    <div class="phone-card-info">
+                                        <span class="phone-card-code">@GetCountryShortName(_card.PhoneCountryCode) @(_card.PhoneCountryCode ?? "")</span>
+                                        <span class="phone-card-number">@_card.Phone</span>
+                                    </div>
+                                    <div class="phone-card-actions" @onclick:stopPropagation="true">
+                                        <a class="phone-quick-action phone-quick-call"
+                                           href="@GetPhoneTelUrl()" title="Llamar">
+                                            <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
+                                        </a>
+                                        <a class="phone-quick-action phone-quick-wa"
+                                           href="@GetWhatsAppUrl()" target="_blank" title="WhatsApp">
+                                            <MudIcon Icon="@Icons.Custom.Brands.WhatsApp" Size="Size.Small" />
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="contact-phone-empty" @onclick="EditPhone">
+                                    + Agregar teléfono
+                                </div>
+                            }
 
-                                @* WhatsApp with Country Selector *@
-                                <div class="contact-group">
-                                    <label class="contact-group-label">WhatsApp</label>
+                            @* WhatsApp Card *@
+                            @if (_editingContactField == "whatsapp")
+                            {
+                                <div class="contact-edit-inline">
+                                    <div class="contact-edit-label">WhatsApp</div>
                                     <div class="form-row phone-row">
-                                        <MudSelect T="string" 
-                                                   @bind-Value="_card.WhatsAppCountryCode" 
-                                                   Label="Código" 
-                                                   Variant="Variant.Outlined" 
+                                        <MudSelect T="string"
+                                                   @bind-Value="_card.WhatsAppCountryCode"
+                                                   Label="Código"
+                                                   Variant="Variant.Outlined"
                                                    Class="country-select"
                                                    AnchorOrigin="Origin.BottomCenter">
                                             @foreach (var country in _countries)
@@ -449,16 +466,43 @@ else
                                                 </MudSelectItem>
                                             }
                                         </MudSelect>
-                                        <MudTextField @bind-Value="_card.WhatsAppNumber" 
-                                                      Label="Número" 
+                                        <MudTextField @bind-Value="_card.WhatsAppNumber"
+                                                      Label="Número"
                                                       Variant="Variant.Outlined"
                                                       MaxLength="@GetWhatsAppMaxLength()"
                                                       Immediate="true"
                                                       Class="phone-input"
                                                       @oninput="MarkUnsaved" />
                                     </div>
+                                    <button class="social-edit-btn social-edit-save" @onclick="StopEditContact">Listo</button>
                                 </div>
-                            </div>
+                            }
+                            else if (!string.IsNullOrEmpty(_card.WhatsAppNumber))
+                            {
+                                <div class="contact-phone-card" @onclick="EditWhatsApp">
+                                    <span class="phone-card-flag">@(GetCountryForCode(_card.WhatsAppCountryCode)?.Flag ?? "📞")</span>
+                                    <div class="phone-card-info">
+                                        <span class="phone-card-code">@GetCountryShortName(_card.WhatsAppCountryCode) @(_card.WhatsAppCountryCode ?? "")</span>
+                                        <span class="phone-card-number">@_card.WhatsAppNumber</span>
+                                    </div>
+                                    <div class="phone-card-actions" @onclick:stopPropagation="true">
+                                        <a class="phone-quick-action phone-quick-call"
+                                           href="@GetWhatsAppTelUrl()" title="Llamar">
+                                            <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
+                                        </a>
+                                        <a class="phone-quick-action phone-quick-wa"
+                                           href="@GetWhatsAppUrl()" target="_blank" title="WhatsApp">
+                                            <MudIcon Icon="@Icons.Custom.Brands.WhatsApp" Size="Size.Small" />
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="contact-phone-empty" @onclick="EditWhatsApp">
+                                    + Agregar WhatsApp
+                                </div>
+                            }
                         </div>
                     </MudCollapse>
                 </section>
@@ -486,39 +530,35 @@ else
                     </div>
                     <MudCollapse Expanded="_actionButtonsSectionExpanded">
                         <div class="section-content">
-                            <div class="toggle-grid">
-                                <label class="toggle-item">
-                                    <MudSwitch T="bool" @bind-Value="_card.ShowSaveContact" 
-                                               Color="Color.Primary" />
-                                    <div class="toggle-label">
+                            <div class="action-toggle-list">
+                                <div class="action-toggle-row">
+                                    <div class="action-icon action-icon-save">
                                         <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" />
-                                        <span>Guardar Contacto</span>
                                     </div>
-                                </label>
-                                <label class="toggle-item">
-                                    <MudSwitch T="bool" @bind-Value="_card.ShowWhatsApp" 
-                                               Color="Color.Success" />
-                                    <div class="toggle-label">
+                                    <span class="action-label">Guardar Contacto</span>
+                                    <MudSwitch T="bool" @bind-Value="_card.ShowSaveContact" Color="Color.Primary" />
+                                </div>
+                                <div class="action-toggle-row">
+                                    <div class="action-icon action-icon-whatsapp">
                                         <MudIcon Icon="@Icons.Custom.Brands.WhatsApp" Size="Size.Small" />
-                                        <span>WhatsApp</span>
                                     </div>
-                                </label>
-                                <label class="toggle-item">
-                                    <MudSwitch T="bool" @bind-Value="_card.ShowCall" 
-                                               Color="Color.Info" />
-                                    <div class="toggle-label">
+                                    <span class="action-label">WhatsApp</span>
+                                    <MudSwitch T="bool" @bind-Value="_card.ShowWhatsApp" Color="Color.Success" />
+                                </div>
+                                <div class="action-toggle-row">
+                                    <div class="action-icon action-icon-call">
                                         <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" />
-                                        <span>Llamar</span>
                                     </div>
-                                </label>
-                                <label class="toggle-item">
-                                    <MudSwitch T="bool" @bind-Value="_card.ShowEmail" 
-                                               Color="Color.Warning" />
-                                    <div class="toggle-label">
+                                    <span class="action-label">Llamar</span>
+                                    <MudSwitch T="bool" @bind-Value="_card.ShowCall" Color="Color.Info" />
+                                </div>
+                                <div class="action-toggle-row">
+                                    <div class="action-icon action-icon-email">
                                         <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
-                                        <span>Email</span>
                                     </div>
-                                </label>
+                                    <span class="action-label">Email</span>
+                                    <MudSwitch T="bool" @bind-Value="_card.ShowEmail" Color="Color.Warning" />
+                                </div>
                             </div>
                         </div>
                     </MudCollapse>
@@ -551,61 +591,162 @@ else
                     </div>
                     <MudCollapse Expanded="_socialSectionExpanded">
                         <div class="section-content">
-                            <div class="form-grid">
-                                <div class="form-row">
-                                    <MudTextField @bind-Value="_socialLinks.LinkedIn" 
-                                                  Label="LinkedIn" 
-                                                  Variant="Variant.Outlined" 
-                                                  Adornment="Adornment.Start" 
-                                                  AdornmentIcon="@Icons.Custom.Brands.LinkedIn"
-                                                  Placeholder="linkedin.com/in/tu-perfil"
-                                                  @oninput="MarkUnsaved" />
-                                </div>
-                                <div class="form-row">
-                                    <MudTextField @bind-Value="_socialLinks.Instagram" 
-                                                  Label="Instagram" 
-                                                  Variant="Variant.Outlined"
-                                                  Adornment="Adornment.Start" 
-                                                  AdornmentIcon="@Icons.Custom.Brands.Instagram"
-                                                  Placeholder="instagram.com/tu-usuario"
-                                                  @oninput="MarkUnsaved" />
-                                </div>
-                                <div class="form-row">
-                                    <MudTextField @bind-Value="_socialLinks.Facebook" 
-                                                  Label="Facebook" 
-                                                  Variant="Variant.Outlined"
-                                                  Adornment="Adornment.Start" 
-                                                  AdornmentIcon="@Icons.Custom.Brands.Facebook"
-                                                  Placeholder="facebook.com/tu-pagina"
-                                                  @oninput="MarkUnsaved" />
-                                </div>
-                                <div class="form-row">
-                                    <MudTextField @bind-Value="_socialLinks.YouTube" 
-                                                  Label="YouTube" 
-                                                  Variant="Variant.Outlined"
-                                                  Adornment="Adornment.Start" 
-                                                  AdornmentIcon="@Icons.Custom.Brands.YouTube"
-                                                  Placeholder="youtube.com/tu-canal"
-                                                  @oninput="MarkUnsaved" />
-                                </div>
-                                <div class="form-row">
-                                    <MudTextField @bind-Value="_socialLinks.Twitter" 
-                                                  Label="Twitter / X" 
-                                                  Variant="Variant.Outlined"
-                                                  Adornment="Adornment.Start" 
-                                                  AdornmentIcon="@Icons.Custom.Brands.Twitter"
-                                                  Placeholder="x.com/tu-usuario"
-                                                  @oninput="MarkUnsaved" />
-                                </div>
-                                <div class="form-row">
-                                    <MudTextField @bind-Value="_socialLinks.Website" 
-                                                  Label="Página Web" 
-                                                  Variant="Variant.Outlined"
-                                                  Adornment="Adornment.Start" 
-                                                  AdornmentIcon="@Icons.Material.Filled.Language"
-                                                  Placeholder="www.tusitio.com"
-                                                  @oninput="MarkUnsaved" />
-                                </div>
+                            <div class="ios-rows-list">
+                                @* LinkedIn *@
+                                @if (_editingSocialField == "LinkedIn")
+                                {
+                                    <div class="social-row-editing">
+                                        <MudTextField @bind-Value="_socialLinks.LinkedIn"
+                                                      Label="LinkedIn"
+                                                      Variant="Variant.Outlined"
+                                                      Immediate="true"
+                                                      @oninput="MarkUnsaved" />
+                                        <button class="social-edit-btn social-edit-save" @onclick="StopEditSocial">Listo</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="ios-row" @onclick="EditLinkedIn">
+                                        <div class="ios-icon-badge badge-linkedin">
+                                            <MudIcon Icon="@Icons.Custom.Brands.LinkedIn" Size="Size.Small" />
+                                        </div>
+                                        <div class="ios-row-info">
+                                            <div class="ios-row-primary">LinkedIn</div>
+                                            <div class="ios-row-secondary">@(string.IsNullOrEmpty(_socialLinks.LinkedIn) ? "Agregar" : _socialLinks.LinkedIn)</div>
+                                        </div>
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Class="ios-row-chevron" />
+                                    </div>
+                                }
+
+                                @* Instagram *@
+                                @if (_editingSocialField == "Instagram")
+                                {
+                                    <div class="social-row-editing">
+                                        <MudTextField @bind-Value="_socialLinks.Instagram"
+                                                      Label="Instagram"
+                                                      Variant="Variant.Outlined"
+                                                      Immediate="true"
+                                                      @oninput="MarkUnsaved" />
+                                        <button class="social-edit-btn social-edit-save" @onclick="StopEditSocial">Listo</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="ios-row" @onclick="EditInstagram">
+                                        <div class="ios-icon-badge badge-instagram">
+                                            <MudIcon Icon="@Icons.Custom.Brands.Instagram" Size="Size.Small" />
+                                        </div>
+                                        <div class="ios-row-info">
+                                            <div class="ios-row-primary">Instagram</div>
+                                            <div class="ios-row-secondary">@(string.IsNullOrEmpty(_socialLinks.Instagram) ? "Agregar" : _socialLinks.Instagram)</div>
+                                        </div>
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Class="ios-row-chevron" />
+                                    </div>
+                                }
+
+                                @* Facebook *@
+                                @if (_editingSocialField == "Facebook")
+                                {
+                                    <div class="social-row-editing">
+                                        <MudTextField @bind-Value="_socialLinks.Facebook"
+                                                      Label="Facebook"
+                                                      Variant="Variant.Outlined"
+                                                      Immediate="true"
+                                                      @oninput="MarkUnsaved" />
+                                        <button class="social-edit-btn social-edit-save" @onclick="StopEditSocial">Listo</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="ios-row" @onclick="EditFacebook">
+                                        <div class="ios-icon-badge badge-facebook">
+                                            <MudIcon Icon="@Icons.Custom.Brands.Facebook" Size="Size.Small" />
+                                        </div>
+                                        <div class="ios-row-info">
+                                            <div class="ios-row-primary">Facebook</div>
+                                            <div class="ios-row-secondary">@(string.IsNullOrEmpty(_socialLinks.Facebook) ? "Agregar" : _socialLinks.Facebook)</div>
+                                        </div>
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Class="ios-row-chevron" />
+                                    </div>
+                                }
+
+                                @* YouTube *@
+                                @if (_editingSocialField == "YouTube")
+                                {
+                                    <div class="social-row-editing">
+                                        <MudTextField @bind-Value="_socialLinks.YouTube"
+                                                      Label="YouTube"
+                                                      Variant="Variant.Outlined"
+                                                      Immediate="true"
+                                                      @oninput="MarkUnsaved" />
+                                        <button class="social-edit-btn social-edit-save" @onclick="StopEditSocial">Listo</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="ios-row" @onclick="EditYouTube">
+                                        <div class="ios-icon-badge badge-youtube">
+                                            <MudIcon Icon="@Icons.Custom.Brands.YouTube" Size="Size.Small" />
+                                        </div>
+                                        <div class="ios-row-info">
+                                            <div class="ios-row-primary">YouTube</div>
+                                            <div class="ios-row-secondary">@(string.IsNullOrEmpty(_socialLinks.YouTube) ? "Agregar" : _socialLinks.YouTube)</div>
+                                        </div>
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Class="ios-row-chevron" />
+                                    </div>
+                                }
+
+                                @* Twitter / X *@
+                                @if (_editingSocialField == "Twitter")
+                                {
+                                    <div class="social-row-editing">
+                                        <MudTextField @bind-Value="_socialLinks.Twitter"
+                                                      Label="Twitter / X"
+                                                      Variant="Variant.Outlined"
+                                                      Immediate="true"
+                                                      @oninput="MarkUnsaved" />
+                                        <button class="social-edit-btn social-edit-save" @onclick="StopEditSocial">Listo</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="ios-row" @onclick="EditTwitter">
+                                        <div class="ios-icon-badge badge-twitter">
+                                            <MudIcon Icon="@Icons.Custom.Brands.Twitter" Size="Size.Small" />
+                                        </div>
+                                        <div class="ios-row-info">
+                                            <div class="ios-row-primary">Twitter / X</div>
+                                            <div class="ios-row-secondary">@(string.IsNullOrEmpty(_socialLinks.Twitter) ? "Agregar" : _socialLinks.Twitter)</div>
+                                        </div>
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Class="ios-row-chevron" />
+                                    </div>
+                                }
+
+                                @* Website *@
+                                @if (_editingSocialField == "Website")
+                                {
+                                    <div class="social-row-editing">
+                                        <MudTextField @bind-Value="_socialLinks.Website"
+                                                      Label="Página Web"
+                                                      Variant="Variant.Outlined"
+                                                      Immediate="true"
+                                                      @oninput="MarkUnsaved" />
+                                        <button class="social-edit-btn social-edit-save" @onclick="StopEditSocial">Listo</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="ios-row" @onclick="EditWebsite">
+                                        <div class="ios-icon-badge badge-website">
+                                            <MudIcon Icon="@Icons.Material.Filled.Language" Size="Size.Small" />
+                                        </div>
+                                        <div class="ios-row-info">
+                                            <div class="ios-row-primary">Página Web</div>
+                                            <div class="ios-row-secondary">@(string.IsNullOrEmpty(_socialLinks.Website) ? "Agregar" : _socialLinks.Website)</div>
+                                        </div>
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Class="ios-row-chevron" />
+                                    </div>
+                                }
                             </div>
                         </div>
                     </MudCollapse>
@@ -1388,8 +1529,8 @@ else
             @* ═══════════════════════════════════════════════════════════════
                MOBILE BOTTOM BAR (hidden on desktop, fixed on ≤600px)
                ═══════════════════════════════════════════════════════════════ *@
-            <div class="mobile-bottom-bar @(_hasUnsavedChanges ? "" : "mobile-bottom-hidden")">
-                <button class="mobile-save-btn" @onclick="SaveCard" disabled="@_isSaving">
+            <div class="mobile-bottom-bar @(_mobilePreviewOpen ? "mobile-bar-hidden" : "")">
+                <button class="mobile-save-btn @(!_hasUnsavedChanges && !_isSaving ? "mobile-save-btn-idle" : "")" @onclick="SaveCard" disabled="@(_isSaving || !_hasUnsavedChanges)">
                     @if (_isSaving)
                     {
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Inherit" Style="width:16px;height:16px;" />
@@ -1851,7 +1992,7 @@ else
                     </button>
                 </div>
 
-                @* Overlay Body — Reuses existing phone preview *@
+                @* Overlay Body — Reuses SAME phone preview as desktop *@
                 <div class="mobile-overlay-body">
                     <div class="iphone-frame">
                         <div class="dynamic-island"></div>
@@ -1866,56 +2007,290 @@ else
                                     </div>
                                 </div>
                             </div>
-                            <div class="phone-card-content @(_cardStyle.ContrastMode)" style="@(ThemeHelper.GenerateCssVariables(_themeTokens))">
-                                <div class="phone-card-body">
-                                    @* Avatar *@
-                                    <div class="phone-avatar-container">
-                                        @if (!string.IsNullOrEmpty(_card.ProfileImageUrl))
-                                        {
-                                            <div class="phone-avatar">
-                                                <img src="@_card.ProfileImageUrl" alt="@_card.FullName" />
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="phone-avatar phone-avatar-initials">
-                                                <span>@GetInitials(_card.FullName)</span>
-                                            </div>
-                                        }
-                                    </div>
-
-                                    @* Name / Title / Company *@
-                                    <h2 class="phone-name">@(string.IsNullOrEmpty(_card.FullName) ? "Tu Nombre" : _card.FullName)</h2>
-                                    <p class="phone-title">@(string.IsNullOrEmpty(_card.Title) ? "Tu cargo" : _card.Title)</p>
-                                    <p class="phone-company">@GetDisplayCompanyName()</p>
-
-                                    @* Bio *@
-                                    @if (!string.IsNullOrEmpty(_card.Bio))
+                            <div class="phone-card-content @GetBackgroundContrastClass()" style="@GetPreviewBackgroundStyle()">
+                                @* Avatar Section *@
+                                <div class="phone-avatar-section">
+                                    @if (!string.IsNullOrEmpty(_card.ProfileImageUrl))
                                     {
-                                        <p class="phone-bio">@_card.Bio</p>
+                                        <div class="phone-avatar phone-avatar-image avatar-size-@_cardStyle.AvatarSize.ToLower() @(_cardStyle.AvatarGlow ? "avatar-glow" : "")">
+                                            <img src="@_card.ProfileImageUrl" alt="@_card.FullName" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="phone-avatar phone-avatar-initials avatar-size-@_cardStyle.AvatarSize.ToLower() @(_cardStyle.AvatarGlow ? "avatar-glow" : "")">
+                                            <span>@GetInitials(_card.FullName)</span>
+                                        </div>
                                     }
                                 </div>
+
+                                @* Identity Info *@
+                                <h3 class="phone-name">@(string.IsNullOrEmpty(_card.FullName) ? "Tu Nombre" : _card.FullName)</h3>
+                                <p class="phone-title">@(string.IsNullOrEmpty(_card.Title) ? "—" : _card.Title)</p>
+                                <p class="phone-company">@GetDisplayCompanyName()</p>
+
+                                @* Bio *@
+                                @if (!string.IsNullOrEmpty(_card.Bio))
+                                {
+                                    <p class="phone-bio">@_card.Bio</p>
+                                }
+                                else
+                                {
+                                    <p class="phone-bio phone-bio-placeholder">Tu biografía aparecerá aquí...</p>
+                                }
+
+                                @* Social Icons — Shared Component *@
+                                <SocialLinksRow
+                                    LinkedIn="@_socialLinks?.LinkedIn"
+                                    Instagram="@_socialLinks?.Instagram"
+                                    Facebook="@_socialLinks?.Facebook"
+                                    YouTube="@_socialLinks?.YouTube"
+                                    Twitter="@_socialLinks?.Twitter"
+                                    Website="@_socialLinks?.Website"
+                                    Compact="true"
+                                    IsPreview="true" />
+
+                                @* Status Chips *@
+                                <div class="phone-status-chips">
+                                    <span class="phone-chip">
+                                        <span class="chip-dot"></span> Disponible
+                                    </span>
+                                    <span class="phone-chip">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                        Responde &lt; 1h
+                                    </span>
+                                    <span class="phone-chip">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                        El Salvador
+                                    </span>
+                                </div>
+
+                                @* Portfolio Gallery Preview (conditional) — Shared Component *@
+                                @if (_isPortfolioTemplate)
+                                {
+                                    <PortfolioGalleryBlock
+                                        Photos="@_portfolioGallery.Photos"
+                                        Videos="@_portfolioGallery.Videos"
+                                        EnablePhotos="@_portfolioGallery.EnablePhotos"
+                                        EnableVideos="@_portfolioGallery.EnableVideos"
+                                        Compact="true" />
+                                }
+
+                                @* Quote Request Block *@
+                                @if (_isQuoteRequestTemplate)
+                                {
+                                    <QuoteRequestBlock
+                                        Compact="true"
+                                        Title="@_quoteSettings.BlockTitle"
+                                        Subtitle="@_quoteSettings.BlockSubtitle"
+                                        CtaLabel="@_quoteSettings.BlockTitle"
+                                        ShowLegalText="@_quoteSettings.ShowLegalText"
+                                        LegalText="@_quoteSettings.LegalText" />
+                                }
+
+                                @* Appointment Booking Block *@
+                                @if (_isAppointmentsTemplate)
+                                {
+                                    @if (_services.Any())
+                                    {
+                                        <AppointmentBookingBlock
+                                            Compact="true"
+                                            Services="@_services.Select(s => new AppointmentBookingBlock.ServiceDisplayItem { Name = s.Name, DurationMinutes = s.DurationMinutes, Price = s.PriceFrom }).ToList()" />
+                                    }
+                                    else
+                                    {
+                                        <AppointmentBookingBlock
+                                            Compact="true"
+                                            Services="@_mockAppointmentServices" />
+                                    }
+                                }
+
+                                @* Reservation Booking Block *@
+                                @if (_isReservationsTemplate)
+                                {
+                                    <ReservationBookingBlock
+                                        Compact="true"
+                                        Title="@_reservationSettings.BlockTitle"
+                                        Subtitle="@_reservationSettings.BlockSubtitle"
+                                        MaxGuests="@_reservationSettings.MaxGuests"
+                                        ConfirmationText="@_reservationSettings.ConfirmationTimeText"
+                                        PoliciesLabel="@(_reservationSettings.ShowPolicies ? "Políticas" : null)" />
+                                }
+
+                                @* CTA Buttons *@
+                                <div class="phone-cta-container btn-shape-@_cardStyle.ButtonShape btn-style-@_cardStyle.ButtonStyle">
+                                    @if (_card.ShowSaveContact)
+                                    {
+                                        <button class="phone-cta-primary" style="border-radius: @GetButtonRadius();">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                                <circle cx="8.5" cy="7" r="4"/>
+                                                <line x1="20" y1="8" x2="20" y2="14"/>
+                                                <line x1="23" y1="11" x2="17" y2="11"/>
+                                            </svg>
+                                            <span>Guardar Contacto</span>
+                                        </button>
+                                    }
+                                    <div class="phone-cta-secondary-row">
+                                        @if (_card.ShowWhatsApp && !string.IsNullOrEmpty(_card.WhatsAppNumber))
+                                        {
+                                            <button class="phone-cta-outline cta-whatsapp-outline" style="border-radius: @GetButtonRadius();">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                                WhatsApp
+                                            </button>
+                                        }
+                                        @if (_card.ShowCall && !string.IsNullOrEmpty(_card.Phone))
+                                        {
+                                            <button class="phone-cta-outline cta-llamar-outline" style="border-radius: @GetButtonRadius();">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                                Llamar
+                                            </button>
+                                        }
+                                        @if (_card.ShowEmail && !string.IsNullOrEmpty(_card.Email))
+                                        {
+                                            <button class="phone-cta-outline cta-email-outline" style="border-radius: @GetButtonRadius();">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                                Email
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+
+                                @* Template-specific content *@
+                                @if (_isServicesTemplate)
+                                {
+                                    <div class="phone-services-section">
+                                        <h4 class="phone-services-title">MIS SERVICIOS</h4>
+                                        <div class="phone-services-list">
+                                            @if (_services.Any())
+                                            {
+                                                @foreach (var service in _services.Take(3))
+                                                {
+                                                    <div class="phone-service-card">
+                                                        <div class="phone-service-icon"><span>@GetServiceEmoji(service.Name)</span></div>
+                                                        <div class="phone-service-info">
+                                                            <span class="phone-service-name">@service.Name</span>
+                                                            <span class="phone-service-meta">@service.DurationMinutes min · Desde $@service.PriceFrom</span>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <div class="phone-service-card">
+                                                    <div class="phone-service-icon">💼</div>
+                                                    <div class="phone-service-info">
+                                                        <span class="phone-service-name">Consultoría Empresarial</span>
+                                                        <span class="phone-service-meta">60 min · Desde $50</span>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="phone-booking-ctas">
+                                            @{
+                                                var effectiveGoal = GetEffectivePrimaryGoal();
+                                                var hasBooking = HasBookingServices();
+                                                var hasQuote = HasQuoteServices();
+                                            }
+                                            @if (effectiveGoal == "booking" && hasBooking)
+                                            {
+                                                <button class="phone-cta-booking">📅 Reservar Cita</button>
+                                                @if (hasQuote) { <span class="phone-cta-secondary">o solicitar cotización</span> }
+                                            }
+                                            else if (effectiveGoal == "quote" && hasQuote)
+                                            {
+                                                <button class="phone-cta-booking">📝 Solicitar Cotización</button>
+                                                @if (hasBooking) { <span class="phone-cta-secondary">o reservar cita</span> }
+                                            }
+                                            else if (hasBooking)
+                                            {
+                                                <button class="phone-cta-booking">📅 Reservar Cita</button>
+                                            }
+                                            else if (hasQuote)
+                                            {
+                                                <button class="phone-cta-booking">📝 Solicitar Cotización</button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                else if (_isQuoteRequestTemplate) { }
+                                else if (_isAppointmentsTemplate) { }
+                                else if (_isReservationsTemplate) { }
+                                else
+                                {
+                                    @* Lead Form Preview (Default template) *@
+                                    <div class="phone-lead-form-section">
+                                        <div class="phone-lead-header">
+                                            <h4 class="phone-lead-title">¿Quieres que te contacte?</h4>
+                                            <p class="phone-lead-subtitle">Déjame tus datos y te respondo pronto</p>
+                                        </div>
+                                        <div class="phone-lead-form">
+                                            <div class="phone-form-field">
+                                                <label class="phone-field-label"><MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" /> Nombre completo <span class="required-mark">*</span></label>
+                                                <div class="phone-input-mock">Juan Pérez</div>
+                                            </div>
+                                            <div class="phone-form-field">
+                                                <label class="phone-field-label"><MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" /> Correo electrónico <span class="required-mark">*</span></label>
+                                                <div class="phone-input-mock">tu@email.com</div>
+                                            </div>
+                                            <div class="phone-form-field">
+                                                <label class="phone-field-label"><MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" /> Teléfono <span class="required-mark">*</span></label>
+                                                <div class="phone-input-row">
+                                                    <div class="phone-country-mock">🇸🇻 +503</div>
+                                                    <div class="phone-input-mock phone-input-number">7000 0000</div>
+                                                </div>
+                                            </div>
+                                            <div class="phone-form-field">
+                                                <label class="phone-field-label"><MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Small" /> Mensaje <span class="optional-mark">(opcional)</span></label>
+                                                <div class="phone-textarea-mock">¿En qué puedo ayudarte?</div>
+                                            </div>
+                                            <button class="phone-submit-btn">
+                                                <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Small" />
+                                                <span>Enviar mensaje</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         </div>
                     </div>
+
                 </div>
 
-                @* Overlay Footer *@
+                @* Overlay Footer — actions + save *@
                 <div class="mobile-overlay-footer">
-                    <a href="@_publicUrl" target="_blank" class="mobile-overlay-link">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                            <polyline points="15 3 21 3 21 9"/>
-                            <line x1="10" y1="14" x2="21" y2="3"/>
-                        </svg>
-                        VER TARJETA PÚBLICA
-                    </a>
-                    <button class="mobile-overlay-copy" @onclick="CopyUrl">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
-                        COPIAR LINK
+                    <div class="mobile-overlay-actions-row">
+                        <a href="@_publicUrl" target="_blank" class="mobile-overlay-link">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                <polyline points="15 3 21 3 21 9"/>
+                                <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                            VER TARJETA PÚBLICA
+                        </a>
+                        <button class="mobile-overlay-copy" @onclick="CopyUrl">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                            </svg>
+                            COPIAR LINK
+                        </button>
+                    </div>
+                    <button class="mobile-overlay-save-btn @(!_hasUnsavedChanges && !_isSaving ? "mobile-save-btn-idle" : "")" @onclick="SaveCard" disabled="@(_isSaving || !_hasUnsavedChanges)">
+                        @if (_isSaving)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Inherit" Style="width:16px;height:16px;" />
+                            <span>GUARDANDO...</span>
+                        }
+                        else
+                        {
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                <polyline points="17 21 17 13 7 13 7 21"/>
+                                <polyline points="7 3 7 8 15 8"/>
+                            </svg>
+                            <span>GUARDAR CAMBIOS</span>
+                        }
                     </button>
                 </div>
             </div>
@@ -2549,18 +2924,357 @@ else
     }
 
     /* ─────────────────────────────────────────────────────────
-       TOGGLE GRID (Action Buttons)
+       iOS SETTINGS-STYLE SHARED FOUNDATION
        ───────────────────────────────────────────────────────── */
+    .ios-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        min-height: 52px;
+        background: var(--dt-surface-2, #162234);
+        border-radius: var(--dt-radius-lg, 12px);
+        cursor: pointer;
+        transition: background var(--dt-transition-fast, 150ms ease);
+    }
+
+    .ios-row:hover {
+        background: var(--dt-hover-surface, #17243A);
+    }
+
+    .ios-row + .ios-row {
+        margin-top: 8px;
+    }
+
+    .ios-icon-badge {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+        font-size: 1.125rem;
+    }
+
+    .ios-row-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .ios-row-primary {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--dt-text-primary, #E5E7EB);
+        line-height: 1.3;
+    }
+
+    .ios-row-secondary {
+        font-size: 0.8125rem;
+        color: var(--dt-text-secondary, #9CA3AF);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+    }
+
+    .ios-row-chevron {
+        color: var(--dt-text-muted, #6B7280);
+        flex-shrink: 0;
+        font-size: 1.25rem;
+        opacity: 0.5;
+    }
+
+    .ios-rows-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .ios-rows-list .ios-row + .ios-row {
+        margin-top: 6px;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       ACTION BUTTONS (iOS Toggle Rows)
+       ───────────────────────────────────────────────────────── */
+    .action-toggle-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .action-toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 16px;
+        min-height: 56px;
+        background: var(--dt-surface-2, #162234);
+        border-radius: var(--dt-radius-lg, 12px);
+        transition: background var(--dt-transition-fast, 150ms ease);
+    }
+
+    .action-toggle-row:hover {
+        background: var(--dt-hover-surface, #17243A);
+    }
+
+    .action-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .action-icon-save { background: linear-gradient(135deg, var(--dt-primary-500, #8B5CF6), var(--dt-primary-600, #7C3AED)); }
+    .action-icon-whatsapp { background: linear-gradient(135deg, #25D366, #128C7E); }
+    .action-icon-call { background: linear-gradient(135deg, #3B82F6, #2563EB); }
+    .action-icon-email { background: linear-gradient(135deg, #F59E0B, #D97706); }
+
+    .action-label {
+        flex: 1;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--dt-text-primary, #E5E7EB);
+    }
+
+    .action-toggle-row .mud-switch {
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       SOCIAL PROFILES (Display Rows + Inline Edit)
+       ───────────────────────────────────────────────────────── */
+    .badge-linkedin { background: linear-gradient(135deg, #0A66C2, #004182); }
+    .badge-instagram { background: linear-gradient(135deg, #E4405F, #C13584); }
+    .badge-facebook { background: linear-gradient(135deg, #1877F2, #0D5DC7); }
+    .badge-youtube { background: linear-gradient(135deg, #FF0000, #CC0000); }
+    .badge-twitter { background: linear-gradient(135deg, #1DA1F2, #0D8DDB); }
+    .badge-website { background: linear-gradient(135deg, #6366F1, #4F46E5); }
+
+    .social-row-editing {
+        padding: 10px 16px;
+        background: var(--dt-surface-2, #162234);
+        border-radius: var(--dt-radius-lg, 12px);
+        border: 1px solid var(--dt-primary-500, #8B5CF6);
+    }
+
+    .social-row-editing + .ios-row,
+    .ios-row + .social-row-editing {
+        margin-top: 6px;
+    }
+
+    .social-edit-btn {
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 150ms ease;
+    }
+
+    .social-edit-save {
+        background: var(--dt-primary-500, #8B5CF6);
+        color: white;
+    }
+
+    .social-edit-save:hover {
+        background: var(--dt-primary-600, #7C3AED);
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       CONTACT INFO (Centered Header + Email Row + Phone Cards)
+       ───────────────────────────────────────────────────────── */
+    .contact-centered-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 8px 0 20px;
+    }
+
+    .contact-header-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #14B8A6, #0D9488);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-bottom: 14px;
+        font-size: 1.5rem;
+    }
+
+    .contact-header-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--dt-text-primary, #E5E7EB);
+        margin: 0 0 4px;
+    }
+
+    .contact-header-subtitle {
+        font-size: 0.875rem;
+        color: var(--dt-text-secondary, #9CA3AF);
+        margin: 0;
+    }
+
+    .contact-email-row {
+        margin-bottom: 16px;
+    }
+
+    .contact-email-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--dt-surface-3, #1E293B);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--dt-text-secondary, #9CA3AF);
+        flex-shrink: 0;
+    }
+
+    .contact-subsection-title {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--dt-text-secondary, #9CA3AF);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 4px 0 10px 4px;
+    }
+
+    .contact-phone-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        min-height: 72px;
+        background: var(--dt-surface-2, #162234);
+        border-radius: var(--dt-radius-lg, 12px);
+        cursor: pointer;
+        transition: background var(--dt-transition-fast, 150ms ease);
+    }
+
+    .contact-phone-card:hover {
+        background: var(--dt-hover-surface, #17243A);
+    }
+
+    .contact-phone-card + .contact-phone-card {
+        margin-top: 10px;
+    }
+
+    .phone-card-flag {
+        font-size: 1.75rem;
+        flex-shrink: 0;
+        line-height: 1;
+    }
+
+    .phone-card-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .phone-card-code {
+        font-size: 0.8125rem;
+        color: var(--dt-text-secondary, #9CA3AF);
+        line-height: 1.3;
+    }
+
+    .phone-card-number {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--dt-text-primary, #E5E7EB);
+        line-height: 1.3;
+    }
+
+    .phone-card-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .phone-quick-action {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        cursor: pointer;
+        transition: all 150ms ease;
+        text-decoration: none;
+    }
+
+    .phone-quick-call {
+        background: transparent;
+        color: var(--dt-text-secondary, #9CA3AF);
+    }
+
+    .phone-quick-call:hover {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3B82F6;
+    }
+
+    .phone-quick-wa {
+        background: #25D366;
+        color: white;
+        border-radius: 50%;
+    }
+
+    .phone-quick-wa:hover {
+        background: #1DA855;
+    }
+
+    .contact-edit-inline {
+        padding: 12px 16px;
+        background: var(--dt-surface-2, #162234);
+        border-radius: var(--dt-radius-lg, 12px);
+        border: 1px solid var(--dt-primary-500, #8B5CF6);
+        margin-bottom: 8px;
+    }
+
+    .contact-edit-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--dt-text-secondary, #9CA3AF);
+        margin-bottom: 8px;
+    }
+
+    .contact-edit-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+        justify-content: flex-end;
+    }
+
+    .contact-phone-empty {
+        font-size: 0.8125rem;
+        color: var(--dt-text-muted, #6B7280);
+        padding: 12px 16px;
+        text-align: center;
+        border: 1px dashed var(--dt-border-default, #233044);
+        border-radius: var(--dt-radius-lg, 12px);
+        cursor: pointer;
+    }
+
+    /* Legacy toggle styles kept for desktop compatibility */
     .toggle-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
-    }
-
-    @@media (max-width: 600px) {
-        .toggle-grid {
-            grid-template-columns: 1fr;
-        }
     }
 
     .toggle-item {
@@ -3318,10 +4032,18 @@ else
         overflow: hidden;
     }
 
+    .phone-avatar-image {
+        position: relative;
+    }
+
     .phone-avatar-image img {
+        position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
+        border-radius: 50%;
     }
 
     .phone-avatar-initials {
@@ -5089,8 +5811,6 @@ else
     /* ═══════════════════════════════════════════════════════════════
        MOBILE-ONLY ELEMENTS — Hidden by default (desktop)
        ═══════════════════════════════════════════════════════════════ */
-    .mobile-top-bar,
-    .mobile-public-link,
     .mobile-bottom-bar,
     .mobile-preview-overlay {
         display: none;
@@ -5120,141 +5840,22 @@ else
         .editor-layout {
             grid-template-columns: 1fr !important;
             gap: 12px;
-            padding: 0 12px;
+            padding: 0 8px;
         }
 
         .editor-main {
             gap: 12px;
         }
 
-        /* ── MOBILE TOP BAR (sticky) ── */
-        .mobile-top-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            padding: 12px 16px;
-            background: var(--dt-surface-1, #111827);
-            border-bottom: 1px solid var(--dt-border-default, #233044);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }
+        /* ── Reduce section padding for mobile ── */
+        .section-level-1 { padding: 12px !important; }
+        .section-level-2 { padding: 12px !important; }
+        .section-level-3 { padding: 10px 12px !important; }
+        .section-header { padding: 12px 8px; margin-bottom: 12px; }
+        .section-content { padding: 8px 4px; }
 
-        .mobile-top-title {
-            font-size: 0.8125rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            color: var(--dt-text-primary, #E5E7EB);
-        }
-
-        .mobile-top-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .mobile-status-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            border-radius: 9999px;
-            font-size: 0.6875rem;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-        }
-
-        .mobile-chip-saving {
-            background: var(--dt-info-bg, rgba(37, 99, 235, 0.1));
-            color: var(--dt-info, #2563EB);
-            border: 1px solid var(--dt-info-border, rgba(37, 99, 235, 0.3));
-        }
-
-        .mobile-chip-unsaved {
-            background: var(--dt-warning-bg, rgba(217, 119, 6, 0.1));
-            color: var(--dt-warning, #D97706);
-            border: 1px solid var(--dt-warning-border, rgba(217, 119, 6, 0.3));
-        }
-
-        .mobile-chip-saved {
-            background: var(--dt-success-bg, rgba(22, 163, 74, 0.1));
-            color: var(--dt-success, #16A34A);
-            border: 1px solid var(--dt-success-border, rgba(22, 163, 74, 0.3));
-        }
-
-        .mobile-preview-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            min-height: 44px;
-            min-width: 44px;
-            border-radius: var(--dt-radius-lg, 12px);
-            border: 1px solid var(--dt-border-default, #233044);
-            background: var(--dt-surface-2, #162234);
-            color: var(--dt-text-primary, #E5E7EB);
-            cursor: pointer;
-            transition: background 150ms ease, border-color 150ms ease;
-        }
-
-        .mobile-preview-toggle:hover,
-        .mobile-preview-toggle:active {
-            background: var(--dt-accent-primary, #8B5CF6);
-            border-color: var(--dt-accent-primary, #8B5CF6);
-            color: #fff;
-        }
-
-        /* ── MOBILE PUBLIC LINK ── */
-        .mobile-public-link {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 10px 16px;
-            background: var(--dt-surface-1, #111827);
-            border-bottom: 1px solid var(--dt-border-default, #233044);
-        }
-
-        .mobile-link-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .mobile-link-url {
-            flex: 1;
-            font-size: 0.75rem;
-            color: var(--dt-text-secondary, #9CA3AF);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font-family: 'SF Mono', 'Fira Code', monospace;
-        }
-
-        .mobile-copy-btn {
-            padding: 6px 14px;
-            min-height: 32px;
-            border-radius: 8px;
-            border: 1px solid var(--dt-accent-primary, #8B5CF6);
-            background: transparent;
-            color: var(--dt-accent-primary, #8B5CF6);
-            font-size: 0.6875rem;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            cursor: pointer;
-            transition: background 150ms ease;
-            white-space: nowrap;
-        }
-
-        .mobile-copy-btn:active {
-            background: rgba(139, 92, 246, 0.15);
-        }
-
-        .mobile-link-hint {
-            font-size: 0.6875rem;
-            color: var(--dt-text-muted, #6B7280);
+        .mobile-bar-hidden {
+            display: none !important;
         }
 
         /* ── MOBILE BOTTOM BAR (fixed) ── */
@@ -5263,10 +5864,10 @@ else
             align-items: center;
             gap: 8px;
             position: fixed;
-            bottom: 0;
+            bottom: 64px;
             left: 0;
             right: 0;
-            z-index: 99;
+            z-index: 1100;
             padding: 12px 16px;
             background: var(--dt-surface-1, #111827);
             border-top: 1px solid var(--dt-border-default, #233044);
@@ -5275,10 +5876,9 @@ else
             transition: transform 200ms ease, opacity 200ms ease;
         }
 
-        .mobile-bottom-hidden {
-            transform: translateY(100%);
-            opacity: 0;
-            pointer-events: none;
+        .mobile-save-btn-idle {
+            opacity: 0.5;
+            background: var(--dt-surface-2, #162234) !important;
         }
 
         .mobile-save-btn {
@@ -5352,7 +5952,7 @@ else
             display: flex;
             flex-direction: column;
             height: 100%;
-            max-height: 100dvh;
+            max-height: calc(100dvh - 64px);
             overflow: hidden;
         }
 
@@ -5396,28 +5996,64 @@ else
 
         .mobile-overlay-body {
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding: 20px 16px;
-            -webkit-overflow-scrolling: touch;
+            padding: 8px 12px;
         }
 
         .mobile-overlay-body .iphone-frame {
-            width: 100%;
-            max-width: 340px;
-            transform: scale(0.95);
+            --phone-radius: 44px;
+            --screen-radius: 36px;
+            width: 92vw;
+            max-width: 400px;
+            height: auto;
+            aspect-ratio: 9 / 19.5;
+            flex-shrink: 0;
         }
 
         .mobile-overlay-footer {
             display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 8px;
-            padding: 12px 16px;
-            background: var(--dt-surface-1, #111827);
-            border-top: 1px solid var(--dt-border-default, #233044);
+            padding: 10px 16px 20px;
             flex-shrink: 0;
+        }
+
+        .mobile-overlay-actions-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mobile-overlay-save-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            min-height: 44px;
+            border-radius: var(--dt-radius-lg, 12px);
+            border: none;
+            background: var(--dt-accent-primary, #8B5CF6);
+            color: #fff;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            transition: background 150ms ease, opacity 150ms ease;
+        }
+
+        .mobile-overlay-save-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .mobile-overlay-save-btn:active:not(:disabled) {
+            background: var(--dt-accent-secondary, #7C3AED);
         }
 
         .mobile-overlay-link {
@@ -5517,16 +6153,23 @@ else
             flex-shrink: 0;
         }
 
-        /* ── Identity avatar — stacked ── */
+        /* ── Identity avatar — keep on right side on mobile ── */
         .identity-header-with-avatar {
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
         }
 
         .identity-avatar-section {
-            width: 100%;
-            display: flex;
-            justify-content: center;
+            flex-shrink: 0;
             margin-top: 8px;
+        }
+
+        .identity-avatar-section .mud-avatar {
+            width: 56px !important;
+            height: 56px !important;
+        }
+
+        .change-photo-upload {
+            display: none;
         }
 
         /* ── Toggle grid — 1 column on mobile for readability ── */
@@ -5558,61 +6201,44 @@ else
         }
 
         /* ─────────────────────────────────────────────
-           CONTACT GROUP — phone/whatsapp on mobile
+           CONTACT INFO — iOS-style on mobile
            ───────────────────────────────────────────── */
-        .contact-group {
-            grid-column: 1 / -1;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+        .contact-centered-header {
+            display: none;
         }
 
-        .contact-group-label {
-            display: block !important;
-            font-size: 0.8rem;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: var(--dt-text-secondary, #8899AA);
-            padding: 4px 0 0;
-        }
-
-        .phone-row {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
+        .contact-edit-inline .phone-row {
+            display: grid !important;
+            grid-template-columns: 100px 1fr !important;
             gap: 8px;
-            align-items: flex-start;
-            grid-column: 1 / -1;
         }
 
-        /* MudBlazor wraps components in .mud-input-control */
-        .phone-row .country-select,
-        .phone-row > .mud-input-control:first-child {
-            flex: 0 0 100px !important;
-            width: 100px !important;
+        .contact-edit-inline .phone-row > * {
             min-width: 0 !important;
-            max-width: 100px !important;
+            width: 100% !important;
         }
 
-        .phone-row .phone-input,
-        .phone-row > .mud-input-control:last-child {
-            flex: 1 1 0 !important;
-            min-width: 0 !important;
-            width: auto !important;
-        }
-
-        /* Prevent MudBlazor label overflow in narrow fields */
-        .phone-row .mud-input-label {
+        .contact-edit-inline .phone-row .mud-input-label {
             font-size: 0.75rem !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
         }
 
-        /* ── Social profiles — compact on mobile ── */
-        .section-level-3 .form-grid {
-            gap: 8px !important;
+        /* ── Social profiles — iOS rows compact on mobile ── */
+        .ios-rows-list .ios-row {
+            padding: 12px 14px;
+            min-height: 48px;
+        }
+
+        .ios-icon-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 7px;
+        }
+
+        .social-row-editing {
+            padding: 10px 12px;
         }
 
         .section-level-3 .form-row {
@@ -5636,6 +6262,15 @@ else
             overflow: hidden !important;
         }
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       EXTRA-SMALL MOBILE — ≤ 359px (stack phone fields)
+       ═══════════════════════════════════════════════════════════════ */
+    @@media (max-width: 359px) {
+        .phone-row {
+            grid-template-columns: 1fr !important;
+        }
+    }
 </style>
 
 @code {
@@ -5654,6 +6289,8 @@ else
     private bool _socialSectionExpanded = false;
     private bool _actionButtonsSectionExpanded = false;  // Closed by default
     private bool _isUploading = false;
+    private string? _editingSocialField;
+    private string? _editingContactField;
     
     // Appearance Section
     private bool _appearanceSectionExpanded = false;
@@ -6828,7 +7465,58 @@ else
 
     private int GetPhoneMaxLength() => _countries.FirstOrDefault(c => c.Code == _card?.PhoneCountryCode)?.DigitLength ?? 15;
     private int GetWhatsAppMaxLength() => _countries.FirstOrDefault(c => c.Code == _card?.WhatsAppCountryCode)?.DigitLength ?? 15;
-    
+
+    private CountryCode? GetCountryForCode(string? code) => _countries.FirstOrDefault(c => c.Code == code);
+
+    private string GetWhatsAppUrl()
+    {
+        var code = _card?.WhatsAppCountryCode?.TrimStart('+') ?? "";
+        var number = _card?.WhatsAppNumber ?? "";
+        return "https://wa.me/" + code + number;
+    }
+
+    private string GetCountryShortName(string? code)
+    {
+        if (code == "+503") return "SV";
+        if (code == "+52") return "MX";
+        if (code == "+1") return "US";
+        if (code == "+54") return "AR";
+        if (code == "+57") return "CO";
+        if (code == "+34") return "ES";
+        if (code == "+51") return "PE";
+        if (code == "+56") return "CL";
+        if (code == "+502") return "GT";
+        if (code == "+506") return "CR";
+        return "";
+    }
+
+    private void StartEditSocial(string field) { _editingSocialField = field; StateHasChanged(); }
+    private void StopEditSocial() { _editingSocialField = null; MarkUnsaved(); StateHasChanged(); }
+    private void EditLinkedIn() => StartEditSocial("LinkedIn");
+    private void EditInstagram() => StartEditSocial("Instagram");
+    private void EditFacebook() => StartEditSocial("Facebook");
+    private void EditYouTube() => StartEditSocial("YouTube");
+    private void EditTwitter() => StartEditSocial("Twitter");
+    private void EditWebsite() => StartEditSocial("Website");
+
+    private string GetSocialValue(string field)
+    {
+        if (field == "LinkedIn") return _socialLinks?.LinkedIn ?? "";
+        if (field == "Instagram") return _socialLinks?.Instagram ?? "";
+        if (field == "Facebook") return _socialLinks?.Facebook ?? "";
+        if (field == "YouTube") return _socialLinks?.YouTube ?? "";
+        if (field == "Twitter") return _socialLinks?.Twitter ?? "";
+        if (field == "Website") return _socialLinks?.Website ?? "";
+        return "";
+    }
+    private void StartEditContact(string field) { _editingContactField = field; StateHasChanged(); }
+    private void StopEditContact() { _editingContactField = null; MarkUnsaved(); StateHasChanged(); }
+    private void EditEmail() => StartEditContact("email");
+    private void EditPhone() => StartEditContact("phone");
+    private void EditWhatsApp() => StartEditContact("whatsapp");
+    private string GetPhoneTelUrl() => "tel:" + (_card?.PhoneCountryCode ?? "") + (_card?.Phone ?? "");
+    private string GetWhatsAppTelUrl() => "tel:" + (_card?.WhatsAppCountryCode ?? "") + (_card?.WhatsAppNumber ?? "");
+
     private string GetBioFeedback()
     {
         var length = _card?.Bio?.Length ?? 0;
