@@ -5951,7 +5951,7 @@ else
         .mobile-preview-content {
             display: flex;
             flex-direction: column;
-            height: 100%;
+            flex: 1;
             max-height: calc(100dvh - 64px);
             overflow: hidden;
         }
@@ -5997,21 +5997,21 @@ else
         .mobile-overlay-body {
             flex: 1;
             min-height: 0;
-            overflow-y: auto;
+            overflow: hidden;
             -webkit-overflow-scrolling: touch;
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: stretch;
             padding: 8px 12px;
         }
 
         .mobile-overlay-body .iphone-frame {
             --phone-radius: 44px;
             --screen-radius: 36px;
-            width: 92vw;
+            width: min(92vw, 400px);
             max-width: 400px;
             height: auto;
-            aspect-ratio: 9 / 19.5;
+            overflow: hidden;
             flex-shrink: 0;
         }
 
